@@ -1,0 +1,11 @@
+﻿map2.php
+config.php
+menu2.php
+docs2/
+venv/
+*.zip
+*.sql
+error_log
+storage/
+__pycache__/
+*.log
