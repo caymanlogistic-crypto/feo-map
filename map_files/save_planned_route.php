@@ -50,28 +50,25 @@ function formatDateRu($value): string
     return date('d.m.Y H:i', $ts);
 }
 
-function parseNotifySecretKey($notifyPath): string
+function getMaxNotifyKey(): string
 {
-    if (!is_file($notifyPath)) {
-        return '';
+    global $maxNotifyKey;
+    if (!empty($maxNotifyKey)) {
+        return (string)$maxNotifyKey;
     }
-    $content = @file_get_contents($notifyPath);
-    if (!is_string($content) || $content === '') {
-        return '';
-    }
-    if (preg_match("/\\$secretKey\\s*=\\s*'([^']+)'/u", $content, $m)) {
-        return (string)$m[1];
-    }
+    $envKey = getenv('MAX_NOTIFY_KEY');
+    if (is_string($envKey) && trim($envKey) !== '') return trim($envKey);
+    if (!empty($_SERVER['MAX_NOTIFY_KEY'])) return (string)$_SERVER['MAX_NOTIFY_KEY'];
+    if (!empty($_ENV['MAX_NOTIFY_KEY'])) return (string)$_ENV['MAX_NOTIFY_KEY'];
     return '';
 }
 
-function sendMaxNotification($text): bool
+function sendMaxNotification($text): array
 {
-    $notifyPath = dirname(__DIR__) . '/notify_max.php';
-    $secretKey = parseNotifySecretKey($notifyPath);
+    $secretKey = getMaxNotifyKey();
     if ($secretKey === '') {
-        mapError('MAX notify: secret key not found');
-        return false;
+        mapError('MAX notify: key is not configured');
+        return ['success' => false, 'error' => 'MAX notify key is not configured'];
     }
 
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
@@ -80,7 +77,7 @@ function sendMaxNotification($text): bool
     $baseDir = dirname(dirname($scriptName));
     if ($host === '' || $baseDir === '') {
         mapError('MAX notify: host/baseDir not resolved', ['host' => $host, 'script' => $scriptName]);
-        return false;
+        return ['success' => false, 'error' => 'MAX notify base URL is not resolved'];
     }
     $url = sprintf('%s://%s%s/notify_max.php?key=%s&text=%s',
         $scheme,
@@ -99,8 +96,9 @@ function sendMaxNotification($text): bool
     }
     if (!$ok) {
         mapError('MAX notify failed', ['url' => $url, 'response' => $resp]);
+        return ['success' => false, 'error' => 'MAX notify request failed'];
     }
-    return $ok;
+    return ['success' => true, 'error' => null];
 }
 
 function getDriverLabelById(PDO $pdo, $driverId): string
@@ -190,12 +188,12 @@ function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTrans
 {
     $ids = normalizeIdsString($data['zayavki_ids'] ?? '');
     if (empty($ids)) {
-        return [false, 'Список заявок пустой', []];
+        return [false, 'Список заявок пустой', [], ['zayavki_ids' => 'Список заявок пустой']];
     }
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
     $stmtIds = $pdo->prepare("SELECT zayavka_id FROM feo WHERE zayavka_id IN ({$placeholders})");
     if (!$stmtIds || !$stmtIds->execute($ids)) {
-        return [false, 'Не удалось проверить заявки', []];
+        return [false, 'Не удалось проверить заявки', [], ['zayavki_ids' => 'Не удалось проверить заявки']];
     }
     $existsRows = $stmtIds->fetchAll(PDO::FETCH_COLUMN);
     $existsMap = [];
@@ -206,7 +204,7 @@ function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTrans
     }
     foreach ($ids as $id) {
         if (!isset($existsMap[$id])) {
-            return [false, "Заявка {$id} не существует", []];
+            return [false, "Заявка {$id} не существует", [], ['zayavki_ids' => "Заявка {$id} не существует"]];
         }
     }
 
@@ -219,21 +217,24 @@ function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTrans
     $plannedTo = null;
     if ($plannedFromRaw !== '') {
         $ts = strtotime($plannedFromRaw);
-        if ($ts === false) return [false, 'Некорректная дата "Планируемое с"', []];
+        if ($ts === false) return [false, 'Некорректная дата "С"', [], ['planned_start_date_from' => 'Некорректная дата "С"']];
         $plannedFrom = date('Y-m-d H:i:s', $ts);
     }
     if ($plannedToRaw !== '') {
         $ts = strtotime($plannedToRaw);
-        if ($ts === false) return [false, 'Некорректная дата "Планируемое по"', []];
+        if ($ts === false) return [false, 'Некорректная дата "По"', [], ['planned_start_date_to' => 'Некорректная дата "По"']];
         $plannedTo = date('Y-m-d H:i:s', $ts);
     }
     if ($plannedFrom !== null && $plannedTo !== null && strtotime($plannedFrom) > strtotime($plannedTo)) {
-        return [false, 'Дата "Планируемое с" не может быть позже "Планируемое по"', []];
+        return [false, 'Дата "С" не может быть позже "По"', [], [
+            'planned_start_date_from' => 'Дата "С" не может быть позже "По"',
+            'planned_start_date_to' => 'Дата "С" не может быть позже "По"'
+        ]];
     }
 
     $cost = null;
     if ($costRaw !== null && $costRaw !== '') {
-        if (!is_numeric($costRaw)) return [false, 'Стоимость должна быть числом', []];
+        if (!is_numeric($costRaw)) return [false, 'Стоимость должна быть числом', [], ['cost' => 'Стоимость должна быть числом']];
         $cost = (float)$costRaw;
     }
 
@@ -244,9 +245,14 @@ function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTrans
             $driverOk = (bool)$stmtDriver->fetch(PDO::FETCH_ASSOC);
         }
     }
-    if (!$driverOk && $requireFullForFoundTransition) return [false, 'Не выбран корректный водитель', []];
-    if ($requireFullForFoundTransition && ($plannedFrom === null || $plannedTo === null)) return [false, 'Для перевода в "Исполнит. найден" обязательны обе даты', []];
-    if ($requireFullForFoundTransition && $cost === null) return [false, 'Для перевода в "Исполнит. найден" обязательна стоимость', []];
+    if (!$driverOk && $requireFullForFoundTransition) return [false, 'Не выбран корректный водитель', [], ['driver_id' => 'Не выбран корректный водитель']];
+    if ($requireFullForFoundTransition && ($plannedFrom === null || $plannedTo === null)) {
+        return [false, 'Для перевода в "Исполнит. найден" обязательны обе даты', [], [
+            'planned_start_date_from' => 'Обязательная дата',
+            'planned_start_date_to' => 'Обязательная дата'
+        ]];
+    }
+    if ($requireFullForFoundTransition && $cost === null) return [false, 'Для перевода в "Исполнит. найден" обязательна стоимость', [], ['cost' => 'Обязательная стоимость']];
 
     return [true, '', [
         'zayavki_ids_canonical' => implode(',', $ids),
@@ -255,7 +261,7 @@ function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTrans
         'planned_start_date_from' => $plannedFrom,
         'planned_start_date_to' => $plannedTo,
         'cost' => $cost,
-    ]];
+    ], []];
 }
 
 function buildFoundDiffMessage(array $before, array $after, int $flightId): string
@@ -314,9 +320,9 @@ try {
             $current = loadFlightSnapshot($pdo, $routeId);
             $requireFull = is_array($current) && (string)$current['status'] === STATUS_FOUND;
         }
-        [$ok, $msg, $normalized] = validateRouteData($pdo, $data, $requireFull);
+        [$ok, $msg, $normalized, $errors] = validateRouteData($pdo, $data, $requireFull);
         if (!$ok) {
-            jsonOut(['success' => false, 'message' => $msg]);
+            jsonOut(['success' => false, 'message' => $msg, 'errors' => $errors]);
         }
 
         if ($routeId > 0) {
@@ -348,14 +354,20 @@ try {
             ]);
 
             $after = loadFlightSnapshot($pdo, $routeId);
+            $notifyResult = ['success' => true, 'error' => null];
             if ($after && (string)($before['status'] ?? '') === STATUS_FOUND) {
                 $text = buildFoundDiffMessage($before, $after, $routeId);
                 if ($text !== '') {
-                    sendMaxNotification($text);
+                    $notifyResult = sendMaxNotification($text);
                 }
             }
 
-            jsonOut(['success' => true, 'message' => 'Рейс обновлён']);
+            jsonOut([
+                'success' => true,
+                'message' => 'Рейс обновлён',
+                'notify_success' => (bool)$notifyResult['success'],
+                'notify_error' => $notifyResult['error']
+            ]);
         }
 
         $stmt = $pdo->prepare("
@@ -403,9 +415,9 @@ try {
         }
 
         if ($target === STATUS_FOUND) {
-            [$ok, $msg, $normalized] = validateRouteData($pdo, $data, true);
+            [$ok, $msg, $normalized, $errors] = validateRouteData($pdo, $data, true);
             if (!$ok) {
-                jsonOut(['success' => false, 'message' => $msg]);
+                jsonOut(['success' => false, 'message' => $msg, 'errors' => $errors]);
             }
             $comment = trim((string)($data['name'] ?? ''));
             $stmtApply = $pdo->prepare("
@@ -446,8 +458,13 @@ try {
                 ':actual_start' => date('Y-m-d H:i:s', $actualTs),
                 ':id' => $routeId,
             ]);
-            sendMaxNotification("Рейс #{$routeId} переведен в статус ВЫВОЗНАЧАЛСЯ\n\nПодключается мониторинг выполнения перевозки и логика трекера.");
-            jsonOut(['success' => true, 'message' => 'Рейс переведен в ВЫВОЗНАЧАЛСЯ']);
+            $notifyResult = sendMaxNotification("Рейс #{$routeId} переведен в статус ВЫВОЗНАЧАЛСЯ\n\nПодключается мониторинг выполнения перевозки и логика трекера.");
+            jsonOut([
+                'success' => true,
+                'message' => 'Рейс переведен в ВЫВОЗНАЧАЛСЯ',
+                'notify_success' => (bool)$notifyResult['success'],
+                'notify_error' => $notifyResult['error']
+            ]);
         }
 
         $stmt = $pdo->prepare('UPDATE flights SET status = :status WHERE id = :id LIMIT 1');
@@ -462,13 +479,23 @@ try {
                 "Даты:\n" . formatDateRu($after['planned_start_date_from']) . " — " . formatDateRu($after['planned_start_date_to']) . "\n\n" .
                 "Стоимость:\n" . ($after['cost'] === null ? 'не указана' : $after['cost']) . "\n\n" .
                 "Начинаем подготовку транспортных документов на указанные даты и указанного водителя.";
-            sendMaxNotification($message);
-            jsonOut(['success' => true, 'message' => 'Рейс переведен в ИСПОЛНИТЕЛЬНАЙДЕН']);
+            $notifyResult = sendMaxNotification($message);
+            jsonOut([
+                'success' => true,
+                'message' => 'Рейс переведен в ИСПОЛНИТЕЛЬНАЙДЕН',
+                'notify_success' => (bool)$notifyResult['success'],
+                'notify_error' => $notifyResult['error']
+            ]);
         }
 
         if ($target === STATUS_PLANNED) {
-            sendMaxNotification("Рейс #{$routeId} возвращён в статус ПЛАНИРУЕМЫЙ\n\nПодготовку документов необходимо проверить/приостановить.");
-            jsonOut(['success' => true, 'message' => 'Рейс возвращен в ПЛАНИРУЕМЫЙ']);
+            $notifyResult = sendMaxNotification("Рейс #{$routeId} возвращён в статус ПЛАНИРУЕМЫЙ\n\nПодготовку документов необходимо проверить/приостановить.");
+            jsonOut([
+                'success' => true,
+                'message' => 'Рейс возвращен в ПЛАНИРУЕМЫЙ',
+                'notify_success' => (bool)$notifyResult['success'],
+                'notify_error' => $notifyResult['error']
+            ]);
         }
     }
 

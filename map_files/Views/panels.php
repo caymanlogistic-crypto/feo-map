@@ -100,12 +100,13 @@
                 <select class="flight-modal-input" id="edit_driver_id"></select>
             </div>
             <div>
-                <label class="flight-modal-label" for="edit_planned_start_date_from">Планируемое с</label>
-                <input class="flight-modal-input" type="datetime-local" id="edit_planned_start_date_from">
+                <label class="flight-modal-label" for="edit_planned_start_date_from">Вывоз запланирован на даты</label>
+                <label class="flight-modal-label flight-sub-label" for="edit_planned_start_date_from">С</label>
+                <input class="flight-modal-input" type="date" id="edit_planned_start_date_from">
             </div>
             <div>
-                <label class="flight-modal-label" for="edit_planned_start_date_to">Планируемое по</label>
-                <input class="flight-modal-input" type="datetime-local" id="edit_planned_start_date_to">
+                <label class="flight-modal-label flight-sub-label" for="edit_planned_start_date_to">По</label>
+                <input class="flight-modal-input" type="date" id="edit_planned_start_date_to">
             </div>
             <div>
                 <label class="flight-modal-label" for="edit_cost">Стоимость</label>
@@ -118,6 +119,7 @@
         </div>
 
         <div class="flight-change-preview" id="flightChangePreview" style="display:none;"></div>
+        <div class="flight-validation-errors" id="flightValidationErrors" style="display:none;"></div>
 
         <div class="workflow-section">
             <div class="workflow-title">Изменение данных рейса</div>
@@ -171,7 +173,7 @@
         <input type="hidden" id="start_flight_id" value="">
         <input type="hidden" id="start_target_status" value="">
         <label class="flight-modal-label" for="start_actual_start_date">Дата начала вывоза</label>
-        <input class="flight-modal-input" type="datetime-local" id="start_actual_start_date">
+        <input class="flight-modal-input" type="date" id="start_actual_start_date">
         <div class="flight-change-preview" id="transitionConfirmPreview"></div>
         <div class="flight-modal-actions">
             <button class="route-action-btn route-transfer-start-btn route-action-main" id="startConfirmBtn">Подтвердить</button>
