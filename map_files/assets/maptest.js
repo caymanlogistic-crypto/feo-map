@@ -116,19 +116,29 @@ const bootstrapCustomLayers = (mapBootstrap.customLayers && typeof mapBootstrap.
 let currentActiveTrackers = Array.isArray(initialTrackers) ? initialTrackers : [];
 let currentAllTrackers = Array.isArray(allTrackers) ? allTrackers : [];
 let currentEditingMeta = null;
+let currentFoundRoutes = Array.isArray(foundRoutesData) ? foundRoutesData : [];
+let managerScopeId = '';
+let managerScopeDriverIds = new Set();
+let managerScopePlates = new Set();
+let managerScopeInitialized = false;
+const MANAGER_STORAGE_KEY = 'map_selected_manager_id';
 const foundRoutesById = {};
-if (Array.isArray(foundRoutesData)) {
-    foundRoutesData.forEach(route => {
-        if (route && route.id !== undefined && route.id !== null) {
-            foundRoutesById[String(route.id)] = route;
-        }
-    });
+function rebuildFoundRoutesById() {
+    Object.keys(foundRoutesById).forEach(key => delete foundRoutesById[key]);
+    if (Array.isArray(currentFoundRoutes)) {
+        currentFoundRoutes.forEach(route => {
+            if (route && route.id !== undefined && route.id !== null) {
+                foundRoutesById[String(route.id)] = route;
+            }
+        });
+    }
 }
+rebuildFoundRoutesById();
 
 function getTrackersForCurrentMode() {
     if (transportDisplayMode === 'none') return [];
-    if (transportDisplayMode === 'all') return Array.isArray(currentAllTrackers) ? currentAllTrackers : [];
-    return Array.isArray(currentActiveTrackers) ? currentActiveTrackers : [];
+    if (transportDisplayMode === 'all') return managerFilteredTrackers(Array.isArray(currentAllTrackers) ? currentAllTrackers : []);
+    return managerFilteredTrackers(Array.isArray(currentActiveTrackers) ? currentActiveTrackers : []);
 }
 
 function renderTrackersByMode() {
@@ -173,6 +183,41 @@ function createTrackerBalloon(tracker) {
         <span style="color:#888; font-size:11px;">${UI.clock} ${tracker.time_diff_text} \u043d\u0430\u0437\u0430\u0434</span><br>
         <span style="color:#555; font-size:11px;">${UI.pin} ${tracker.lat.toFixed(5)}, ${tracker.lon.toFixed(5)}</span>
     </div>`;
+}
+
+function extractPlateFromText(value) {
+    const text = String(value || '').toUpperCase();
+    const m = text.match(/[\u0410-\u042f\u0401A-Z]\d{3}[\u0410-\u042f\u0401A-Z]{2}\d{2,3}/u);
+    return m ? m[0] : '';
+}
+
+function rebuildManagerScopeKeys(plannedRoutes, foundRoutes) {
+    managerScopeDriverIds = new Set();
+    managerScopePlates = new Set();
+    const allRoutes = []
+        .concat(Array.isArray(plannedRoutes) ? plannedRoutes : [])
+        .concat(Array.isArray(foundRoutes) ? foundRoutes : []);
+    allRoutes.forEach(route => {
+        if (!route || typeof route !== 'object') return;
+        const driverId = Number(route.driver_id || 0);
+        if (driverId > 0) managerScopeDriverIds.add(String(driverId));
+        const plate = extractPlateFromText(route.driver_label || route.name || '');
+        if (plate) managerScopePlates.add(plate);
+    });
+}
+
+function managerFilteredTrackers(trackers) {
+    if (!managerScopeId) return trackers;
+    if (!managerScopeDriverIds.size && !managerScopePlates.size) return [];
+
+    return (Array.isArray(trackers) ? trackers : []).filter(tracker => {
+        if (!tracker || typeof tracker !== 'object') return false;
+        const matchedDriver = tracker.matched_driver_id ? String(tracker.matched_driver_id) : '';
+        if (matchedDriver && managerScopeDriverIds.has(matchedDriver)) return true;
+        const plate = extractPlateFromText(tracker.name || tracker.short_name || '');
+        if (plate && managerScopePlates.has(plate)) return true;
+        return false;
+    });
 }
 
 function formatDriverCompactLabel(label) {
@@ -1056,6 +1101,65 @@ function buildRouteManageMenu(routeId, source) {
     return `<button class="route-manage-btn" title="${UI.labelEditRoute}" aria-label="${UI.labelEditRoute}" onclick="event.stopPropagation(); openFlightEditModal(${routeId}, '${source}')"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75l11-11.03-3.75-3.75L3 17.25zm17.71-10.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.84 1.84 3.75 3.75 2.01-1.67z"/></svg></button>`;
 }
 
+async function loadManagers() {
+    const select = document.getElementById('managerScopeSelect');
+    const errorBox = document.getElementById('managerScopeError');
+    if (!select) return;
+    select.disabled = true;
+    if (errorBox) {
+        errorBox.style.display = 'none';
+        errorBox.textContent = '';
+    }
+
+    try {
+        const response = await fetch('map_files/get_managers.php');
+        const data = await response.json();
+        if (!response.ok || !data || !data.success || !Array.isArray(data.managers)) {
+            throw new Error((data && data.message) ? data.message : 'Не удалось загрузить менеджеров');
+        }
+
+        const savedManagerId = String(localStorage.getItem(MANAGER_STORAGE_KEY) || '').trim();
+        select.innerHTML = '<option value="">Показать все</option>';
+        let hasSaved = false;
+        data.managers.forEach(manager => {
+            if (!manager || !manager.id) return;
+            const value = String(manager.id);
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = String(manager.name || (`Менеджер #${value}`));
+            select.appendChild(option);
+            if (savedManagerId === value) {
+                hasSaved = true;
+            }
+        });
+
+        if (savedManagerId && hasSaved) {
+            select.value = savedManagerId;
+            managerScopeId = savedManagerId;
+        } else {
+            select.value = '';
+            managerScopeId = '';
+            if (savedManagerId && !hasSaved) {
+                localStorage.removeItem(MANAGER_STORAGE_KEY);
+            }
+        }
+
+        managerScopeInitialized = true;
+        select.disabled = false;
+        await loadPlannedRoutes();
+    } catch (error) {
+        managerScopeInitialized = true;
+        managerScopeId = '';
+        select.value = '';
+        select.disabled = true;
+        if (errorBox) {
+            errorBox.style.display = 'block';
+            errorBox.textContent = 'Не удалось загрузить менеджеров';
+        }
+        await loadPlannedRoutes();
+    }
+}
+
 function loadPlannedRoutes() {
     const container = document.getElementById('plannedRoutesList');
     const foundContainer = document.getElementById('foundRoutesList');
@@ -1063,9 +1167,12 @@ function loadPlannedRoutes() {
     if (foundContainer) {
         foundContainer.innerHTML = `<div class="route-list-empty">${TXT.loading}</div>`;
     }
-    fetch('map_files/get_planned_routes.php').then(r => r.json()).then(data => {
+    const managerParam = managerScopeId ? `?manager_id=${encodeURIComponent(managerScopeId)}` : '';
+    fetch(`map_files/get_planned_routes.php${managerParam}`).then(r => r.json()).then(data => {
         if(!data.success || !data.routes || !data.routes.length) {
-            container.innerHTML = `<div class="route-list-empty">${TXT.noSavedRoutes}</div>`;
+            container.innerHTML = managerScopeId
+                ? `<div class="route-list-empty">Нет рейсов для выбранного менеджера</div>`
+                : `<div class="route-list-empty">${TXT.noSavedRoutes}</div>`;
         } else {
             container.innerHTML = data.routes.map(r => {
                 const routeMeta = (routeCardsMeta && routeCardsMeta[String(r.id)]) ? routeCardsMeta[String(r.id)] : {};
@@ -1084,11 +1191,18 @@ function loadPlannedRoutes() {
             }).join('');
         }
 
+        currentFoundRoutes = Array.isArray(data.found_routes) ? data.found_routes : [];
+        rebuildFoundRoutesById();
+        rebuildManagerScopeKeys(data.routes, currentFoundRoutes);
+        renderTrackersByMode();
+
         if (foundContainer) {
-            if (!Array.isArray(foundRoutesData) || foundRoutesData.length === 0) {
-                foundContainer.innerHTML = `<div class="route-list-empty">${TXT.noSavedRoutes}</div>`;
+            if (!Array.isArray(currentFoundRoutes) || currentFoundRoutes.length === 0) {
+                foundContainer.innerHTML = managerScopeId
+                    ? `<div class="route-list-empty">Нет рейсов для выбранного менеджера</div>`
+                    : `<div class="route-list-empty">${TXT.noSavedRoutes}</div>`;
             } else {
-                foundContainer.innerHTML = foundRoutesData.map(r => {
+                foundContainer.innerHTML = currentFoundRoutes.map(r => {
                     const zayCount = Number(r.zayavki_count || 0);
                     const totalKg = Number(r.total_kg || 0);
                     const routeCost = (r.cost !== null && r.cost !== undefined && r.cost !== '') ? r.cost : null;
@@ -1299,6 +1413,18 @@ function init() {
             }
         });
     });
+    const managerScopeSelect = document.getElementById('managerScopeSelect');
+    if (managerScopeSelect) {
+        managerScopeSelect.addEventListener('change', async function() {
+            managerScopeId = String(this.value || '').trim();
+            if (managerScopeId) {
+                localStorage.setItem(MANAGER_STORAGE_KEY, managerScopeId);
+            } else {
+                localStorage.removeItem(MANAGER_STORAGE_KEY);
+            }
+            await loadPlannedRoutes();
+        });
+    }
 
     const saveEditBtn = document.getElementById('flightEditSaveBtn');
     const cancelEditBtn = document.getElementById('flightEditCancelBtn');
@@ -1388,7 +1514,7 @@ function init() {
     });
     
     updateMap();
-    loadPlannedRoutes();
+    loadManagers();
     
     if (placemarks.length > 0 || trackerPlacemarks.length > 0) {
         const bounds = map.geoObjects.getBounds();

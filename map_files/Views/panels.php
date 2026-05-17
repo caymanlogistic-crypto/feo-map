@@ -12,6 +12,13 @@
 </div>
 
 <div class="layer-panel">
+    <div class="layer-group manager-scope-group">
+        <div class="layer-group-title">Менеджер</div>
+        <select id="managerScopeSelect" class="manager-scope-select">
+            <option value="">Показать все</option>
+        </select>
+        <div class="manager-scope-error" id="managerScopeError" style="display:none;"></div>
+    </div>
     <h3>Управление слоями</h3>
     <div class="layer-group">
         <div class="layer-group-title">🚚 Рейсы</div>
