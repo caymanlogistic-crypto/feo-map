@@ -18,7 +18,7 @@
 .routes-panel h3 { margin-bottom: 15px; font-size: 14px; border-bottom: 2px solid #9c27b0; padding-bottom: 5px; }
 .routes-title-planned { border-bottom-color: #9c27b0 !important; }
 .routes-title-found { border-bottom-color: #26a69a !important; }
-.route-item { padding: 8px 70px 8px 10px; margin-bottom: 6px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #9c27b0; cursor: pointer; transition: all 0.2s; position: relative; border-bottom: 1px solid rgba(0,0,0,0.04); }
+.route-item { padding: 8px 10px 10px 10px; margin-bottom: 6px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #9c27b0; cursor: pointer; transition: all 0.2s; position: relative; border-bottom: 1px solid rgba(0,0,0,0.04); }
 .route-item:hover { background: #e9ecef; }
 .route-item-planned { border-left-color: #9c27b0; }
 .route-item-planned:hover { background: #f3e5f5; }
@@ -27,6 +27,7 @@
 .route-item-found:hover { background: #e7f4f2; }
 .route-item-found.active { background: #e7f4f2; border-left-color: #1f8f84; box-shadow: inset 0 0 0 1px rgba(38,166,154,0.28); }
 .route-name { font-weight: bold; font-size: 13px; padding-right: 0; } .route-meta { font-size: 11px; color: #6c757d; margin-top: 4px; }
+.route-status-line { font-size: 10px; color: #5f6368; font-weight: 700; margin-bottom: 4px; letter-spacing: .2px; text-transform: uppercase; }
 .route-delete { position: absolute; right: 8px; top: 8px; transform: none; width: 18px; height: 18px; padding: 0; border: 1px solid #dadada; border-radius: 3px; background: #fff; cursor: pointer; font-size: 11px; color: #9e9e9e; opacity: 0.85; line-height: 1; display: inline-flex; align-items: center; justify-content: center; } .route-delete:hover { opacity: 1; color: #d85a5a; border-color: #edcaca; background: #fff8f8; }
 .route-list-empty { text-align: center; color: #888; font-size: 12px; padding: 10px 0; }
 .selection-panel { position: absolute; top: 20px; right: 310px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); padding: 15px; z-index: 1000; width: 280px; max-height: 95vh; overflow-y: auto; display: none; }
@@ -91,3 +92,11 @@
 .flight-modal-input { width: 100%; border: 1px solid #d0d7de; border-radius: 4px; padding: 6px 7px; font-size: 12px; }
 .flight-modal-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .flight-modal-actions .route-action-btn { width: auto; min-width: 0; height: 24px; padding: 0 8px; font-size: 11px; }
+.route-manage { margin-top: 7px; position: relative; display: inline-block; }
+.route-manage-btn { border: 1px solid #d9d9d9; background: #fff; color: #616161; border-radius: 4px; font-size: 11px; padding: 4px 8px; cursor: pointer; }
+.route-manage-btn:hover { background: #f8f8f8; }
+.route-manage.open .route-manage-menu { display: block; }
+.route-manage-menu { display: none; position: absolute; top: 23px; left: 0; min-width: 220px; background: #fff; border: 1px solid #dadada; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 1200; padding: 4px; }
+.route-manage-item { display: block; width: 100%; text-align: left; font-size: 11px; border: 0; background: transparent; padding: 6px 8px; border-radius: 4px; cursor: pointer; color: #404040; }
+.route-manage-item:hover { background: #f1f3f5; }
+.route-manage-danger { color: #b23a3a; }

@@ -89,6 +89,14 @@ UI.msgCoordsNotFound = '\u041a\u043e\u043e\u0440\u0434\u0438\u043d\u0430\u0442\u
 UI.labelEditRoute = '\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0440\u0435\u0439\u0441';
 UI.labelToFound = '\u041f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0432 \u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442. \u043d\u0430\u0439\u0434\u0435\u043d';
 UI.labelToStarted = '\u041f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0432 \u0412\u044b\u0432\u043e\u0437 \u043d\u0430\u0447\u0430\u043b\u0441\u044f';
+UI.routeManage = '\u0423\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u0440\u0435\u0439\u0441\u043e\u043c';
+UI.actionSave = '\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f';
+UI.actionDelete = '\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0440\u0435\u0439\u0441';
+UI.actionBackToPlanned = '\u0412\u0435\u0440\u043d\u0443\u0442\u044c \u0432 \u041f\u041b\u0410\u041d\u0418\u0420\u0423\u0415\u041c\u042b\u0419';
+UI.actionBackToFound = '\u0412\u0435\u0440\u043d\u0443\u0442\u044c \u0432 \u0418\u0421\u041f\u041e\u041b\u041d\u0418\u0422\u0415\u041b\u042c\u041d\u0410\u0419\u0414\u0415\u041d';
+UI.statusLabelPlanned = '\u041f\u041b\u0410\u041d\u0418\u0420\u0423\u0415\u041c\u042b\u0419 \u041c\u0410\u0420\u0428\u0420\u0423\u0422';
+UI.statusLabelFound = '\u0418\u0421\u041f\u041e\u041b\u041d\u0418\u0422\u0415\u041b\u042c \u041d\u0410\u0419\u0414\u0415\u041d';
+UI.statusLabelStarted = '\u0412\u042b\u0412\u041e\u0417 \u041d\u0410\u0427\u0410\u041b\u0421\u042f';
 
 // === TRACKER DATA FROM PHP BOOTSTRAP ===
 const mapBootstrap = (typeof window !== 'undefined' && window.MAP_BOOTSTRAP && typeof window.MAP_BOOTSTRAP === 'object')
@@ -641,10 +649,11 @@ function openStartConfirmModal(routeId) {
 }
 
 async function postRouteAction(action, payload) {
-    const response = await fetch(`maptest.php?action=${encodeURIComponent(action)}`, {
+    const requestPayload = Object.assign({ action }, payload || {});
+    const response = await fetch('map_files/save_planned_route.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload || {})
+        body: JSON.stringify(requestPayload)
     });
     if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -675,7 +684,7 @@ async function saveFlightEdit() {
     };
 
     try {
-        const result = await postRouteAction('route_update_fields', payload);
+        const result = await postRouteAction('save', payload);
         if (result && result.success) {
             window.location.reload();
             return;
@@ -690,7 +699,7 @@ async function saveFlightEdit() {
 async function transferPlannedToFound(routeId) {
     if (!confirm(UI.msgConfirmToFound)) return;
     try {
-        const result = await postRouteAction('route_transfer_to_found', { id: Number(routeId) });
+        const result = await postRouteAction('transition', { id: Number(routeId), target_status: 'found' });
         if (result && result.success) {
             window.location.reload();
             return;
@@ -712,8 +721,9 @@ async function confirmTransferToStarted() {
     }
 
     try {
-        const result = await postRouteAction('route_transfer_to_started', {
+        const result = await postRouteAction('transition', {
             id: flightId,
+            target_status: 'started',
             actual_start_date: dateInput ? dateInput.value : ''
         });
         if (result && result.success) {
@@ -725,6 +735,61 @@ async function confirmTransferToStarted() {
         console.error('confirmTransferToStarted error:', e);
         alert(UI.msgNetworkTransfer);
     }
+}
+
+async function transferToPlanned(routeId) {
+    try {
+        const result = await postRouteAction('transition', { id: Number(routeId), target_status: 'planned_route' });
+        if (result && result.success) {
+            window.location.reload();
+            return;
+        }
+        alert((result && result.message) ? result.message : UI.msgTransferFailed);
+    } catch (e) {
+        console.error('transferToPlanned error:', e);
+        alert(UI.msgNetworkTransfer);
+    }
+}
+
+async function transferToFound(routeId) {
+    try {
+        const result = await postRouteAction('transition', { id: Number(routeId), target_status: 'found' });
+        if (result && result.success) {
+            window.location.reload();
+            return;
+        }
+        alert((result && result.message) ? result.message : UI.msgTransferFailed);
+    } catch (e) {
+        console.error('transferToFound error:', e);
+        alert(UI.msgNetworkTransfer);
+    }
+}
+
+function getRouteStatusLabel(status) {
+    if (status === 'planned_route') return UI.statusLabelPlanned;
+    if (status === 'found') return UI.statusLabelFound;
+    if (status === 'started') return UI.statusLabelStarted;
+    return (statusNames && statusNames[status]) ? statusNames[status] : status;
+}
+
+function buildRouteManageMenu(routeId, source, status) {
+    const items = [];
+    items.push(`<button class="route-manage-item" onclick="event.stopPropagation(); openFlightEditModal(${routeId}, '${source}')">${UI.actionSave}</button>`);
+    if (status === 'planned_route') {
+        items.push(`<button class="route-manage-item" onclick="event.stopPropagation(); transferPlannedToFound(${routeId})">${UI.labelToFound}</button>`);
+        items.push(`<button class="route-manage-item route-manage-danger" onclick="event.stopPropagation(); deleteRoute(${routeId})">${UI.actionDelete}</button>`);
+    } else if (status === 'found') {
+        items.push(`<button class="route-manage-item" onclick="event.stopPropagation(); openStartConfirmModal(${routeId})">${UI.labelToStarted}</button>`);
+        items.push(`<button class="route-manage-item" onclick="event.stopPropagation(); transferToPlanned(${routeId})">${UI.actionBackToPlanned}</button>`);
+    } else if (status === 'started') {
+        items.push(`<button class="route-manage-item" onclick="event.stopPropagation(); transferToFound(${routeId})">${UI.actionBackToFound}</button>`);
+    }
+    return `
+        <div class="route-manage">
+            <button class="route-manage-btn" onclick="event.stopPropagation(); this.parentNode.classList.toggle('open')">${UI.routeManage} \u25BE</button>
+            <div class="route-manage-menu">${items.join('')}</div>
+        </div>
+    `;
 }
 
 function loadPlannedRoutes() {
@@ -745,16 +810,14 @@ function loadPlannedRoutes() {
                 const driverLabel = routeMeta.driver_label || UI.driverMissing;
                 const routeCost = (r.cost !== null && r.cost !== undefined && r.cost !== '') ? r.cost : (routeMeta.cost ?? null);
                 const costPart = routeCost ? (UI.bullet + parseFloat(routeCost).toLocaleString('ru-RU') + ' \u20BD') : '';
+                const routeStatus = String(r.status || 'planned_route');
                 return `
                     <div class="route-item route-item-planned" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
+                        <div class="route-status-line">${getRouteStatusLabel(routeStatus)}</div>
                         <div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>
                         <div class="route-meta">${zayCount} ${TXT.requestsCount.toLowerCase()}${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}</div>
                         <div class="route-meta">${driverLabel}</div>
-                        <div class="route-actions">
-                            <button class="route-action-btn route-edit-btn" title="${UI.labelEditRoute}" aria-label="${UI.labelEditRoute}" onclick="event.stopPropagation(); openFlightEditModal(${r.id}, 'planned')">&#9998;</button>
-                            <button class="route-action-btn route-transfer-btn" title="${UI.labelToFound}" aria-label="${UI.labelToFound}" onclick="event.stopPropagation(); transferPlannedToFound(${r.id})">&#10138;</button>
-                        </div>
-                        <button class="route-delete" onclick="event.stopPropagation(); deleteRoute(${r.id})">&#128465;</button>
+                        ${buildRouteManageMenu(r.id, 'planned', routeStatus)}
                     </div>
                 `;
             }).join('');
@@ -770,15 +833,14 @@ function loadPlannedRoutes() {
                     const routeCost = (r.cost !== null && r.cost !== undefined && r.cost !== '') ? r.cost : null;
                     const costPart = routeCost ? (UI.bullet + parseFloat(routeCost).toLocaleString('ru-RU') + ' \u20BD') : '';
                     const driverLabel = r.driver_label || UI.driverMissing;
+                    const routeStatus = String(r.status || 'found');
                     return `
                         <div class="route-item route-item-found" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
+                            <div class="route-status-line">${getRouteStatusLabel(routeStatus)}</div>
                             <div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>
                             <div class="route-meta">${zayCount} ${TXT.requestsCount.toLowerCase()}${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}</div>
                             <div class="route-meta">${driverLabel}</div>
-                            <div class="route-actions">
-                                <button class="route-action-btn route-edit-btn" title="${UI.labelEditRoute}" aria-label="${UI.labelEditRoute}" onclick="event.stopPropagation(); openFlightEditModal(${r.id}, 'found')">&#9998;</button>
-                                <button class="route-action-btn route-transfer-start-btn" title="${UI.labelToStarted}" aria-label="${UI.labelToStarted}" onclick="event.stopPropagation(); openStartConfirmModal(${r.id})">&#9654;</button>
-                            </div>
+                            ${buildRouteManageMenu(r.id, 'found', routeStatus)}
                         </div>
                     `;
                 }).join('');
@@ -857,15 +919,13 @@ function promptSaveRoute() {
 
 function deleteRoute(id) {
     if(!confirm(UI.msgDeleteRouteConfirm)) return;
-    fetch('map_files/delete_planned_route.php', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({id})
-    }).then(r=>r.json()).then(res => {
-        if(res.success) {
+    postRouteAction('delete_route', { id: Number(id) }).then(res => {
+        if (res && res.success) {
             window.location.reload();
+            return;
         }
-    });
+        alert((res && res.message) ? res.message : UI.msgTransferFailed);
+    }).catch(() => alert(UI.msgNetworkError));
 }
 
 function calculateRoute() {
@@ -1000,6 +1060,10 @@ function init() {
     const startCancelBtn = document.getElementById('startCancelBtn');
     if (startConfirmBtn) startConfirmBtn.addEventListener('click', confirmTransferToStarted);
     if (startCancelBtn) startCancelBtn.addEventListener('click', closeStartConfirmModal);
+
+    document.addEventListener('click', function() {
+        document.querySelectorAll('.route-manage.open').forEach(el => el.classList.remove('open'));
+    });
     
     // === AUTO REFRESH TRACKERS EVERY 60 SECONDS ===
     trackerUpdateInterval = setInterval(fetchTrackers, 60000);
