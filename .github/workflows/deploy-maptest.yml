@@ -18,9 +18,26 @@ jobs:
           php -l maptest.php
           find map_files -name "*.php" -print0 | xargs -0 -n1 php -l
 
-      - name: Validate JS has no PHP
+      - name: Validate forbidden production files are not tracked
         run: |
-          ! grep -R "<\?php\|<\?=" map_files/assets/*.js
+          test ! -f map2.php
+          test ! -f config.php
+          test ! -f menu2.php
+          test ! -f get_planned_routes.php
+          test ! -f save_planned_route.php
+          test ! -f delete_planned_route.php
+
+      - name: Validate JS has no PHP fragments
+        run: |
+          ! grep -R -F "<?php" map_files/assets/*.js
+          ! grep -R -F "<?=" map_files/assets/*.js
+          ! grep -R -F "?>" map_files/assets/*.js
+
+      - name: Validate maptest JS exists
+        run: |
+          test -f map_files/assets/maptest.js
+          grep -q "window.MAP_BOOTSTRAP" map_files/Views/scripts.php
+          grep -q "maptest.js" map_files/Views/scripts.php
 
       - name: Prepare SSH
         run: |
@@ -28,6 +45,13 @@ jobs:
           echo "${{ secrets.SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Verify deploy path is safe
+        run: |
+          if [ "${{ secrets.DEPLOY_PATH }}" != "/home/s/spugovxsim/public_html/fregat/feo" ]; then
+            echo "Invalid DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}"
+            exit 1
+          fi
 
       - name: Deploy to server
         run: |
@@ -38,9 +62,30 @@ jobs:
             --exclude "get_planned_routes.php" \
             --exclude "save_planned_route.php" \
             --exclude "delete_planned_route.php" \
+            --exclude ".git" \
+            --exclude ".github" \
             -e "ssh -i ~/.ssh/deploy_key" \
             maptest.php map_files CODEX_WORKFLOW_RULES.md \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/"
+
+      - name: Server syntax check after deploy
+        run: |
+          ssh -i ~/.ssh/deploy_key "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "/usr/bin/php8.4 -l /home/s/spugovxsim/public_html/fregat/feo/maptest.php && \
+             find /home/s/spugovxsim/public_html/fregat/feo/map_files -name '*.php' -print0 | xargs -0 -n1 /usr/bin/php8.4 -l"
+
+      - name: Server readback verification
+        run: |
+          ssh -i ~/.ssh/deploy_key "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "test -f /home/s/spugovxsim/public_html/fregat/feo/maptest.php && \
+             test -f /home/s/spugovxsim/public_html/fregat/feo/map_files/assets/maptest.js && \
+             grep -q 'maptest.js' /home/s/spugovxsim/public_html/fregat/feo/map_files/Views/scripts.php && \
+             grep -q 'MAP_BOOTSTRAP' /home/s/spugovxsim/public_html/fregat/feo/map_files/Views/scripts.php"
+
+      - name: Reset PHP OPcache if available
+        run: |
+          ssh -i ~/.ssh/deploy_key "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "/usr/bin/php8.4 -r \"if (function_exists('opcache_reset')) { opcache_reset(); echo 'OPcache reset OK'; } else { echo 'No OPcache'; }\""
 
       - name: Runtime smoke check
         run: |
