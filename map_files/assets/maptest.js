@@ -97,6 +97,9 @@ UI.actionBackToFound = '\u0412\u0435\u0440\u043d\u0443\u0442\u044c \u0432 \u0418
 UI.statusLabelPlanned = '\u041f\u041b\u0410\u041d\u0418\u0420\u0423\u0415\u041c\u042b\u0419 \u041c\u0410\u0420\u0428\u0420\u0423\u0422';
 UI.statusLabelFound = '\u0418\u0421\u041f\u041e\u041b\u041d\u0418\u0422\u0415\u041b\u042c \u041d\u0410\u0419\u0414\u0415\u041d';
 UI.statusLabelStarted = '\u0412\u042b\u0412\u041e\u0417 \u041d\u0410\u0427\u0410\u041b\u0421\u042f';
+UI.msgConfirmTransition = '\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u043f\u0435\u0440\u0435\u0445\u043e\u0434';
+UI.msgChangesWillGoMax = '\u041f\u043e\u0441\u043b\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0431\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0432 \u043e\u0431\u0449\u0438\u0439 \u0447\u0430\u0442 MAX.';
+UI.msgNoChanges = '\u0418\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u0439 \u043d\u0435\u0442';
 
 // === TRACKER DATA FROM PHP BOOTSTRAP ===
 const mapBootstrap = (typeof window !== 'undefined' && window.MAP_BOOTSTRAP && typeof window.MAP_BOOTSTRAP === 'object')
@@ -556,6 +559,112 @@ function closeStartConfirmModal() {
     if (modal) modal.style.display = 'none';
 }
 
+function normalizeZayavkiIdsString(raw) {
+    const parts = String(raw || '').split(',');
+    const seen = new Set();
+    const out = [];
+    for (const p of parts) {
+        const v = String(p || '').trim();
+        if (!/^\d+$/.test(v)) continue;
+        if (seen.has(v)) continue;
+        seen.add(v);
+        out.push(v);
+    }
+    return out.join(',');
+}
+
+function computeMetricsByIds(idsString) {
+    const ids = String(idsString || '').split(',').map(s => s.trim()).filter(Boolean);
+    let totalKg = 0;
+    ids.forEach(id => {
+        const w = Number(weightById[String(id)] || 0);
+        totalKg += Number.isFinite(w) ? w : 0;
+    });
+    return { count: ids.length, totalKg };
+}
+
+function formatSummaryValue(v) {
+    return (v === null || v === undefined || String(v).trim() === '') ? TXT.notSpecified : String(v);
+}
+
+function getDriverLabelByIdFromSelect(driverId) {
+    const id = String(driverId || '');
+    if (!id) return UI.driverMissing;
+    const d = Array.isArray(driversForSelect) ? driversForSelect.find(x => String(x.id) === id) : null;
+    return d && d.label ? d.label : UI.driverMissing;
+}
+
+function updateFlightLiveSummary() {
+    const summaryEl = document.getElementById('flightLiveSummary');
+    if (!summaryEl) return;
+    const status = String((document.getElementById('edit_current_status') || {}).value || '');
+    const cost = (document.getElementById('edit_cost') || {}).value || '';
+    const driverId = (document.getElementById('edit_driver_id') || {}).value || '';
+    const ids = normalizeZayavkiIdsString((document.getElementById('edit_zayavki_ids') || {}).value || '');
+    const metrics = computeMetricsByIds(ids);
+    const from = (document.getElementById('edit_planned_start_date_from') || {}).value || '';
+    const to = (document.getElementById('edit_planned_start_date_to') || {}).value || '';
+    summaryEl.innerHTML = `
+        <div><strong>Заявок:</strong> ${metrics.count}</div>
+        <div><strong>Общая масса:</strong> ${(metrics.totalKg / 1000).toFixed(3)} т</div>
+        <div><strong>Стоимость:</strong> ${formatSummaryValue(cost)} ${cost ? '\u20BD' : ''}</div>
+        <div><strong>Водитель:</strong> ${escapeHtml(getDriverLabelByIdFromSelect(driverId))}</div>
+        <div><strong>Статус:</strong> ${escapeHtml(getRouteStatusLabel(status))}</div>
+        <div><strong>Период:</strong> ${formatSummaryValue(from)} — ${formatSummaryValue(to)}</div>
+    `;
+}
+
+function buildChangePreview(meta) {
+    const next = {
+        driver_id: String((document.getElementById('edit_driver_id') || {}).value || ''),
+        planned_start_date_from: String((document.getElementById('edit_planned_start_date_from') || {}).value || ''),
+        planned_start_date_to: String((document.getElementById('edit_planned_start_date_to') || {}).value || ''),
+        cost: String((document.getElementById('edit_cost') || {}).value || ''),
+        zayavki_ids: normalizeZayavkiIdsString((document.getElementById('edit_zayavki_ids') || {}).value || '')
+    };
+    const prev = {
+        driver_id: String(meta.driver_id || ''),
+        planned_start_date_from: toDatetimeLocalValue(meta.planned_start_date_from),
+        planned_start_date_to: toDatetimeLocalValue(meta.planned_start_date_to),
+        cost: String(meta.cost ?? ''),
+        zayavki_ids: normalizeZayavkiIdsString(meta.zayavki_ids || '')
+    };
+    const lines = [];
+    if (prev.driver_id !== next.driver_id) lines.push(`Водитель: ${getDriverLabelByIdFromSelect(prev.driver_id)} → ${getDriverLabelByIdFromSelect(next.driver_id)}`);
+    if (prev.planned_start_date_from !== next.planned_start_date_from) lines.push(`Дата начала: ${prev.planned_start_date_from || '-'} → ${next.planned_start_date_from || '-'}`);
+    if (prev.planned_start_date_to !== next.planned_start_date_to) lines.push(`Дата окончания: ${prev.planned_start_date_to || '-'} → ${next.planned_start_date_to || '-'}`);
+    if (prev.cost !== next.cost) lines.push(`Стоимость: ${prev.cost || '-'} → ${next.cost || '-'}`);
+    if (prev.zayavki_ids !== next.zayavki_ids) {
+        const prevM = computeMetricsByIds(prev.zayavki_ids);
+        const nextM = computeMetricsByIds(next.zayavki_ids);
+        lines.push(`Заявки: ${prevM.count} → ${nextM.count}`);
+        lines.push(`Масса: ${(prevM.totalKg/1000).toFixed(3)} т → ${(nextM.totalKg/1000).toFixed(3)} т`);
+    }
+    return lines;
+}
+
+function applyLifecycleButtons(status) {
+    const map = {
+        save: document.getElementById('flightEditSaveBtn'),
+        toFound: document.getElementById('flightEditTransferFoundBtn'),
+        toStarted: document.getElementById('flightEditTransferStartedBtn'),
+        toPlanned: document.getElementById('flightEditBackToPlannedBtn'),
+        toFoundBack: document.getElementById('flightEditBackToFoundBtn'),
+        del: document.getElementById('flightEditDeleteBtn')
+    };
+    Object.values(map).forEach(btn => { if (btn) btn.style.display = 'none'; });
+    if (map.save) map.save.style.display = 'inline-flex';
+    if (status === 'planned_route') {
+        if (map.toFound) map.toFound.style.display = 'inline-flex';
+        if (map.del) map.del.style.display = 'inline-flex';
+    } else if (status === 'found') {
+        if (map.toStarted) map.toStarted.style.display = 'inline-flex';
+        if (map.toPlanned) map.toPlanned.style.display = 'inline-flex';
+    } else if (status === 'started') {
+        if (map.toFoundBack) map.toFoundBack.style.display = 'inline-flex';
+    }
+}
+
 function openFlightEditModal(routeId, source) {
     const modal = document.getElementById('flightEditModal');
     if (!modal) return;
@@ -573,17 +682,19 @@ function openFlightEditModal(routeId, source) {
     const toInput = document.getElementById('edit_planned_start_date_to');
     const driverSelect = document.getElementById('edit_driver_id');
     const costInput = document.getElementById('edit_cost');
-    const transferFoundBtn = document.getElementById('flightEditTransferFoundBtn');
+    const commentInput = document.getElementById('edit_comment');
+    const idsInput = document.getElementById('edit_zayavki_ids');
+    const statusInput = document.getElementById('edit_current_status');
 
     if (titleEl) titleEl.textContent = `${UI.routeEditTitle} #${meta.id || routeId}`;
     if (idInput) idInput.value = String(meta.id || routeId);
     if (sourceInput) sourceInput.value = source === 'found' ? 'found' : 'planned';
+    if (statusInput) statusInput.value = String(meta.status || (source === 'found' ? 'found' : 'planned_route'));
     if (fromInput) fromInput.value = toDatetimeLocalValue(meta.planned_start_date_from);
     if (toInput) toInput.value = toDatetimeLocalValue(meta.planned_start_date_to);
     if (costInput) costInput.value = (meta.cost !== null && meta.cost !== undefined) ? String(meta.cost) : '';
-    if (transferFoundBtn) {
-        transferFoundBtn.style.display = source === 'planned' ? 'inline-flex' : 'none';
-    }
+    if (commentInput) commentInput.value = String(resolveRouteTitle(meta) || '');
+    if (idsInput) idsInput.value = normalizeZayavkiIdsString(meta.zayavki_ids || '');
 
     if (driverSelect) {
         const currentDriverId = String(meta.driver_id || '');
@@ -599,6 +710,8 @@ function openFlightEditModal(routeId, source) {
         driverSelect.innerHTML = options.join('');
     }
 
+    applyLifecycleButtons(String(meta.status || (source === 'found' ? 'found' : 'planned_route')));
+    updateFlightLiveSummary();
     modal.style.display = 'flex';
 }
 
@@ -640,11 +753,20 @@ function openStartConfirmModal(routeId) {
     const idInput = document.getElementById('start_flight_id');
     const dateInput = document.getElementById('start_actual_start_date');
     if (idInput) idInput.value = String(routeId || '');
+    const targetInput = document.getElementById('start_target_status');
+    if (targetInput) targetInput.value = 'started';
     if (dateInput) {
         const now = new Date();
         const pad = n => String(n).padStart(2, '0');
         dateInput.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
     }
+    const preview = document.getElementById('transitionConfirmPreview');
+    const meta = getRouteMetaById(routeId, 'found') || getRouteMetaById(routeId, 'planned');
+    if (preview && meta) {
+        preview.innerHTML = `Рейс #${routeId}<br>Статус: ${getRouteStatusLabel(meta.status || 'found')} → ${getRouteStatusLabel('started')}<br>Водитель: ${escapeHtml(meta.driver_label || UI.driverMissing)}`;
+    }
+    const titleEl = document.getElementById('transitionConfirmTitle');
+    if (titleEl) titleEl.textContent = 'Подтверждение перехода в ВЫВОЗНАЧАЛСЯ';
     modal.style.display = 'flex';
 }
 
@@ -667,6 +789,9 @@ async function saveFlightEdit() {
     const fromInput = document.getElementById('edit_planned_start_date_from');
     const toInput = document.getElementById('edit_planned_start_date_to');
     const costInput = document.getElementById('edit_cost');
+    const commentInput = document.getElementById('edit_comment');
+    const idsInput = document.getElementById('edit_zayavki_ids');
+    const statusInput = document.getElementById('edit_current_status');
 
     const flightId = Number(idInput ? idInput.value : 0);
     const driverId = Number(driverInput ? driverInput.value : 0);
@@ -677,11 +802,24 @@ async function saveFlightEdit() {
 
     const payload = {
         id: flightId,
+        name: commentInput ? commentInput.value : '',
         driver_id: driverId,
         planned_start_date_from: fromInput ? fromInput.value : '',
         planned_start_date_to: toInput ? toInput.value : '',
-        cost: costInput ? costInput.value : ''
+        cost: costInput ? costInput.value : '',
+        zayavki_ids: normalizeZayavkiIdsString(idsInput ? idsInput.value : '')
     };
+
+    if (statusInput && String(statusInput.value) === 'found') {
+        const meta = getRouteMetaById(flightId, 'found') || getRouteMetaById(flightId, 'planned');
+        if (meta) {
+            const lines = buildChangePreview(meta);
+            if (lines.length > 0) {
+                const text = `${UI.msgConfirmTransition}\n\n${lines.join('\n')}\n\n${UI.msgChangesWillGoMax}`;
+                if (!confirm(text)) return;
+            }
+        }
+    }
 
     try {
         const result = await postRouteAction('save', payload);
@@ -697,9 +835,29 @@ async function saveFlightEdit() {
 }
 
 async function transferPlannedToFound(routeId) {
-    if (!confirm(UI.msgConfirmToFound)) return;
+    const idInput = document.getElementById('edit_flight_id');
+    const driverInput = document.getElementById('edit_driver_id');
+    const fromInput = document.getElementById('edit_planned_start_date_from');
+    const toInput = document.getElementById('edit_planned_start_date_to');
+    const costInput = document.getElementById('edit_cost');
+    const idsInput = document.getElementById('edit_zayavki_ids');
+    const commentInput = document.getElementById('edit_comment');
+    const flightId = Number(idInput ? idInput.value : routeId);
+    const payload = {
+        id: flightId,
+        target_status: 'found',
+        name: commentInput ? commentInput.value : '',
+        driver_id: Number(driverInput ? driverInput.value : 0),
+        planned_start_date_from: fromInput ? fromInput.value : '',
+        planned_start_date_to: toInput ? toInput.value : '',
+        cost: costInput ? costInput.value : '',
+        zayavki_ids: normalizeZayavkiIdsString(idsInput ? idsInput.value : '')
+    };
+    const m = computeMetricsByIds(payload.zayavki_ids);
+    const msg = `После перевода в ИСПОЛНИТЕЛЬНАЙДЕН:\n- начнется подготовка транспортных документов;\n- рейс считается подтвержденным;\n- изменения будут отправляться в MAX;\n\nЗаявок: ${m.count}\nОбщая масса: ${(m.totalKg / 1000).toFixed(3)} т\nВодитель: ${getDriverLabelByIdFromSelect(payload.driver_id)}\nДаты: ${payload.planned_start_date_from || '-'} — ${payload.planned_start_date_to || '-'}\nСтоимость: ${payload.cost || '-'}\n\nПодтвердить?`;
+    if (!confirm(msg)) return;
     try {
-        const result = await postRouteAction('transition', { id: Number(routeId), target_status: 'found' });
+        const result = await postRouteAction('transition', payload);
         if (result && result.success) {
             window.location.reload();
             return;
@@ -720,10 +878,12 @@ async function confirmTransferToStarted() {
         return;
     }
 
+    const targetInput = document.getElementById('start_target_status');
+    const targetStatus = String(targetInput ? targetInput.value : 'started');
     try {
         const result = await postRouteAction('transition', {
             id: flightId,
-            target_status: 'started',
+            target_status: targetStatus,
             actual_start_date: dateInput ? dateInput.value : ''
         });
         if (result && result.success) {
@@ -738,6 +898,7 @@ async function confirmTransferToStarted() {
 }
 
 async function transferToPlanned(routeId) {
+    if (!confirm(`Рейс #${routeId} будет возвращен в ПЛАНИРУЕМЫЙ.\n\nПодготовку документов необходимо проверить/приостановить.\n\nПодтвердить?`)) return;
     try {
         const result = await postRouteAction('transition', { id: Number(routeId), target_status: 'planned_route' });
         if (result && result.success) {
@@ -752,6 +913,7 @@ async function transferToPlanned(routeId) {
 }
 
 async function transferToFound(routeId) {
+    if (!confirm(`Рейс #${routeId} будет возвращен в ИСПОЛНИТЕЛЬНАЙДЕН.\nПодтвердить?`)) return;
     try {
         const result = await postRouteAction('transition', { id: Number(routeId), target_status: 'found' });
         if (result && result.success) {
@@ -773,23 +935,7 @@ function getRouteStatusLabel(status) {
 }
 
 function buildRouteManageMenu(routeId, source, status) {
-    const items = [];
-    items.push(`<button class="route-manage-item" onclick="event.stopPropagation(); openFlightEditModal(${routeId}, '${source}')">${UI.actionSave}</button>`);
-    if (status === 'planned_route') {
-        items.push(`<button class="route-manage-item" onclick="event.stopPropagation(); transferPlannedToFound(${routeId})">${UI.labelToFound}</button>`);
-        items.push(`<button class="route-manage-item route-manage-danger" onclick="event.stopPropagation(); deleteRoute(${routeId})">${UI.actionDelete}</button>`);
-    } else if (status === 'found') {
-        items.push(`<button class="route-manage-item" onclick="event.stopPropagation(); openStartConfirmModal(${routeId})">${UI.labelToStarted}</button>`);
-        items.push(`<button class="route-manage-item" onclick="event.stopPropagation(); transferToPlanned(${routeId})">${UI.actionBackToPlanned}</button>`);
-    } else if (status === 'started') {
-        items.push(`<button class="route-manage-item" onclick="event.stopPropagation(); transferToFound(${routeId})">${UI.actionBackToFound}</button>`);
-    }
-    return `
-        <div class="route-manage">
-            <button class="route-manage-btn" onclick="event.stopPropagation(); this.parentNode.classList.toggle('open')">${UI.routeManage} \u25BE</button>
-            <div class="route-manage-menu">${items.join('')}</div>
-        </div>
-    `;
+    return `<button class="route-manage-btn" onclick="event.stopPropagation(); openFlightEditModal(${routeId}, '${source}')">${UI.routeManage} \u25BE</button>`;
 }
 
 function loadPlannedRoutes() {
@@ -813,11 +959,9 @@ function loadPlannedRoutes() {
                 const routeStatus = String(r.status || 'planned_route');
                 return `
                     <div class="route-item route-item-planned" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
-                        <div class="route-status-line">${getRouteStatusLabel(routeStatus)}</div>
-                        <div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>
+                        <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'planned', routeStatus)}</div>
                         <div class="route-meta">${zayCount} ${TXT.requestsCount.toLowerCase()}${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}</div>
                         <div class="route-meta">${driverLabel}</div>
-                        ${buildRouteManageMenu(r.id, 'planned', routeStatus)}
                     </div>
                 `;
             }).join('');
@@ -836,11 +980,9 @@ function loadPlannedRoutes() {
                     const routeStatus = String(r.status || 'found');
                     return `
                         <div class="route-item route-item-found" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
-                            <div class="route-status-line">${getRouteStatusLabel(routeStatus)}</div>
-                            <div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>
+                            <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'found', routeStatus)}</div>
                             <div class="route-meta">${zayCount} ${TXT.requestsCount.toLowerCase()}${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}</div>
                             <div class="route-meta">${driverLabel}</div>
-                            ${buildRouteManageMenu(r.id, 'found', routeStatus)}
                         </div>
                     `;
                 }).join('');
@@ -1043,18 +1185,46 @@ function init() {
     const saveEditBtn = document.getElementById('flightEditSaveBtn');
     const cancelEditBtn = document.getElementById('flightEditCancelBtn');
     const transferFoundBtn = document.getElementById('flightEditTransferFoundBtn');
+    const transferStartedBtn = document.getElementById('flightEditTransferStartedBtn');
+    const backToPlannedBtn = document.getElementById('flightEditBackToPlannedBtn');
+    const backToFoundBtn = document.getElementById('flightEditBackToFoundBtn');
+    const deleteBtn = document.getElementById('flightEditDeleteBtn');
+    const closeTopBtn = document.getElementById('flightEditCloseTopBtn');
     if (saveEditBtn) saveEditBtn.addEventListener('click', saveFlightEdit);
     if (cancelEditBtn) cancelEditBtn.addEventListener('click', closeFlightEditModal);
     if (transferFoundBtn) {
         transferFoundBtn.addEventListener('click', () => {
             const idInput = document.getElementById('edit_flight_id');
-            const sourceInput = document.getElementById('edit_flight_source');
             const routeId = Number(idInput ? idInput.value : 0);
-            const source = sourceInput ? sourceInput.value : '';
-            if (source !== 'planned') return;
             if (routeId > 0) transferPlannedToFound(routeId);
         });
     }
+    if (transferStartedBtn) transferStartedBtn.addEventListener('click', () => {
+        const idInput = document.getElementById('edit_flight_id');
+        const routeId = Number(idInput ? idInput.value : 0);
+        if (routeId > 0) openStartConfirmModal(routeId);
+    });
+    if (backToPlannedBtn) backToPlannedBtn.addEventListener('click', () => {
+        const idInput = document.getElementById('edit_flight_id');
+        const routeId = Number(idInput ? idInput.value : 0);
+        if (routeId > 0) transferToPlanned(routeId);
+    });
+    if (backToFoundBtn) backToFoundBtn.addEventListener('click', () => {
+        const idInput = document.getElementById('edit_flight_id');
+        const routeId = Number(idInput ? idInput.value : 0);
+        if (routeId > 0) transferToFound(routeId);
+    });
+    if (deleteBtn) deleteBtn.addEventListener('click', () => {
+        const idInput = document.getElementById('edit_flight_id');
+        const routeId = Number(idInput ? idInput.value : 0);
+        if (routeId > 0) deleteRoute(routeId);
+    });
+    if (closeTopBtn) closeTopBtn.addEventListener('click', closeFlightEditModal);
+
+    ['edit_driver_id','edit_planned_start_date_from','edit_planned_start_date_to','edit_cost','edit_zayavki_ids'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', updateFlightLiveSummary);
+    });
 
     const startConfirmBtn = document.getElementById('startConfirmBtn');
     const startCancelBtn = document.getElementById('startCancelBtn');

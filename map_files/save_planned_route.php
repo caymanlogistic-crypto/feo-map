@@ -403,10 +403,35 @@ try {
         }
 
         if ($target === STATUS_FOUND) {
-            [$ok, $msg] = validateRouteData($pdo, $flight, true);
+            [$ok, $msg, $normalized] = validateRouteData($pdo, $data, true);
             if (!$ok) {
                 jsonOut(['success' => false, 'message' => $msg]);
             }
+            $comment = trim((string)($data['name'] ?? ''));
+            $stmtApply = $pdo->prepare("
+                UPDATE flights
+                SET comment = :comment,
+                    cost = :cost,
+                    zayavki_ids = :zayavki_ids,
+                    zayavki_count = :count,
+                    planned_start_date_from = :planned_from,
+                    planned_start_date_to = :planned_to,
+                    driver_id = :driver_id,
+                    block_date = NOW()
+                WHERE id = :id
+                LIMIT 1
+            ");
+            $stmtApply->execute([
+                ':comment' => $comment !== '' ? $comment : ($flight['comment'] ?? ('Рейс #' . $routeId)),
+                ':cost' => $normalized['cost'],
+                ':zayavki_ids' => $normalized['zayavki_ids_canonical'],
+                ':count' => $normalized['zayavki_count'],
+                ':planned_from' => $normalized['planned_start_date_from'],
+                ':planned_to' => $normalized['planned_start_date_to'],
+                ':driver_id' => $normalized['driver_id'],
+                ':id' => $routeId,
+            ]);
+            $flight = loadFlightSnapshot($pdo, $routeId) ?: $flight;
         }
 
         if ($target === STATUS_STARTED) {
