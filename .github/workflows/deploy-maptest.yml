@@ -59,9 +59,6 @@ jobs:
             --exclude "map2.php" \
             --exclude "config.php" \
             --exclude "menu2.php" \
-            --exclude "get_planned_routes.php" \
-            --exclude "save_planned_route.php" \
-            --exclude "delete_planned_route.php" \
             --exclude ".git" \
             --exclude ".github" \
             -e "ssh -i ~/.ssh/deploy_key" \
