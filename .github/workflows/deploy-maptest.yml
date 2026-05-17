@@ -1,0 +1,47 @@
+name: Deploy maptest
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: PHP syntax check
+        run: |
+          php -l maptest.php
+          find map_files -name "*.php" -print0 | xargs -0 -n1 php -l
+
+      - name: Validate JS has no PHP
+        run: |
+          ! grep -R "<\?php\|<\?=" map_files/assets/*.js
+
+      - name: Prepare SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        run: |
+          rsync -az --delete \
+            --exclude "map2.php" \
+            --exclude "config.php" \
+            --exclude "menu2.php" \
+            --exclude "get_planned_routes.php" \
+            --exclude "save_planned_route.php" \
+            --exclude "delete_planned_route.php" \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            maptest.php map_files CODEX_WORKFLOW_RULES.md \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/"
+
+      - name: Runtime smoke check
+        run: |
+          curl -fsSL "http://spugovxsim.temp.swtest.ru/fregat/feo/maptest.php?t=github_${GITHUB_SHA}" | grep -q "MAP_BOOTSTRAP"
