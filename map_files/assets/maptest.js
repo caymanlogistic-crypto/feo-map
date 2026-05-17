@@ -734,7 +734,7 @@ function loadPlannedRoutes() {
     if (foundContainer) {
         foundContainer.innerHTML = `<div class="route-list-empty">${TXT.loading}</div>`;
     }
-    fetch('get_planned_routes.php').then(r => r.json()).then(data => {
+    fetch('map_files/get_planned_routes.php').then(r => r.json()).then(data => {
         if(!data.success || !data.routes || !data.routes.length) {
             container.innerHTML = `<div class="route-list-empty">${TXT.noSavedRoutes}</div>`;
         } else {
@@ -834,7 +834,7 @@ function promptSaveRoute() {
     const btn = document.getElementById('saveRouteBtn');
     btn.disabled = true;
     btn.textContent = UI.msgSaving;
-    fetch('save_planned_route.php', {
+    fetch('map_files/save_planned_route.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload)
@@ -857,7 +857,7 @@ function promptSaveRoute() {
 
 function deleteRoute(id) {
     if(!confirm(UI.msgDeleteRouteConfirm)) return;
-    fetch('delete_planned_route.php', {
+    fetch('map_files/delete_planned_route.php', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({id})
