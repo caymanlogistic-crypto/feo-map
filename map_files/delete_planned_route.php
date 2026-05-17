@@ -1,7 +1,7 @@
 <?php
 error_reporting(0);
 ini_set('display_errors', 0);
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/bootstrap.php';
 header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -14,14 +14,9 @@ try {
     $id = intval($data['id'] ?? 0);
     if ($id <= 0) throw new Exception('Неверный ID');
 
-    $dbName = $dbConfig['dbname'] ?? ($dbConfig['database'] ?? null);
-    $dbPort = $dbConfig['port'] ?? 3306;
-    $pdo = new PDO(
-        "mysql:host={$dbConfig['host']};port={$dbPort};dbname={$dbName};charset=utf8mb4",
-        $dbConfig['username'],
-        $dbConfig['password'],
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-    );
+    if (!isset($pdo) || !($pdo instanceof PDO)) {
+        throw new Exception('Database connection is not initialized');
+    }
     $stmt = $pdo->prepare("DELETE FROM flights WHERE id = :id AND status = 'planned_route'");
     $stmt->execute([':id' => $id]);
     echo json_encode(['success' => true, 'message' => 'Маршрут удален'], JSON_UNESCAPED_UNICODE);

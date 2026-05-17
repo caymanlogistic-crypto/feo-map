@@ -1,7 +1,7 @@
 <?php
 error_reporting(0);
 ini_set('display_errors', 0);
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/bootstrap.php';
 header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -21,14 +21,9 @@ try {
 
     if (empty($name) || empty($zayavkiIds)) throw new Exception('Название и ID заявок обязательны');
 
-    $dbName = $dbConfig['dbname'] ?? ($dbConfig['database'] ?? null);
-    $dbPort = $dbConfig['port'] ?? 3306;
-    $pdo = new PDO(
-        "mysql:host={$dbConfig['host']};port={$dbPort};dbname={$dbName};charset=utf8mb4",
-        $dbConfig['username'],
-        $dbConfig['password'],
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-    );
+    if (!isset($pdo) || !($pdo instanceof PDO)) {
+        throw new Exception('Database connection is not initialized');
+    }
     $count = count(array_filter(explode(',', $zayavkiIds)));
 
     if ($routeId > 0) {
