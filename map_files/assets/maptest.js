@@ -89,17 +89,11 @@ UI.msgCoordsNotFound = '\u041a\u043e\u043e\u0440\u0434\u0438\u043d\u0430\u0442\u
 UI.labelEditRoute = '\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0440\u0435\u0439\u0441';
 UI.labelToFound = '\u041f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0432 \u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442. \u043d\u0430\u0439\u0434\u0435\u043d';
 UI.labelToStarted = '\u041f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0432 \u0412\u044b\u0432\u043e\u0437 \u043d\u0430\u0447\u0430\u043b\u0441\u044f';
-UI.routeManage = '\u0423\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u0440\u0435\u0439\u0441\u043e\u043c';
-UI.actionSave = '\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f';
-UI.actionDelete = '\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0440\u0435\u0439\u0441';
-UI.actionBackToPlanned = '\u0412\u0435\u0440\u043d\u0443\u0442\u044c \u0432 \u041f\u041b\u0410\u041d\u0418\u0420\u0423\u0415\u041c\u042b\u0419';
-UI.actionBackToFound = '\u0412\u0435\u0440\u043d\u0443\u0442\u044c \u0432 \u0418\u0421\u041f\u041e\u041b\u041d\u0418\u0422\u0415\u041b\u042c\u041d\u0410\u0419\u0414\u0415\u041d';
-UI.statusLabelPlanned = '\u041f\u041b\u0410\u041d\u0418\u0420\u0423\u0415\u041c\u042b\u0419 \u041c\u0410\u0420\u0428\u0420\u0423\u0422';
-UI.statusLabelFound = '\u0418\u0421\u041f\u041e\u041b\u041d\u0418\u0422\u0415\u041b\u042c \u041d\u0410\u0419\u0414\u0415\u041d';
-UI.statusLabelStarted = '\u0412\u042b\u0412\u041e\u0417 \u041d\u0410\u0427\u0410\u041b\u0421\u042f';
-UI.msgConfirmTransition = '\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u043f\u0435\u0440\u0435\u0445\u043e\u0434';
-UI.msgChangesWillGoMax = '\u041f\u043e\u0441\u043b\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0431\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0432 \u043e\u0431\u0449\u0438\u0439 \u0447\u0430\u0442 MAX.';
-UI.msgNoChanges = '\u0418\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u0439 \u043d\u0435\u0442';
+UI.labelBackToPlanned = '\u0412\u0435\u0440\u043d\u0443\u0442\u044c \u0432 \u00ab\u041f\u043b\u0430\u043d\u0438\u0440\u0443\u0435\u043c\u044b\u0439\u00bb';
+UI.labelBackToFound = '\u0412\u0435\u0440\u043d\u0443\u0442\u044c \u0432 \u00ab\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442. \u043d\u0430\u0439\u0434\u0435\u043d\u00bb';
+UI.labelDriver = '\u0412\u043e\u0434\u0438\u0442\u0435\u043b\u044c';
+UI.msgBackToPlanned = '\u0420\u0435\u0439\u0441 #{id} \u0431\u0443\u0434\u0435\u0442 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0435\u043d \u0432 \u00ab\u041f\u043b\u0430\u043d\u0438\u0440\u0443\u0435\u043c\u044b\u0439\u00bb.\\n\\n\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044c?';
+UI.msgBackToFound = '\u0420\u0435\u0439\u0441 #{id} \u0431\u0443\u0434\u0435\u0442 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0435\u043d \u0432 \u00ab\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442. \u043d\u0430\u0439\u0434\u0435\u043d\u00bb.\\n\\n\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044c?';
 
 // === TRACKER DATA FROM PHP BOOTSTRAP ===
 const mapBootstrap = (typeof window !== 'undefined' && window.MAP_BOOTSTRAP && typeof window.MAP_BOOTSTRAP === 'object')
@@ -116,6 +110,7 @@ const bootstrapFlightStatusList = (mapBootstrap.flightStatusList && typeof mapBo
 const bootstrapCustomLayers = (mapBootstrap.customLayers && typeof mapBootstrap.customLayers === 'object') ? mapBootstrap.customLayers : {};
 let currentActiveTrackers = Array.isArray(initialTrackers) ? initialTrackers : [];
 let currentAllTrackers = Array.isArray(allTrackers) ? allTrackers : [];
+let currentEditingMeta = null;
 const foundRoutesById = {};
 if (Array.isArray(foundRoutesData)) {
     foundRoutesData.forEach(route => {
@@ -175,6 +170,97 @@ function createTrackerBalloon(tracker) {
     </div>`;
 }
 
+function formatDriverCompactLabel(label) {
+    const value = String(label || '').trim();
+    if (!value || value === UI.driverMissing) return UI.driverMissing;
+    const plateMatch = value.match(/[\u0410-\u042f\u0401A-Z]\d{3}[\u0410-\u042f\u0401A-Z]{2}\d{2,3}/u);
+    const nameMatch = value.match(/\(([^)]+)\)/u);
+    if (plateMatch && nameMatch) return `${plateMatch[0]} (${nameMatch[1].trim()})`;
+    if (plateMatch) return plateMatch[0];
+    return value;
+}
+
+function formatRouteCost(costValue) {
+    if (costValue === null || costValue === undefined || costValue === '') return '0';
+    const num = Number(costValue);
+    if (!Number.isFinite(num)) return String(costValue);
+    return num.toLocaleString('ru-RU');
+}
+
+function updateFlightModalSummary() {
+    const summary = document.getElementById('flightLiveSummary');
+    if (!summary || !currentEditingMeta) return;
+
+    const zayavkiRaw = document.getElementById('edit_zayavki_ids')?.value || '';
+    const ids = zayavkiRaw
+        .split(',')
+        .map(v => v.trim())
+        .filter(v => /^\d+$/.test(v));
+    const uniqueIds = Array.from(new Set(ids));
+
+    const fromVal = document.getElementById('edit_planned_start_date_from')?.value || '';
+    const toVal = document.getElementById('edit_planned_start_date_to')?.value || '';
+    const costVal = document.getElementById('edit_cost')?.value || '';
+    const driverSelect = document.getElementById('edit_driver_id');
+    const driverText = driverSelect?.selectedOptions?.[0]?.textContent || UI.driverMissing;
+
+    let totalTons = 0;
+    if (Array.isArray(groupsData)) {
+        groupsData.forEach(group => {
+            if (!group || !Array.isArray(group.points)) return;
+            group.points.forEach(point => {
+                if (uniqueIds.includes(String(point.zayavka_id))) {
+                    totalTons += Number(point.mass_netto || 0);
+                }
+            });
+        });
+    }
+    const totalKg = Math.round(totalTons * 1000);
+    const periodText = fromVal || toVal ? `${fromVal || '—'} ${UI.emDash} ${toVal || '—'}` : TXT.notSpecified;
+    const statusLabel = statusNames[currentEditingMeta.status] || currentEditingMeta.status || TXT.notSpecified;
+
+    summary.innerHTML = `
+        <div><strong>${TXT.requestsCount}:</strong> ${uniqueIds.length}</div>
+        <div><strong>${TXT.totalWeight}:</strong> ${totalKg.toLocaleString('ru-RU')} ${UI.kg}</div>
+        <div><strong>${UI.modalCost}:</strong> ${formatRouteCost(costVal)} \u20BD</div>
+        <div><strong>${UI.labelDriver}:</strong> ${escapeHtml(formatDriverCompactLabel(driverText))}</div>
+        <div><strong>${TXT.routeStatus}:</strong> ${escapeHtml(statusLabel)}</div>
+        <div><strong>\u041f\u0435\u0440\u0438\u043e\u0434:</strong> ${escapeHtml(periodText)}</div>
+    `;
+}
+
+function buildFoundChangePreview(meta) {
+    if (!meta || meta.status !== 'found') return '';
+    const fromVal = document.getElementById('edit_planned_start_date_from')?.value || '';
+    const toVal = document.getElementById('edit_planned_start_date_to')?.value || '';
+    const costVal = document.getElementById('edit_cost')?.value || '';
+    const zayavkiVal = document.getElementById('edit_zayavki_ids')?.value || '';
+    const driverSelect = document.getElementById('edit_driver_id');
+    const currentDriverText = driverSelect?.selectedOptions?.[0]?.textContent || UI.driverMissing;
+    const previousDriver = meta.driver_label || UI.driverMissing;
+    const previousDates = `${meta.planned_start_date_from || '—'} ${UI.emDash} ${meta.planned_start_date_to || '—'}`;
+    const currentDates = `${fromVal || '—'} ${UI.emDash} ${toVal || '—'}`;
+    const previousCost = `${formatRouteCost(meta.cost)} \u20BD`;
+    const currentCost = `${formatRouteCost(costVal)} \u20BD`;
+    const previousIds = String(meta.zayavki_ids || '').trim();
+    const currentIds = zayavkiVal.split(',').map(v => v.trim()).filter(Boolean).join(',');
+
+    const changes = [];
+    if (formatDriverCompactLabel(previousDriver) !== formatDriverCompactLabel(currentDriverText)) {
+        changes.push(`<div><strong>${UI.labelDriver}:</strong> ${escapeHtml(formatDriverCompactLabel(previousDriver))} ${UI.emDash}&gt; ${escapeHtml(formatDriverCompactLabel(currentDriverText))}</div>`);
+    }
+    if (previousDates !== currentDates) {
+        changes.push(`<div><strong>\u041f\u0435\u0440\u0438\u043e\u0434:</strong> ${escapeHtml(previousDates)} ${UI.emDash}&gt; ${escapeHtml(currentDates)}</div>`);
+    }
+    if (previousCost !== currentCost) {
+        changes.push(`<div><strong>${UI.modalCost}:</strong> ${escapeHtml(previousCost)} ${UI.emDash}&gt; ${escapeHtml(currentCost)}</div>`);
+    }
+    if (previousIds !== currentIds) {
+        changes.push(`<div><strong>${TXT.requests}:</strong> ${escapeHtml(previousIds || '—')} ${UI.emDash}&gt; ${escapeHtml(currentIds || '—')}</div>`);
+    }
+    if (changes.length === 0) return '';
+    return `<div><strong>\u0411\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0432 MAX:</strong></div>${changes.join('')}`;
+}
 function addTrackerMarkers(trackers) {
     // Remove old transport markers from collection
     trackerPlacemarks.forEach(pm => trackersCollection.remove(pm));
@@ -552,117 +638,17 @@ function resolveRouteTitle(route) {
 function closeFlightEditModal() {
     const modal = document.getElementById('flightEditModal');
     if (modal) modal.style.display = 'none';
+    currentEditingMeta = null;
+    const preview = document.getElementById('flightChangePreview');
+    if (preview) {
+        preview.style.display = 'none';
+        preview.innerHTML = '';
+    }
 }
 
 function closeStartConfirmModal() {
     const modal = document.getElementById('startConfirmModal');
     if (modal) modal.style.display = 'none';
-}
-
-function normalizeZayavkiIdsString(raw) {
-    const parts = String(raw || '').split(',');
-    const seen = new Set();
-    const out = [];
-    for (const p of parts) {
-        const v = String(p || '').trim();
-        if (!/^\d+$/.test(v)) continue;
-        if (seen.has(v)) continue;
-        seen.add(v);
-        out.push(v);
-    }
-    return out.join(',');
-}
-
-function computeMetricsByIds(idsString) {
-    const ids = String(idsString || '').split(',').map(s => s.trim()).filter(Boolean);
-    let totalKg = 0;
-    ids.forEach(id => {
-        const w = Number(weightById[String(id)] || 0);
-        totalKg += Number.isFinite(w) ? w : 0;
-    });
-    return { count: ids.length, totalKg };
-}
-
-function formatSummaryValue(v) {
-    return (v === null || v === undefined || String(v).trim() === '') ? TXT.notSpecified : String(v);
-}
-
-function getDriverLabelByIdFromSelect(driverId) {
-    const id = String(driverId || '');
-    if (!id) return UI.driverMissing;
-    const d = Array.isArray(driversForSelect) ? driversForSelect.find(x => String(x.id) === id) : null;
-    return d && d.label ? d.label : UI.driverMissing;
-}
-
-function updateFlightLiveSummary() {
-    const summaryEl = document.getElementById('flightLiveSummary');
-    if (!summaryEl) return;
-    const status = String((document.getElementById('edit_current_status') || {}).value || '');
-    const cost = (document.getElementById('edit_cost') || {}).value || '';
-    const driverId = (document.getElementById('edit_driver_id') || {}).value || '';
-    const ids = normalizeZayavkiIdsString((document.getElementById('edit_zayavki_ids') || {}).value || '');
-    const metrics = computeMetricsByIds(ids);
-    const from = (document.getElementById('edit_planned_start_date_from') || {}).value || '';
-    const to = (document.getElementById('edit_planned_start_date_to') || {}).value || '';
-    summaryEl.innerHTML = `
-        <div><strong>Заявок:</strong> ${metrics.count}</div>
-        <div><strong>Общая масса:</strong> ${(metrics.totalKg / 1000).toFixed(3)} т</div>
-        <div><strong>Стоимость:</strong> ${formatSummaryValue(cost)} ${cost ? '\u20BD' : ''}</div>
-        <div><strong>Водитель:</strong> ${escapeHtml(getDriverLabelByIdFromSelect(driverId))}</div>
-        <div><strong>Статус:</strong> ${escapeHtml(getRouteStatusLabel(status))}</div>
-        <div><strong>Период:</strong> ${formatSummaryValue(from)} — ${formatSummaryValue(to)}</div>
-    `;
-}
-
-function buildChangePreview(meta) {
-    const next = {
-        driver_id: String((document.getElementById('edit_driver_id') || {}).value || ''),
-        planned_start_date_from: String((document.getElementById('edit_planned_start_date_from') || {}).value || ''),
-        planned_start_date_to: String((document.getElementById('edit_planned_start_date_to') || {}).value || ''),
-        cost: String((document.getElementById('edit_cost') || {}).value || ''),
-        zayavki_ids: normalizeZayavkiIdsString((document.getElementById('edit_zayavki_ids') || {}).value || '')
-    };
-    const prev = {
-        driver_id: String(meta.driver_id || ''),
-        planned_start_date_from: toDatetimeLocalValue(meta.planned_start_date_from),
-        planned_start_date_to: toDatetimeLocalValue(meta.planned_start_date_to),
-        cost: String(meta.cost ?? ''),
-        zayavki_ids: normalizeZayavkiIdsString(meta.zayavki_ids || '')
-    };
-    const lines = [];
-    if (prev.driver_id !== next.driver_id) lines.push(`Водитель: ${getDriverLabelByIdFromSelect(prev.driver_id)} → ${getDriverLabelByIdFromSelect(next.driver_id)}`);
-    if (prev.planned_start_date_from !== next.planned_start_date_from) lines.push(`Дата начала: ${prev.planned_start_date_from || '-'} → ${next.planned_start_date_from || '-'}`);
-    if (prev.planned_start_date_to !== next.planned_start_date_to) lines.push(`Дата окончания: ${prev.planned_start_date_to || '-'} → ${next.planned_start_date_to || '-'}`);
-    if (prev.cost !== next.cost) lines.push(`Стоимость: ${prev.cost || '-'} → ${next.cost || '-'}`);
-    if (prev.zayavki_ids !== next.zayavki_ids) {
-        const prevM = computeMetricsByIds(prev.zayavki_ids);
-        const nextM = computeMetricsByIds(next.zayavki_ids);
-        lines.push(`Заявки: ${prevM.count} → ${nextM.count}`);
-        lines.push(`Масса: ${(prevM.totalKg/1000).toFixed(3)} т → ${(nextM.totalKg/1000).toFixed(3)} т`);
-    }
-    return lines;
-}
-
-function applyLifecycleButtons(status) {
-    const map = {
-        save: document.getElementById('flightEditSaveBtn'),
-        toFound: document.getElementById('flightEditTransferFoundBtn'),
-        toStarted: document.getElementById('flightEditTransferStartedBtn'),
-        toPlanned: document.getElementById('flightEditBackToPlannedBtn'),
-        toFoundBack: document.getElementById('flightEditBackToFoundBtn'),
-        del: document.getElementById('flightEditDeleteBtn')
-    };
-    Object.values(map).forEach(btn => { if (btn) btn.style.display = 'none'; });
-    if (map.save) map.save.style.display = 'inline-flex';
-    if (status === 'planned_route') {
-        if (map.toFound) map.toFound.style.display = 'inline-flex';
-        if (map.del) map.del.style.display = 'inline-flex';
-    } else if (status === 'found') {
-        if (map.toStarted) map.toStarted.style.display = 'inline-flex';
-        if (map.toPlanned) map.toPlanned.style.display = 'inline-flex';
-    } else if (status === 'started') {
-        if (map.toFoundBack) map.toFoundBack.style.display = 'inline-flex';
-    }
 }
 
 function openFlightEditModal(routeId, source) {
@@ -683,18 +669,32 @@ function openFlightEditModal(routeId, source) {
     const driverSelect = document.getElementById('edit_driver_id');
     const costInput = document.getElementById('edit_cost');
     const commentInput = document.getElementById('edit_comment');
-    const idsInput = document.getElementById('edit_zayavki_ids');
+    const zayavkiInput = document.getElementById('edit_zayavki_ids');
+    const transferFoundBtn = document.getElementById('flightEditTransferFoundBtn');
     const statusInput = document.getElementById('edit_current_status');
 
-    if (titleEl) titleEl.textContent = `${UI.routeEditTitle} #${meta.id || routeId}`;
+    currentEditingMeta = {
+        ...meta,
+        id: Number(meta.id || routeId),
+        status: String(meta.status || (source === 'found' ? 'found' : 'planned_route'))
+    };
+    const routeTitle = resolveRouteTitle(meta);
+    if (titleEl) {
+        titleEl.textContent = routeTitle
+            ? `${UI.routeEditTitle} #${meta.id || routeId}: ${routeTitle}`
+            : `${UI.routeEditTitle} #${meta.id || routeId}`;
+    }
     if (idInput) idInput.value = String(meta.id || routeId);
     if (sourceInput) sourceInput.value = source === 'found' ? 'found' : 'planned';
-    if (statusInput) statusInput.value = String(meta.status || (source === 'found' ? 'found' : 'planned_route'));
     if (fromInput) fromInput.value = toDatetimeLocalValue(meta.planned_start_date_from);
     if (toInput) toInput.value = toDatetimeLocalValue(meta.planned_start_date_to);
     if (costInput) costInput.value = (meta.cost !== null && meta.cost !== undefined) ? String(meta.cost) : '';
-    if (commentInput) commentInput.value = String(resolveRouteTitle(meta) || '');
-    if (idsInput) idsInput.value = normalizeZayavkiIdsString(meta.zayavki_ids || '');
+    if (commentInput) commentInput.value = String(meta.comment || routeTitle || '');
+    if (zayavkiInput) zayavkiInput.value = String(meta.zayavki_ids || '');
+    if (statusInput) statusInput.value = currentEditingMeta.status;
+    if (transferFoundBtn) {
+        transferFoundBtn.style.display = source === 'planned' ? 'inline-flex' : 'none';
+    }
 
     if (driverSelect) {
         const currentDriverId = String(meta.driver_id || '');
@@ -710,9 +710,31 @@ function openFlightEditModal(routeId, source) {
         driverSelect.innerHTML = options.join('');
     }
 
-    applyLifecycleButtons(String(meta.status || (source === 'found' ? 'found' : 'planned_route')));
-    updateFlightLiveSummary();
+    applyLifecycleButtons(currentEditingMeta.status);
+    updateFlightModalSummary();
     modal.style.display = 'flex';
+}
+
+function applyLifecycleButtons(status) {
+    const map = {
+        toFound: document.getElementById('workflowToFoundWrap'),
+        toStarted: document.getElementById('workflowToStartedWrap'),
+        toPlanned: document.getElementById('workflowBackToPlannedWrap'),
+        toFoundBack: document.getElementById('workflowBackToFoundWrap'),
+        deleteWrap: document.getElementById('workflowDeleteWrap')
+    };
+    Object.values(map).forEach(el => {
+        if (el) el.style.display = 'none';
+    });
+    if (status === 'planned_route') {
+        if (map.toFound) map.toFound.style.display = 'block';
+        if (map.deleteWrap) map.deleteWrap.style.display = 'block';
+    } else if (status === 'found') {
+        if (map.toStarted) map.toStarted.style.display = 'block';
+        if (map.toPlanned) map.toPlanned.style.display = 'block';
+    } else if (status === 'started') {
+        if (map.toFoundBack) map.toFoundBack.style.display = 'block';
+    }
 }
 
 function applySafeModalText() {
@@ -753,8 +775,6 @@ function openStartConfirmModal(routeId) {
     const idInput = document.getElementById('start_flight_id');
     const dateInput = document.getElementById('start_actual_start_date');
     if (idInput) idInput.value = String(routeId || '');
-    const targetInput = document.getElementById('start_target_status');
-    if (targetInput) targetInput.value = 'started';
     if (dateInput) {
         const now = new Date();
         const pad = n => String(n).padStart(2, '0');
@@ -763,19 +783,25 @@ function openStartConfirmModal(routeId) {
     const preview = document.getElementById('transitionConfirmPreview');
     const meta = getRouteMetaById(routeId, 'found') || getRouteMetaById(routeId, 'planned');
     if (preview && meta) {
-        preview.innerHTML = `Рейс #${routeId}<br>Статус: ${getRouteStatusLabel(meta.status || 'found')} → ${getRouteStatusLabel('started')}<br>Водитель: ${escapeHtml(meta.driver_label || UI.driverMissing)}`;
+        const ids = String(meta.zayavki_ids || '').split(',').map(v => v.trim()).filter(Boolean);
+        const totalKg = Number(meta.total_kg || 0);
+        preview.innerHTML = `
+            <div><strong>\u0420\u0435\u0439\u0441 #${routeId}</strong></div>
+            <div>\u0421\u0442\u0430\u0442\u0443\u0441: ${escapeHtml(statusNames.found || 'found')} \u2192 ${escapeHtml(statusNames.started || 'started')}</div>
+            <div>${TXT.requestsCount}: ${ids.length}</div>
+            <div>${TXT.totalWeight}: ${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}</div>
+            <div>${UI.labelDriver}: ${escapeHtml(formatDriverCompactLabel(meta.driver_label || UI.driverMissing))}</div>
+            <div>\u041f\u0435\u0440\u0438\u043e\u0434: ${escapeHtml(meta.planned_start_date_from || '—')} ${UI.emDash} ${escapeHtml(meta.planned_start_date_to || '—')}</div>
+        `;
     }
-    const titleEl = document.getElementById('transitionConfirmTitle');
-    if (titleEl) titleEl.textContent = 'Подтверждение перехода в ВЫВОЗНАЧАЛСЯ';
     modal.style.display = 'flex';
 }
 
 async function postRouteAction(action, payload) {
-    const requestPayload = Object.assign({ action }, payload || {});
     const response = await fetch('map_files/save_planned_route.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestPayload)
+        body: JSON.stringify({ ...(payload || {}), action })
     });
     if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -790,7 +816,7 @@ async function saveFlightEdit() {
     const toInput = document.getElementById('edit_planned_start_date_to');
     const costInput = document.getElementById('edit_cost');
     const commentInput = document.getElementById('edit_comment');
-    const idsInput = document.getElementById('edit_zayavki_ids');
+    const zayavkiInput = document.getElementById('edit_zayavki_ids');
     const statusInput = document.getElementById('edit_current_status');
 
     const flightId = Number(idInput ? idInput.value : 0);
@@ -802,22 +828,29 @@ async function saveFlightEdit() {
 
     const payload = {
         id: flightId,
-        name: commentInput ? commentInput.value : '',
         driver_id: driverId,
         planned_start_date_from: fromInput ? fromInput.value : '',
         planned_start_date_to: toInput ? toInput.value : '',
         cost: costInput ? costInput.value : '',
-        zayavki_ids: normalizeZayavkiIdsString(idsInput ? idsInput.value : '')
+        comment: commentInput ? commentInput.value : '',
+        zayavki_ids: zayavkiInput ? zayavkiInput.value : ''
     };
 
-    if (statusInput && String(statusInput.value) === 'found') {
-        const meta = getRouteMetaById(flightId, 'found') || getRouteMetaById(flightId, 'planned');
-        if (meta) {
-            const lines = buildChangePreview(meta);
-            if (lines.length > 0) {
-                const text = `${UI.msgConfirmTransition}\n\n${lines.join('\n')}\n\n${UI.msgChangesWillGoMax}`;
-                if (!confirm(text)) return;
+    const status = String(statusInput ? statusInput.value : '');
+    const previewEl = document.getElementById('flightChangePreview');
+    if (status === 'found' && currentEditingMeta) {
+        const previewHtml = buildFoundChangePreview(currentEditingMeta);
+        if (previewEl) {
+            if (previewHtml) {
+                previewEl.style.display = 'block';
+                previewEl.innerHTML = previewHtml;
+            } else {
+                previewEl.style.display = 'none';
+                previewEl.innerHTML = '';
             }
+        }
+        if (previewHtml && !confirm('\u041f\u043e\u0441\u043b\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0431\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0432 MAX. \u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c?')) {
+            return;
         }
     }
 
@@ -835,29 +868,29 @@ async function saveFlightEdit() {
 }
 
 async function transferPlannedToFound(routeId) {
-    const idInput = document.getElementById('edit_flight_id');
-    const driverInput = document.getElementById('edit_driver_id');
-    const fromInput = document.getElementById('edit_planned_start_date_from');
-    const toInput = document.getElementById('edit_planned_start_date_to');
-    const costInput = document.getElementById('edit_cost');
-    const idsInput = document.getElementById('edit_zayavki_ids');
-    const commentInput = document.getElementById('edit_comment');
-    const flightId = Number(idInput ? idInput.value : routeId);
-    const payload = {
-        id: flightId,
-        target_status: 'found',
-        name: commentInput ? commentInput.value : '',
-        driver_id: Number(driverInput ? driverInput.value : 0),
-        planned_start_date_from: fromInput ? fromInput.value : '',
-        planned_start_date_to: toInput ? toInput.value : '',
-        cost: costInput ? costInput.value : '',
-        zayavki_ids: normalizeZayavkiIdsString(idsInput ? idsInput.value : '')
-    };
-    const m = computeMetricsByIds(payload.zayavki_ids);
-    const msg = `После перевода в ИСПОЛНИТЕЛЬНАЙДЕН:\n- начнется подготовка транспортных документов;\n- рейс считается подтвержденным;\n- изменения будут отправляться в MAX;\n\nЗаявок: ${m.count}\nОбщая масса: ${(m.totalKg / 1000).toFixed(3)} т\nВодитель: ${getDriverLabelByIdFromSelect(payload.driver_id)}\nДаты: ${payload.planned_start_date_from || '-'} — ${payload.planned_start_date_to || '-'}\nСтоимость: ${payload.cost || '-'}\n\nПодтвердить?`;
-    if (!confirm(msg)) return;
+    const meta = getRouteMetaById(routeId, 'planned') || getRouteMetaById(routeId, 'found');
+    const text = [
+        `\u041f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0440\u0435\u0439\u0441 #${routeId} \u0432 "\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442. \u043d\u0430\u0439\u0434\u0435\u043d"?`,
+        '',
+        '\u0411\u0443\u0434\u0443\u0442 \u0437\u0430\u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u044b \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c, \u0434\u0430\u0442\u044b, \u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c \u0438 \u0437\u0430\u044f\u0432\u043a\u0438.',
+        '\u0412 MAX \u0431\u0443\u0434\u0435\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435.',
+        '',
+        `${TXT.requestsCount}: ${String(meta?.zayavki_ids || '').split(',').map(v => v.trim()).filter(Boolean).length}`,
+        `${UI.labelDriver}: ${formatDriverCompactLabel(meta?.driver_label || UI.driverMissing)}`
+    ].join('\n');
+    if (!confirm(text)) return;
     try {
-        const result = await postRouteAction('transition', payload);
+        const meta = getRouteMetaById(routeId, 'planned') || {};
+        const result = await postRouteAction('transition', {
+            id: Number(routeId),
+            target_status: 'found',
+            zayavki_ids: document.getElementById('edit_zayavki_ids')?.value || meta.zayavki_ids || '',
+            driver_id: Number(document.getElementById('edit_driver_id')?.value || meta.driver_id || 0),
+            planned_start_date_from: document.getElementById('edit_planned_start_date_from')?.value || meta.planned_start_date_from || '',
+            planned_start_date_to: document.getElementById('edit_planned_start_date_to')?.value || meta.planned_start_date_to || '',
+            cost: document.getElementById('edit_cost')?.value || meta.cost || '',
+            name: document.getElementById('edit_comment')?.value || resolveRouteTitle(meta) || ''
+        });
         if (result && result.success) {
             window.location.reload();
             return;
@@ -878,12 +911,10 @@ async function confirmTransferToStarted() {
         return;
     }
 
-    const targetInput = document.getElementById('start_target_status');
-    const targetStatus = String(targetInput ? targetInput.value : 'started');
     try {
         const result = await postRouteAction('transition', {
             id: flightId,
-            target_status: targetStatus,
+            target_status: 'started',
             actual_start_date: dateInput ? dateInput.value : ''
         });
         if (result && result.success) {
@@ -898,7 +929,7 @@ async function confirmTransferToStarted() {
 }
 
 async function transferToPlanned(routeId) {
-    if (!confirm(`Рейс #${routeId} будет возвращен в ПЛАНИРУЕМЫЙ.\n\nПодготовку документов необходимо проверить/приостановить.\n\nПодтвердить?`)) return;
+    if (!confirm(UI.msgBackToPlanned.replace('{id}', String(routeId)))) return;
     try {
         const result = await postRouteAction('transition', { id: Number(routeId), target_status: 'planned_route' });
         if (result && result.success) {
@@ -913,7 +944,7 @@ async function transferToPlanned(routeId) {
 }
 
 async function transferToFound(routeId) {
-    if (!confirm(`Рейс #${routeId} будет возвращен в ИСПОЛНИТЕЛЬНАЙДЕН.\nПодтвердить?`)) return;
+    if (!confirm(UI.msgBackToFound.replace('{id}', String(routeId)))) return;
     try {
         const result = await postRouteAction('transition', { id: Number(routeId), target_status: 'found' });
         if (result && result.success) {
@@ -927,15 +958,8 @@ async function transferToFound(routeId) {
     }
 }
 
-function getRouteStatusLabel(status) {
-    if (status === 'planned_route') return UI.statusLabelPlanned;
-    if (status === 'found') return UI.statusLabelFound;
-    if (status === 'started') return UI.statusLabelStarted;
-    return (statusNames && statusNames[status]) ? statusNames[status] : status;
-}
-
-function buildRouteManageMenu(routeId, source, status) {
-    return `<button class="route-manage-btn" onclick="event.stopPropagation(); openFlightEditModal(${routeId}, '${source}')">${UI.routeManage} \u25BE</button>`;
+function buildRouteManageMenu(routeId, source) {
+    return `<button class="route-manage-btn" title="${UI.labelEditRoute}" aria-label="${UI.labelEditRoute}" onclick="event.stopPropagation(); openFlightEditModal(${routeId}, '${source}')"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75l11-11.03-3.75-3.75L3 17.25zm17.71-10.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.84 1.84 3.75 3.75 2.01-1.67z"/></svg></button>`;
 }
 
 function loadPlannedRoutes() {
@@ -953,15 +977,14 @@ function loadPlannedRoutes() {
                 const routeMeta = (routeCardsMeta && routeCardsMeta[String(r.id)]) ? routeCardsMeta[String(r.id)] : {};
                 const zayCount = Number(r.zayavki_count || routeMeta.zayavki_count || 0);
                 const totalKg = Number(routeMeta.total_kg || 0);
-                const driverLabel = routeMeta.driver_label || UI.driverMissing;
+                const driverLabel = formatDriverCompactLabel(routeMeta.driver_label || UI.driverMissing);
                 const routeCost = (r.cost !== null && r.cost !== undefined && r.cost !== '') ? r.cost : (routeMeta.cost ?? null);
                 const costPart = routeCost ? (UI.bullet + parseFloat(routeCost).toLocaleString('ru-RU') + ' \u20BD') : '';
-                const routeStatus = String(r.status || 'planned_route');
                 return `
                     <div class="route-item route-item-planned" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
-                        <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'planned', routeStatus)}</div>
+                        <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'planned')}</div>
                         <div class="route-meta">${zayCount} ${TXT.requestsCount.toLowerCase()}${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}</div>
-                        <div class="route-meta">${driverLabel}</div>
+                        <div class="route-meta">${UI.labelDriver}: ${escapeHtml(driverLabel)}</div>
                     </div>
                 `;
             }).join('');
@@ -976,13 +999,12 @@ function loadPlannedRoutes() {
                     const totalKg = Number(r.total_kg || 0);
                     const routeCost = (r.cost !== null && r.cost !== undefined && r.cost !== '') ? r.cost : null;
                     const costPart = routeCost ? (UI.bullet + parseFloat(routeCost).toLocaleString('ru-RU') + ' \u20BD') : '';
-                    const driverLabel = r.driver_label || UI.driverMissing;
-                    const routeStatus = String(r.status || 'found');
+                    const driverLabel = formatDriverCompactLabel(r.driver_label || UI.driverMissing);
                     return `
                         <div class="route-item route-item-found" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
-                            <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'found', routeStatus)}</div>
+                            <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'found')}</div>
                             <div class="route-meta">${zayCount} ${TXT.requestsCount.toLowerCase()}${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}</div>
-                            <div class="route-meta">${driverLabel}</div>
+                            <div class="route-meta">${UI.labelDriver}: ${escapeHtml(driverLabel)}</div>
                         </div>
                     `;
                 }).join('');
@@ -1061,13 +1083,15 @@ function promptSaveRoute() {
 
 function deleteRoute(id) {
     if(!confirm(UI.msgDeleteRouteConfirm)) return;
-    postRouteAction('delete_route', { id: Number(id) }).then(res => {
-        if (res && res.success) {
+    fetch('map_files/delete_planned_route.php', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({id})
+    }).then(r=>r.json()).then(res => {
+        if(res.success) {
             window.location.reload();
-            return;
         }
-        alert((res && res.message) ? res.message : UI.msgTransferFailed);
-    }).catch(() => alert(UI.msgNetworkError));
+    });
 }
 
 function calculateRoute() {
@@ -1195,44 +1219,65 @@ function init() {
     if (transferFoundBtn) {
         transferFoundBtn.addEventListener('click', () => {
             const idInput = document.getElementById('edit_flight_id');
+            const sourceInput = document.getElementById('edit_flight_source');
             const routeId = Number(idInput ? idInput.value : 0);
+            const source = sourceInput ? sourceInput.value : '';
+            if (source !== 'planned') return;
             if (routeId > 0) transferPlannedToFound(routeId);
         });
     }
-    if (transferStartedBtn) transferStartedBtn.addEventListener('click', () => {
-        const idInput = document.getElementById('edit_flight_id');
-        const routeId = Number(idInput ? idInput.value : 0);
-        if (routeId > 0) openStartConfirmModal(routeId);
-    });
-    if (backToPlannedBtn) backToPlannedBtn.addEventListener('click', () => {
-        const idInput = document.getElementById('edit_flight_id');
-        const routeId = Number(idInput ? idInput.value : 0);
-        if (routeId > 0) transferToPlanned(routeId);
-    });
-    if (backToFoundBtn) backToFoundBtn.addEventListener('click', () => {
-        const idInput = document.getElementById('edit_flight_id');
-        const routeId = Number(idInput ? idInput.value : 0);
-        if (routeId > 0) transferToFound(routeId);
-    });
-    if (deleteBtn) deleteBtn.addEventListener('click', () => {
-        const idInput = document.getElementById('edit_flight_id');
-        const routeId = Number(idInput ? idInput.value : 0);
-        if (routeId > 0) deleteRoute(routeId);
-    });
+    if (transferStartedBtn) {
+        transferStartedBtn.addEventListener('click', () => {
+            const idInput = document.getElementById('edit_flight_id');
+            const routeId = Number(idInput ? idInput.value : 0);
+            if (routeId > 0) openStartConfirmModal(routeId);
+        });
+    }
+    if (backToPlannedBtn) {
+        backToPlannedBtn.addEventListener('click', () => {
+            const idInput = document.getElementById('edit_flight_id');
+            const routeId = Number(idInput ? idInput.value : 0);
+            if (routeId > 0) transferToPlanned(routeId);
+        });
+    }
+    if (backToFoundBtn) {
+        backToFoundBtn.addEventListener('click', () => {
+            const idInput = document.getElementById('edit_flight_id');
+            const routeId = Number(idInput ? idInput.value : 0);
+            if (routeId > 0) transferToFound(routeId);
+        });
+    }
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => {
+            const idInput = document.getElementById('edit_flight_id');
+            const routeId = Number(idInput ? idInput.value : 0);
+            if (routeId > 0) deleteRoute(routeId);
+        });
+    }
     if (closeTopBtn) closeTopBtn.addEventListener('click', closeFlightEditModal);
-
-    ['edit_driver_id','edit_planned_start_date_from','edit_planned_start_date_to','edit_cost','edit_zayavki_ids'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('input', updateFlightLiveSummary);
-    });
 
     const startConfirmBtn = document.getElementById('startConfirmBtn');
     const startCancelBtn = document.getElementById('startCancelBtn');
     if (startConfirmBtn) startConfirmBtn.addEventListener('click', confirmTransferToStarted);
     if (startCancelBtn) startCancelBtn.addEventListener('click', closeStartConfirmModal);
-
-    document.addEventListener('click', function() {
-        document.querySelectorAll('.route-manage.open').forEach(el => el.classList.remove('open'));
+    ['edit_driver_id', 'edit_planned_start_date_from', 'edit_planned_start_date_to', 'edit_cost', 'edit_zayavki_ids'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', () => {
+                updateFlightModalSummary();
+                const previewEl = document.getElementById('flightChangePreview');
+                const previewHtml = buildFoundChangePreview(currentEditingMeta);
+                if (previewEl) {
+                    if (previewHtml) {
+                        previewEl.style.display = 'block';
+                        previewEl.innerHTML = previewHtml;
+                    } else {
+                        previewEl.style.display = 'none';
+                        previewEl.innerHTML = '';
+                    }
+                }
+            });
+        }
     });
     
     // === AUTO REFRESH TRACKERS EVERY 60 SECONDS ===
@@ -1250,3 +1295,4 @@ function init() {
         if (bounds) map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 50 });
     }
 }
+

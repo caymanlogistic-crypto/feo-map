@@ -78,15 +78,18 @@
 </div>
 
 <div class="flight-modal-backdrop" id="flightEditModal" style="display:none;">
-    <div class="flight-modal flight-modal-fullscreen">
+    <div class="flight-modal">
         <div class="flight-modal-header">
-            <div class="flight-modal-title" id="flightEditTitle">Управление рейсом</div>
-            <button class="route-action-btn" id="flightEditCloseTopBtn">✕</button>
+            <div class="flight-modal-title" id="flightEditTitle">Редактирование рейса</div>
+            <button class="route-action-btn route-icon-btn" id="flightEditCloseTopBtn">✕</button>
         </div>
+
         <input type="hidden" id="edit_flight_id" value="">
         <input type="hidden" id="edit_flight_source" value="">
         <input type="hidden" id="edit_current_status" value="">
+
         <div class="flight-summary" id="flightLiveSummary"></div>
+
         <div class="flight-modal-grid">
             <div>
                 <label class="flight-modal-label" for="edit_comment">Комментарий / заголовок</label>
@@ -113,21 +116,57 @@
                 <textarea class="flight-modal-input" id="edit_zayavki_ids" rows="3" placeholder="101,104,105"></textarea>
             </div>
         </div>
+
         <div class="flight-change-preview" id="flightChangePreview" style="display:none;"></div>
-        <div class="flight-modal-actions">
-            <button class="route-action-btn route-edit-btn" id="flightEditSaveBtn">Сохранить</button>
-            <button class="route-action-btn route-transfer-btn" id="flightEditTransferFoundBtn">В ИСПОЛНИТЕЛЬНАЙДЕН</button>
-            <button class="route-action-btn route-transfer-start-btn" id="flightEditTransferStartedBtn">В ВЫВОЗНАЧАЛСЯ</button>
-            <button class="route-action-btn" id="flightEditBackToPlannedBtn">В ПЛАНИРУЕМЫЙ</button>
-            <button class="route-action-btn" id="flightEditBackToFoundBtn">В ИСПОЛНИТЕЛЬНАЙДЕН</button>
-            <button class="route-action-btn route-manage-danger" id="flightEditDeleteBtn">Удалить рейс</button>
-            <button class="route-action-btn" id="flightEditCancelBtn">Отмена</button>
+
+        <div class="workflow-section">
+            <div class="workflow-title">Изменение данных рейса</div>
+            <div class="workflow-desc">Изменения полей сохраняются в карточке рейса. Для статуса «Исполнит. найден» изменения отправляются в MAX.</div>
+            <button class="route-action-btn route-edit-btn route-action-main" id="flightEditSaveBtn">Сохранить изменения</button>
+        </div>
+
+        <div class="workflow-section">
+            <div class="workflow-title">Смена состояния рейса</div>
+
+            <div class="workflow-action" id="workflowToFoundWrap">
+                <div class="workflow-subtitle">Перевести в «Исполнитель найден»</div>
+                <div class="workflow-desc">После перевода рейс считается согласованным. Будут зафиксированы водитель, даты, стоимость и заявки. В MAX отправится уведомление, начнётся подготовка транспортных документов.</div>
+                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditTransferFoundBtn">Перевести в «Исполнит. найден»</button>
+            </div>
+
+            <div class="workflow-action" id="workflowToStartedWrap">
+                <div class="workflow-subtitle">Начать выполнение маршрута</div>
+                <div class="workflow-desc">Рейс перейдёт в статус «Вывоз начался». Подключается контроль выполнения перевозки и логика трекера. В MAX будет отправлено уведомление.</div>
+                <button class="route-action-btn route-transfer-start-btn route-action-main" id="flightEditTransferStartedBtn">Перевести в «Вывоз начался»</button>
+            </div>
+
+            <div class="workflow-action" id="workflowBackToPlannedWrap">
+                <div class="workflow-subtitle">Вернуть в планирование</div>
+                <div class="workflow-desc">Рейс будет возвращён в планирование. Подготовку документов нужно проверить или приостановить. В MAX будет отправлено уведомление.</div>
+                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditBackToPlannedBtn">Вернуть в «Планируемый»</button>
+            </div>
+
+            <div class="workflow-action" id="workflowBackToFoundWrap">
+                <div class="workflow-subtitle">Вернуть к найденному исполнителю</div>
+                <div class="workflow-desc">Рейс будет возвращён из выполнения в статус «Исполнит. найден». В MAX будет отправлено уведомление.</div>
+                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditBackToFoundBtn">Вернуть в «Исполнит. найден»</button>
+            </div>
+        </div>
+
+        <div class="danger-zone" id="workflowDeleteWrap">
+            <div class="workflow-title">Опасная зона</div>
+            <div class="workflow-desc">Удаление доступно только для планируемого рейса. Действие удалит маршрут из списка планируемых маршрутов.</div>
+            <button class="route-action-btn route-manage-danger route-action-main" id="flightEditDeleteBtn">Удалить рейс</button>
+        </div>
+
+        <div class="flight-modal-footer">
+            <button class="route-action-btn route-action-main" id="flightEditCancelBtn">Закрыть</button>
         </div>
     </div>
 </div>
 
 <div class="flight-modal-backdrop" id="startConfirmModal" style="display:none;">
-    <div class="flight-modal">
+    <div class="flight-modal flight-modal-confirm">
         <div class="flight-modal-title" id="transitionConfirmTitle">Подтверждение действия</div>
         <input type="hidden" id="start_flight_id" value="">
         <input type="hidden" id="start_target_status" value="">
@@ -135,8 +174,8 @@
         <input class="flight-modal-input" type="datetime-local" id="start_actual_start_date">
         <div class="flight-change-preview" id="transitionConfirmPreview"></div>
         <div class="flight-modal-actions">
-            <button class="route-action-btn route-transfer-start-btn" id="startConfirmBtn">Подтвердить</button>
-            <button class="route-action-btn" id="startCancelBtn">Отмена</button>
+            <button class="route-action-btn route-transfer-start-btn route-action-main" id="startConfirmBtn">Подтвердить</button>
+            <button class="route-action-btn route-action-main" id="startCancelBtn">Отмена</button>
         </div>
     </div>
 </div>
