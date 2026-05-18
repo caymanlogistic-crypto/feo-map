@@ -99,6 +99,8 @@ UI.msgTransitionValidationDriver = '\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u
 UI.msgTransitionValidationDates = '\u0434\u0430\u0442\u044b';
 UI.msgTransitionValidationCost = '\u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c';
 UI.msgTransitionValidationRequests = '\u0437\u0430\u044f\u0432\u043a\u0438';
+UI.msgChooseManagerForRoute = '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430 \u0434\u043b\u044f \u043f\u043b\u0430\u043d\u0438\u0440\u0443\u0435\u043c\u043e\u0433\u043e \u0440\u0435\u0439\u0441\u0430.';
+UI.msgCreateRouteTitleRequired = '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u0430 \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u0431\u044b\u0442\u044c \u043f\u0443\u0441\u0442\u044b\u043c';
 
 // === TRACKER DATA FROM PHP BOOTSTRAP ===
 const mapBootstrap = (typeof window !== 'undefined' && window.MAP_BOOTSTRAP && typeof window.MAP_BOOTSTRAP === 'object')
@@ -121,6 +123,7 @@ let managerScopeId = '';
 let managerScopeDriverIds = new Set();
 let managerScopePlates = new Set();
 let managerScopeInitialized = false;
+let currentManagers = [];
 const MANAGER_STORAGE_KEY = 'map_selected_manager_id';
 const foundRoutesById = {};
 function rebuildFoundRoutesById() {
@@ -266,7 +269,7 @@ function updateFlightModalSummary() {
         });
     }
     const totalKg = Math.round(totalTons * 1000);
-    const periodText = fromVal || toVal ? `${fromVal || '—'} ${UI.emDash} ${toVal || '—'}` : TXT.notSpecified;
+    const periodText = fromVal || toVal ? `${fromVal || 'Р Р†Р вЂљРІР‚Сњ'} ${UI.emDash} ${toVal || 'Р Р†Р вЂљРІР‚Сњ'}` : TXT.notSpecified;
     const statusLabel = statusNames[currentEditingMeta.status] || currentEditingMeta.status || TXT.notSpecified;
 
     summary.innerHTML = `
@@ -288,8 +291,8 @@ function buildFoundChangePreview(meta) {
     const driverSelect = document.getElementById('edit_driver_id');
     const currentDriverText = driverSelect?.selectedOptions?.[0]?.textContent || UI.driverMissing;
     const previousDriver = meta.driver_label || UI.driverMissing;
-    const previousDates = `${meta.planned_start_date_from || '—'} ${UI.emDash} ${meta.planned_start_date_to || '—'}`;
-    const currentDates = `${fromVal || '—'} ${UI.emDash} ${toVal || '—'}`;
+    const previousDates = `${meta.planned_start_date_from || 'Р Р†Р вЂљРІР‚Сњ'} ${UI.emDash} ${meta.planned_start_date_to || 'Р Р†Р вЂљРІР‚Сњ'}`;
+    const currentDates = `${fromVal || 'Р Р†Р вЂљРІР‚Сњ'} ${UI.emDash} ${toVal || 'Р Р†Р вЂљРІР‚Сњ'}`;
     const previousCost = `${formatRouteCost(meta.cost)} \u20BD`;
     const currentCost = `${formatRouteCost(costVal)} \u20BD`;
     const previousIds = String(meta.zayavki_ids || '').trim();
@@ -306,7 +309,7 @@ function buildFoundChangePreview(meta) {
         changes.push(`<div><strong>${UI.modalCost}:</strong> ${escapeHtml(previousCost)} ${UI.emDash}&gt; ${escapeHtml(currentCost)}</div>`);
     }
     if (previousIds !== currentIds) {
-        changes.push(`<div><strong>${TXT.requests}:</strong> ${escapeHtml(previousIds || '—')} ${UI.emDash}&gt; ${escapeHtml(currentIds || '—')}</div>`);
+        changes.push(`<div><strong>${TXT.requests}:</strong> ${escapeHtml(previousIds || 'Р Р†Р вЂљРІР‚Сњ')} ${UI.emDash}&gt; ${escapeHtml(currentIds || 'Р Р†Р вЂљРІР‚Сњ')}</div>`);
     }
     if (changes.length === 0) return '';
     return `<div><strong>\u0411\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0432 MAX:</strong></div>${changes.join('')}`;
@@ -918,7 +921,7 @@ function openStartConfirmModal(routeId) {
             <div>${TXT.requestsCount}: ${ids.length}</div>
             <div>${TXT.totalWeight}: ${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}</div>
             <div>${UI.labelDriver}: ${escapeHtml(formatDriverCompactLabel(meta.driver_label || UI.driverMissing))}</div>
-            <div>\u041f\u0435\u0440\u0438\u043e\u0434: ${escapeHtml(meta.planned_start_date_from || '—')} ${UI.emDash} ${escapeHtml(meta.planned_start_date_to || '—')}</div>
+            <div>\u041f\u0435\u0440\u0438\u043e\u0434: ${escapeHtml(meta.planned_start_date_from || 'Р Р†Р вЂљРІР‚Сњ')} ${UI.emDash} ${escapeHtml(meta.planned_start_date_to || 'Р Р†Р вЂљРІР‚Сњ')}</div>
         `;
     }
     modal.style.display = 'flex';
@@ -1105,6 +1108,7 @@ async function loadManagers() {
     const select = document.getElementById('managerScopeSelect');
     const errorBox = document.getElementById('managerScopeError');
     if (!select) return;
+
     select.disabled = true;
     if (errorBox) {
         errorBox.style.display = 'none';
@@ -1115,18 +1119,20 @@ async function loadManagers() {
         const response = await fetch('map_files/get_managers.php');
         const data = await response.json();
         if (!response.ok || !data || !data.success || !Array.isArray(data.managers)) {
-            throw new Error((data && data.message) ? data.message : 'Не удалось загрузить менеджеров');
+            throw new Error((data && data.message) ? data.message : '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u043e\u0432');
         }
 
+        currentManagers = Array.isArray(data.managers) ? data.managers : [];
         const savedManagerId = String(localStorage.getItem(MANAGER_STORAGE_KEY) || '').trim();
-        select.innerHTML = '<option value="">Показать все</option>';
+        select.innerHTML = '<option value="">\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u0432\u0441\u0435</option>';
+
         let hasSaved = false;
-        data.managers.forEach(manager => {
+        currentManagers.forEach(manager => {
             if (!manager || !manager.id) return;
             const value = String(manager.id);
             const option = document.createElement('option');
             option.value = value;
-            option.textContent = String(manager.name || (`Менеджер #${value}`));
+            option.textContent = String(manager.name || (`${UI.driverPrefix}${value}`));
             select.appendChild(option);
             if (savedManagerId === value) {
                 hasSaved = true;
@@ -1146,20 +1152,69 @@ async function loadManagers() {
 
         managerScopeInitialized = true;
         select.disabled = false;
+        syncCreateRouteManagerSelect();
         await loadPlannedRoutes();
     } catch (error) {
         managerScopeInitialized = true;
+        currentManagers = [];
         managerScopeId = '';
         select.value = '';
         select.disabled = true;
         if (errorBox) {
             errorBox.style.display = 'block';
-            errorBox.textContent = 'Не удалось загрузить менеджеров';
+            errorBox.textContent = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u043e\u0432';
         }
+        syncCreateRouteManagerSelect();
         await loadPlannedRoutes();
     }
 }
 
+function syncCreateRouteManagerSelect() {
+    ensureCreateRouteModal();
+    const select = document.getElementById('create_route_manager_id');
+    if (!select) return;
+
+    const preferred = String(managerScopeId || localStorage.getItem(MANAGER_STORAGE_KEY) || '').trim();
+    select.innerHTML = `<option value="">${UI.msgChooseManagerForRoute}</option>`;
+
+    let hasPreferred = false;
+    (Array.isArray(currentManagers) ? currentManagers : []).forEach(manager => {
+        if (!manager || !manager.id) return;
+        const value = String(manager.id);
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = String(manager.name || (`${UI.driverPrefix}${value}`));
+        select.appendChild(option);
+        if (preferred && preferred === value) {
+            hasPreferred = true;
+        }
+    });
+
+    select.value = hasPreferred ? preferred : '';
+}
+
+function ensureCreateRouteModal() {
+    if (document.getElementById('createRouteModal')) return;
+    const container = document.createElement('div');
+    container.innerHTML = `
+<div class="flight-modal-backdrop" id="createRouteModal" style="display:none;">
+    <div class="flight-modal flight-modal-confirm">
+        <div class="flight-modal-title">\u0421\u043e\u0437\u0434\u0430\u043d\u0438\u0435 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u0430</div>
+        <label class="flight-modal-label" for="create_route_name">\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u0430</label>
+        <input class="flight-modal-input" type="text" id="create_route_name" maxlength="255">
+        <label class="flight-modal-label" for="create_route_manager_id">\u041c\u0435\u043d\u0435\u0434\u0436\u0435\u0440</label>
+        <select class="flight-modal-input" id="create_route_manager_id">
+            <option value="">\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430</option>
+        </select>
+        <div class="flight-validation-errors" id="createRouteErrors" style="display:none;"></div>
+        <div class="flight-modal-actions">
+            <button class="route-action-btn route-action-main route-edit-btn" id="createRouteConfirmBtn">\u0421\u043e\u0437\u0434\u0430\u0442\u044c</button>
+            <button class="route-action-btn route-action-main" id="createRouteCancelBtn">\u041e\u0442\u043c\u0435\u043d\u0430</button>
+        </div>
+    </div>
+</div>`;
+    document.body.appendChild(container.firstElementChild);
+}
 function loadPlannedRoutes() {
     const container = document.getElementById('plannedRoutesList');
     const foundContainer = document.getElementById('foundRoutesList');
@@ -1171,7 +1226,7 @@ function loadPlannedRoutes() {
     fetch(`map_files/get_planned_routes.php${managerParam}`).then(r => r.json()).then(data => {
         if(!data.success || !data.routes || !data.routes.length) {
             container.innerHTML = managerScopeId
-                ? `<div class="route-list-empty">Нет рейсов для выбранного менеджера</div>`
+                ? `<div class="route-list-empty">\u041d\u0435\u0442 \u0440\u0435\u0439\u0441\u043e\u0432 \u0434\u043b\u044f \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u043e\u0433\u043e \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430</div>`
                 : `<div class="route-list-empty">${TXT.noSavedRoutes}</div>`;
         } else {
             container.innerHTML = data.routes.map(r => {
@@ -1199,7 +1254,7 @@ function loadPlannedRoutes() {
         if (foundContainer) {
             if (!Array.isArray(currentFoundRoutes) || currentFoundRoutes.length === 0) {
                 foundContainer.innerHTML = managerScopeId
-                    ? `<div class="route-list-empty">Нет рейсов для выбранного менеджера</div>`
+                ? `<div class="route-list-empty">\u041d\u0435\u0442 \u0440\u0435\u0439\u0441\u043e\u0432 \u0434\u043b\u044f \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u043e\u0433\u043e \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430</div>`
                     : `<div class="route-list-empty">${TXT.noSavedRoutes}</div>`;
             } else {
                 foundContainer.innerHTML = currentFoundRoutes.map(r => {
@@ -1251,42 +1306,118 @@ function selectRoute(idsStr, costVal, element) {
     document.getElementById('selection-panel').scrollTop = 0;
 }
 
-function promptSaveRoute() {
-    if (selectedOrder.length < 1) return alert(UI.msgPickAtLeastOneRequest);
-    let payload = { zayavki_ids: selectedOrder.join(',') };
-    const costVal = document.getElementById('route-cost-input').value.trim();
-    payload.cost = (costVal !== '' && !isNaN(costVal)) ? parseFloat(costVal) : null;
-    if (editingRouteId) {
-        const activeNameEl = document.querySelector('.route-item.active .route-name');
-        const currentName = activeNameEl ? activeNameEl.textContent.replace(/^#\d+\s/, '') : '';
-        payload.id = editingRouteId;
-        payload.name = currentName;
-    } else {
-        payload.name = prompt(UI.msgEnterRouteName) || '';
+function toggleCreateRouteModal(show) {
+    const modal = document.getElementById('createRouteModal');
+    if (!modal) return;
+    modal.style.display = show ? 'flex' : 'none';
+}
+
+function openCreateRouteModal() {
+    ensureCreateRouteModal();
+    syncCreateRouteManagerSelect();
+    const nameInput = document.getElementById('create_route_name');
+    const errors = document.getElementById('createRouteErrors');
+    if (nameInput) nameInput.value = '';
+    if (errors) {
+        errors.style.display = 'none';
+        errors.innerHTML = '';
     }
-    if (!payload.name.trim()) return alert(UI.msgRouteNameEmpty);
-    const btn = document.getElementById('saveRouteBtn');
-    btn.disabled = true;
-    btn.textContent = UI.msgSaving;
-    fetch('map_files/save_planned_route.php', {
+    toggleCreateRouteModal(true);
+    if (nameInput) setTimeout(() => nameInput.focus(), 0);
+}
+
+function closeCreateRouteModal() {
+    toggleCreateRouteModal(false);
+}
+
+function submitRoutePayload(payload, btn, restoreText) {
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = UI.msgSaving;
+    }
+    return fetch('map_files/save_planned_route.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload)
     })
     .then(r => r.json())
     .then(res => {
-        if(res.success) {
+        if (res && res.success) {
             alert(res.message);
             window.location.reload();
-        } else {
-            alert(UI.msgErrorPrefix + res.message);
+            return;
         }
+        alert(UI.msgErrorPrefix + ((res && res.message) ? res.message : UI.msgSaveFailed));
     })
-    .catch(e => alert(UI.msgNetworkError))
+    .catch(() => alert(UI.msgNetworkError))
     .finally(() => {
-        btn.disabled = false;
-        btn.textContent = editingRouteId ? UI.routeUpdate : UI.routeSave;
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = restoreText;
+        }
     });
+}
+
+function confirmCreateRoute() {
+    const nameInput = document.getElementById('create_route_name');
+    const managerInput = document.getElementById('create_route_manager_id');
+    const errorBox = document.getElementById('createRouteErrors');
+    const saveBtn = document.getElementById('saveRouteBtn');
+
+    const routeName = String(nameInput?.value || '').trim();
+    const managerId = String(managerInput?.value || '').trim();
+    if (errorBox) {
+        errorBox.style.display = 'none';
+        errorBox.innerHTML = '';
+    }
+
+    if (!routeName) {
+        if (errorBox) {
+            errorBox.style.display = 'block';
+            errorBox.textContent = UI.msgCreateRouteTitleRequired;
+        }
+        if (nameInput) nameInput.focus();
+        return;
+    }
+    if (!managerId) {
+        if (errorBox) {
+            errorBox.style.display = 'block';
+            errorBox.textContent = UI.msgChooseManagerForRoute;
+        }
+        if (managerInput) managerInput.focus();
+        return;
+    }
+
+    const costVal = document.getElementById('route-cost-input')?.value.trim() || '';
+    const payload = {
+        zayavki_ids: selectedOrder.join(','),
+        name: routeName,
+        assigned_manager_id: Number(managerId),
+        cost: (costVal !== '' && !isNaN(costVal)) ? parseFloat(costVal) : null
+    };
+    closeCreateRouteModal();
+    submitRoutePayload(payload, saveBtn, UI.routeSave);
+}
+
+function promptSaveRoute() {
+    if (selectedOrder.length < 1) return alert(UI.msgPickAtLeastOneRequest);
+    const saveBtn = document.getElementById('saveRouteBtn');
+    const costVal = document.getElementById('route-cost-input').value.trim();
+
+    if (editingRouteId) {
+        const activeNameEl = document.querySelector('.route-item.active .route-name');
+        const currentName = activeNameEl ? activeNameEl.textContent.replace(/^#\d+\s/, '') : '';
+        const payload = {
+            id: editingRouteId,
+            name: currentName,
+            zayavki_ids: selectedOrder.join(','),
+            cost: (costVal !== '' && !isNaN(costVal)) ? parseFloat(costVal) : null
+        };
+        submitRoutePayload(payload, saveBtn, UI.routeUpdate);
+        return;
+    }
+
+    openCreateRouteModal();
 }
 
 function deleteRoute(id) {
@@ -1423,6 +1554,17 @@ function init() {
                 localStorage.removeItem(MANAGER_STORAGE_KEY);
             }
             await loadPlannedRoutes();
+        });
+    }
+    ensureCreateRouteModal();
+    const createRouteConfirmBtn = document.getElementById('createRouteConfirmBtn');
+    const createRouteCancelBtn = document.getElementById('createRouteCancelBtn');
+    const createRouteModal = document.getElementById('createRouteModal');
+    if (createRouteConfirmBtn) createRouteConfirmBtn.addEventListener('click', confirmCreateRoute);
+    if (createRouteCancelBtn) createRouteCancelBtn.addEventListener('click', closeCreateRouteModal);
+    if (createRouteModal) {
+        createRouteModal.addEventListener('click', function(event) {
+            if (event.target === createRouteModal) closeCreateRouteModal();
         });
     }
 

@@ -10,50 +10,127 @@ function outJson(array $payload): void
     exit;
 }
 
+function pickManagerDisplayName(array $row): string
+{
+    $candidates = [];
+    foreach (['full_name', 'name'] as $field) {
+        if (isset($row[$field])) {
+            $value = trim((string)$row[$field]);
+            if ($value !== '') {
+                $candidates[] = $value;
+            }
+        }
+    }
+
+    if (empty($candidates)) {
+        $first = '';
+        $last = '';
+        foreach (['first_name', 'firstname', 'given_name'] as $field) {
+            if (isset($row[$field]) && trim((string)$row[$field]) !== '') {
+                $first = trim((string)$row[$field]);
+                break;
+            }
+        }
+        foreach (['last_name', 'lastname', 'surname', 'family_name'] as $field) {
+            if (isset($row[$field]) && trim((string)$row[$field]) !== '') {
+                $last = trim((string)$row[$field]);
+                break;
+            }
+        }
+        $combined = trim($last . ' ' . $first);
+        if ($combined !== '') {
+            $candidates[] = $combined;
+        }
+    }
+
+    if (empty($candidates)) {
+        foreach (['username', 'login'] as $field) {
+            if (isset($row[$field])) {
+                $value = trim((string)$row[$field]);
+                if ($value !== '') {
+                    $candidates[] = $value;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!empty($candidates)) {
+        return $candidates[0];
+    }
+
+    return 'Менеджер #' . (int)($row['id'] ?? 0);
+}
+
 try {
     if (!isset($pdo) || !($pdo instanceof PDO)) {
-        throw new Exception('Database connection is not initialized');
+        throw new RuntimeException('Database connection is not initialized');
     }
 
     $columnsStmt = $pdo->query('SHOW COLUMNS FROM users');
     $columns = $columnsStmt ? $columnsStmt->fetchAll(PDO::FETCH_COLUMN) : [];
     $columnsMap = [];
-    if (is_array($columns)) {
-        foreach ($columns as $col) {
-            $columnsMap[(string)$col] = true;
-        }
+    foreach ((array)$columns as $col) {
+        $columnsMap[(string)$col] = true;
     }
 
     if (!isset($columnsMap['id'])) {
-        throw new Exception('Users table does not contain id column');
+        throw new RuntimeException('Users table does not contain id column');
     }
 
-    $nameCandidates = ['full_name', 'name', 'username', 'login'];
-    $nameSqlParts = [];
-    foreach ($nameCandidates as $col) {
-        if (isset($columnsMap[$col])) {
-            $nameSqlParts[] = "NULLIF(TRIM({$col}), '')";
+    $roleColumn = null;
+    foreach (['role', 'user_role', 'type'] as $candidate) {
+        if (isset($columnsMap[$candidate])) {
+            $roleColumn = $candidate;
+            break;
         }
     }
 
-    $nameExpr = !empty($nameSqlParts)
-        ? 'COALESCE(' . implode(', ', $nameSqlParts) . ', CONCAT("Менеджер #", id))'
-        : 'CONCAT("Менеджер #", id)';
+    $selectColumns = ['id'];
+    foreach (['full_name', 'name', 'first_name', 'firstname', 'given_name', 'last_name', 'lastname', 'surname', 'family_name', 'username', 'login'] as $field) {
+        if (isset($columnsMap[$field])) {
+            $selectColumns[] = $field;
+        }
+    }
+    if ($roleColumn !== null) {
+        $selectColumns[] = $roleColumn;
+    }
 
-    $sql = "SELECT id, {$nameExpr} AS manager_name FROM users ORDER BY manager_name ASC";
+    $sql = 'SELECT ' . implode(', ', array_unique($selectColumns)) . ' FROM users';
+    if ($roleColumn !== null) {
+        $sql .= " WHERE LOWER(TRIM($roleColumn)) = 'logist'";
+    }
+
     $stmt = $pdo->query($sql);
     if (!$stmt) {
-        throw new Exception('Failed to query managers');
+        throw new RuntimeException('Failed to query managers');
     }
 
     $managers = [];
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        if (!is_array($row)) continue;
+        if (!is_array($row)) {
+            continue;
+        }
+
+        if ($roleColumn === null) {
+            mapError('get_managers: role column not found in users table');
+            continue;
+        }
+
+        $id = isset($row['id']) ? (int)$row['id'] : 0;
+        if ($id <= 0) {
+            continue;
+        }
+
         $managers[] = [
-            'id' => isset($row['id']) ? (int)$row['id'] : 0,
-            'name' => trim((string)($row['manager_name'] ?? '')),
+            'id' => $id,
+            'name' => pickManagerDisplayName($row),
         ];
     }
+
+    usort($managers, static function (array $a, array $b): int {
+        return strcmp((string)$a['name'], (string)$b['name']);
+    });
 
     outJson(['success' => true, 'managers' => $managers]);
 } catch (Throwable $e) {

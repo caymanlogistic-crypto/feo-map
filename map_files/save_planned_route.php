@@ -184,6 +184,52 @@ function assertTransitionAllowed(array $flight, string $targetStatus): ?string
     return 'Недопустимый переход статуса';
 }
 
+function resolveUsersRoleColumn(PDO $pdo): ?string
+{
+    try {
+        $stmt = $pdo->query('SHOW COLUMNS FROM users');
+        $columns = $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+        $map = [];
+        foreach ((array)$columns as $column) {
+            $map[(string)$column] = true;
+        }
+        foreach (['role', 'user_role', 'type'] as $candidate) {
+            if (isset($map[$candidate])) {
+                return $candidate;
+            }
+        }
+    } catch (Throwable $e) {
+        mapError('resolveUsersRoleColumn failed', ['error' => $e->getMessage()]);
+    }
+    return null;
+}
+
+function resolveValidLogistManagerId(PDO $pdo, $managerIdRaw): int
+{
+    $managerId = (int)$managerIdRaw;
+    if ($managerId <= 0) {
+        return 0;
+    }
+
+    $roleColumn = resolveUsersRoleColumn($pdo);
+    if ($roleColumn === null) {
+        return 0;
+    }
+
+    try {
+        $sql = "SELECT id FROM users WHERE id = :id AND LOWER(TRIM($roleColumn)) = 'logist' LIMIT 1";
+        $stmt = $pdo->prepare($sql);
+        if (!$stmt || !$stmt->execute([':id' => $managerId])) {
+            return 0;
+        }
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? (int)($row['id'] ?? 0) : 0;
+    } catch (Throwable $e) {
+        mapError('resolveValidLogistManagerId failed', ['error' => $e->getMessage(), 'manager_id' => $managerId]);
+        return 0;
+    }
+}
+
 function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTransition): array
 {
     $ids = normalizeIdsString($data['zayavki_ids'] ?? '');
@@ -370,9 +416,20 @@ try {
             ]);
         }
 
+        $assignedManagerId = resolveValidLogistManagerId($pdo, $data['assigned_manager_id'] ?? 0);
+        if ($assignedManagerId <= 0) {
+            jsonOut([
+                'success' => false,
+                'message' => 'Выберите менеджера для планируемого рейса.',
+                'errors' => [
+                    'assigned_manager_id' => 'Выберите менеджера для планируемого рейса.'
+                ]
+            ]);
+        }
+
         $stmt = $pdo->prepare("
             INSERT INTO flights (status, comment, cost, zayavki_ids, zayavki_count, assigned_manager_id, planned_start_date_from, planned_start_date_to, driver_id, block_date)
-            VALUES (:status, :comment, :cost, :zayavki_ids, :count, NULL, :planned_from, :planned_to, :driver_id, NOW())
+            VALUES (:status, :comment, :cost, :zayavki_ids, :count, :assigned_manager_id, :planned_from, :planned_to, :driver_id, NOW())
         ");
         $stmt->execute([
             ':status' => STATUS_PLANNED,
@@ -380,6 +437,7 @@ try {
             ':cost' => $normalized['cost'],
             ':zayavki_ids' => $normalized['zayavki_ids_canonical'],
             ':count' => $normalized['zayavki_count'],
+            ':assigned_manager_id' => $assignedManagerId,
             ':planned_from' => $normalized['planned_start_date_from'],
             ':planned_to' => $normalized['planned_start_date_to'],
             ':driver_id' => $normalized['driver_id'],
