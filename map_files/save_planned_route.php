@@ -14,6 +14,11 @@ function jsonOut(array $payload): void
     exit;
 }
 
+function quoteIdent(string $name): string
+{
+    return '`' . str_replace('`', '``', $name) . '`';
+}
+
 function normalizeIdsString($raw): array
 {
     $parts = is_array($raw) ? $raw : explode(',', (string)$raw);
@@ -193,7 +198,7 @@ function resolveUsersRoleColumn(PDO $pdo): ?string
         foreach ((array)$columns as $column) {
             $map[(string)$column] = true;
         }
-        foreach (['role', 'user_role', 'type'] as $candidate) {
+        foreach (['Роль', 'role', 'user_role', 'type'] as $candidate) {
             if (isset($map[$candidate])) {
                 return $candidate;
             }
@@ -217,7 +222,7 @@ function resolveValidLogistManagerId(PDO $pdo, $managerIdRaw): int
     }
 
     try {
-        $sql = "SELECT id FROM users WHERE id = :id AND LOWER(TRIM($roleColumn)) = 'logist' LIMIT 1";
+        $sql = "SELECT id FROM users WHERE id = :id AND LOWER(TRIM(" . quoteIdent($roleColumn) . ")) = 'logist' LIMIT 1";
         $stmt = $pdo->prepare($sql);
         if (!$stmt || !$stmt->execute([':id' => $managerId])) {
             return 0;
@@ -228,6 +233,26 @@ function resolveValidLogistManagerId(PDO $pdo, $managerIdRaw): int
         mapError('resolveValidLogistManagerId failed', ['error' => $e->getMessage(), 'manager_id' => $managerId]);
         return 0;
     }
+}
+
+function resolveFlightsManagerColumn(PDO $pdo): ?string
+{
+    try {
+        $stmt = $pdo->query('SHOW COLUMNS FROM flights');
+        $columns = $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+        $map = [];
+        foreach ((array)$columns as $column) {
+            $map[(string)$column] = true;
+        }
+        foreach (['assigned_manager_id', 'manager_id'] as $candidate) {
+            if (isset($map[$candidate])) {
+                return $candidate;
+            }
+        }
+    } catch (Throwable $e) {
+        mapError('resolveFlightsManagerColumn failed', ['error' => $e->getMessage()]);
+    }
+    return null;
 }
 
 function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTransition): array
@@ -427,8 +452,20 @@ try {
             ]);
         }
 
+        $managerColumn = resolveFlightsManagerColumn($pdo);
+        if ($managerColumn === null) {
+            jsonOut([
+                'success' => false,
+                'message' => 'Выберите менеджера для планируемого рейса.',
+                'errors' => [
+                    'assigned_manager_id' => 'Выберите менеджера для планируемого рейса.'
+                ]
+            ]);
+        }
+        $quotedManagerColumn = quoteIdent($managerColumn);
+
         $stmt = $pdo->prepare("
-            INSERT INTO flights (status, comment, cost, zayavki_ids, zayavki_count, assigned_manager_id, planned_start_date_from, planned_start_date_to, driver_id, block_date)
+            INSERT INTO flights (status, comment, cost, zayavki_ids, zayavki_count, {$quotedManagerColumn}, planned_start_date_from, planned_start_date_to, driver_id, block_date)
             VALUES (:status, :comment, :cost, :zayavki_ids, :count, :assigned_manager_id, :planned_from, :planned_to, :driver_id, NOW())
         ");
         $stmt->execute([

@@ -100,6 +100,7 @@ UI.msgTransitionValidationDates = '\u0434\u0430\u0442\u044b';
 UI.msgTransitionValidationCost = '\u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c';
 UI.msgTransitionValidationRequests = '\u0437\u0430\u044f\u0432\u043a\u0438';
 UI.msgChooseManagerForRoute = '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430 \u0434\u043b\u044f \u043f\u043b\u0430\u043d\u0438\u0440\u0443\u0435\u043c\u043e\u0433\u043e \u0440\u0435\u0439\u0441\u0430.';
+UI.msgChooseManagerOption = '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430';
 UI.msgCreateRouteTitleRequired = '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u0430 \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u0431\u044b\u0442\u044c \u043f\u0443\u0441\u0442\u044b\u043c';
 
 // === TRACKER DATA FROM PHP BOOTSTRAP ===
@@ -227,10 +228,24 @@ function formatDriverCompactLabel(label) {
     const value = String(label || '').trim();
     if (!value || value === UI.driverMissing) return UI.driverMissing;
     const plateMatch = value.match(/[\u0410-\u042f\u0401A-Z]\d{3}[\u0410-\u042f\u0401A-Z]{2}\d{2,3}/u);
-    const nameMatch = value.match(/\(([^)]+)\)/u);
-    if (plateMatch && nameMatch) return `${plateMatch[0]} (${nameMatch[1].trim()})`;
+    let surname = '';
+
+    const nameInBrackets = value.match(/\(([^)]+)\)/u);
+    if (nameInBrackets && nameInBrackets[1]) {
+        surname = String(nameInBrackets[1]).trim().split(/\s+/u)[0] || '';
+    }
+    if (!surname) {
+        const beforeSlash = String(value.split('/')[0] || '').trim();
+        const words = beforeSlash.match(/[А-ЯЁA-Z][а-яёa-z]+/gu);
+        if (words && words.length) {
+            surname = words[0];
+        }
+    }
+
+    if (plateMatch && surname) return `${plateMatch[0]} (${surname})`;
     if (plateMatch) return plateMatch[0];
-    return value;
+    if (surname) return surname;
+    return UI.driverMissing;
 }
 
 function formatRouteCost(costValue) {
@@ -1175,7 +1190,7 @@ function syncCreateRouteManagerSelect() {
     if (!select) return;
 
     const preferred = String(managerScopeId || localStorage.getItem(MANAGER_STORAGE_KEY) || '').trim();
-    select.innerHTML = `<option value="">${UI.msgChooseManagerForRoute}</option>`;
+    select.innerHTML = `<option value="">${UI.msgChooseManagerOption}</option>`;
 
     let hasPreferred = false;
     (Array.isArray(currentManagers) ? currentManagers : []).forEach(manager => {
@@ -1239,8 +1254,8 @@ function loadPlannedRoutes() {
                 return `
                     <div class="route-item route-item-planned" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
                         <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'planned')}</div>
-                        <div class="route-meta">${zayCount} ${TXT.requestsCount.toLowerCase()}${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}</div>
-                        <div class="route-meta">${UI.labelDriver}: ${escapeHtml(driverLabel)}</div>
+                        <div class="route-meta">${zayCount} заяв.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}</div>
+                        <div class="route-meta">${escapeHtml(driverLabel)}</div>
                     </div>
                 `;
             }).join('');
@@ -1266,8 +1281,8 @@ function loadPlannedRoutes() {
                     return `
                         <div class="route-item route-item-found" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
                             <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'found')}</div>
-                            <div class="route-meta">${zayCount} ${TXT.requestsCount.toLowerCase()}${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}</div>
-                            <div class="route-meta">${UI.labelDriver}: ${escapeHtml(driverLabel)}</div>
+                            <div class="route-meta">${zayCount} заяв.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}</div>
+                            <div class="route-meta">${escapeHtml(driverLabel)}</div>
                         </div>
                     `;
                 }).join('');

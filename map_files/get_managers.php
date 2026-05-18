@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 error_reporting(0);
 ini_set('display_errors', 0);
 require_once __DIR__ . '/bootstrap.php';
@@ -10,53 +10,32 @@ function outJson(array $payload): void
     exit;
 }
 
+function quoteIdent(string $name): string
+{
+    return '`' . str_replace('`', '``', $name) . '`';
+}
+
 function pickManagerDisplayName(array $row): string
 {
-    $candidates = [];
+    $lastName = trim((string)($row['Фамилия'] ?? ''));
+    $firstName = trim((string)($row['Имя'] ?? ''));
+    $fullRu = trim($lastName . ' ' . $firstName);
+    if ($fullRu !== '') {
+        return $fullRu;
+    }
+
     foreach (['full_name', 'name'] as $field) {
-        if (isset($row[$field])) {
-            $value = trim((string)$row[$field]);
-            if ($value !== '') {
-                $candidates[] = $value;
-            }
+        $value = trim((string)($row[$field] ?? ''));
+        if ($value !== '') {
+            return $value;
         }
     }
 
-    if (empty($candidates)) {
-        $first = '';
-        $last = '';
-        foreach (['first_name', 'firstname', 'given_name'] as $field) {
-            if (isset($row[$field]) && trim((string)$row[$field]) !== '') {
-                $first = trim((string)$row[$field]);
-                break;
-            }
+    foreach (['username', 'login'] as $field) {
+        $value = trim((string)($row[$field] ?? ''));
+        if ($value !== '') {
+            return $value;
         }
-        foreach (['last_name', 'lastname', 'surname', 'family_name'] as $field) {
-            if (isset($row[$field]) && trim((string)$row[$field]) !== '') {
-                $last = trim((string)$row[$field]);
-                break;
-            }
-        }
-        $combined = trim($last . ' ' . $first);
-        if ($combined !== '') {
-            $candidates[] = $combined;
-        }
-    }
-
-    if (empty($candidates)) {
-        foreach (['username', 'login'] as $field) {
-            if (isset($row[$field])) {
-                $value = trim((string)$row[$field]);
-                if ($value !== '') {
-                    $candidates[] = $value;
-                    break;
-                }
-            }
-        }
-    }
-
-    if (!empty($candidates)) {
-        return $candidates[0];
     }
 
     return 'Менеджер #' . (int)($row['id'] ?? 0);
@@ -79,27 +58,27 @@ try {
     }
 
     $roleColumn = null;
-    foreach (['role', 'user_role', 'type'] as $candidate) {
+    foreach (['Роль', 'role', 'user_role', 'type'] as $candidate) {
         if (isset($columnsMap[$candidate])) {
             $roleColumn = $candidate;
             break;
         }
     }
+    if ($roleColumn === null) {
+        throw new RuntimeException('Users role column not found');
+    }
 
     $selectColumns = ['id'];
-    foreach (['full_name', 'name', 'first_name', 'firstname', 'given_name', 'last_name', 'lastname', 'surname', 'family_name', 'username', 'login'] as $field) {
+    foreach (['Фамилия', 'Имя', 'full_name', 'name', 'username', 'login'] as $field) {
         if (isset($columnsMap[$field])) {
             $selectColumns[] = $field;
         }
     }
-    if ($roleColumn !== null) {
-        $selectColumns[] = $roleColumn;
-    }
+    $selectColumns[] = $roleColumn;
 
-    $sql = 'SELECT ' . implode(', ', array_unique($selectColumns)) . ' FROM users';
-    if ($roleColumn !== null) {
-        $sql .= " WHERE LOWER(TRIM($roleColumn)) = 'logist'";
-    }
+    $quotedSelect = array_map('quoteIdent', array_unique($selectColumns));
+    $sql = "SELECT " . implode(', ', $quotedSelect) .
+        " FROM users WHERE LOWER(TRIM(" . quoteIdent($roleColumn) . ")) = 'logist'";
 
     $stmt = $pdo->query($sql);
     if (!$stmt) {
@@ -109,11 +88,6 @@ try {
     $managers = [];
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         if (!is_array($row)) {
-            continue;
-        }
-
-        if ($roleColumn === null) {
-            mapError('get_managers: role column not found in users table');
             continue;
         }
 

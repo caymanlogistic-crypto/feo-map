@@ -107,10 +107,11 @@
 .flight-modal-input.field-error { border-color: #dc3545; box-shadow: 0 0 0 2px rgba(220,53,69,0.12); background: #fff8f8; }
 .flight-modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
 .flight-modal-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin-top:8px; }
-.flight-modal-grid .flight-sub-label { margin-top: 0; }
-.flight-modal-grid label[for="edit_planned_start_date_to"].flight-sub-label { margin-top: 21px; }
+.flight-modal-grid .flight-sub-label { margin-top: 0; margin-bottom: 3px; }
 .flight-modal-grid #edit_planned_start_date_from,
-.flight-modal-grid #edit_planned_start_date_to { height: 32px; }
+.flight-modal-grid #edit_planned_start_date_to { height: 32px; width: 100%; }
+.flight-modal-grid label[for="edit_planned_start_date_from"].flight-modal-label { margin-bottom: 4px; }
+.flight-modal-grid label[for="edit_planned_start_date_to"].flight-modal-label { visibility: hidden; margin-bottom: 4px; }
 .flight-date-range { grid-column: 1 / -1; }
 .flight-date-range-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
 .flight-date-col { display: flex; flex-direction: column; justify-content: flex-end; }
