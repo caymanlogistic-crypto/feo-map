@@ -2,10 +2,17 @@
 
 function mapGetNotifyKey(): string
 {
-    global $maxNotifyKey;
-    if (!empty($maxNotifyKey)) {
-        return (string)$maxNotifyKey;
+    $configPath = dirname(__DIR__) . '/config/max_notify.php';
+    if (is_file($configPath)) {
+        $cfg = require $configPath;
+        if (is_array($cfg) && !empty($cfg['key'])) {
+            $key = trim((string)$cfg['key']);
+            if ($key !== '') {
+                return $key;
+            }
+        }
     }
+
     $envKey = getenv('MAX_NOTIFY_KEY');
     if (is_string($envKey) && trim($envKey) !== '') {
         return trim($envKey);
@@ -15,6 +22,10 @@ function mapGetNotifyKey(): string
     }
     if (!empty($_ENV['MAX_NOTIFY_KEY'])) {
         return (string)$_ENV['MAX_NOTIFY_KEY'];
+    }
+    global $maxNotifyKey;
+    if (!empty($maxNotifyKey)) {
+        return (string)$maxNotifyKey;
     }
     return '';
 }
@@ -62,4 +73,3 @@ function sendMaxNotify(string $message): array
 
     return ['success' => true, 'error' => null];
 }
-
