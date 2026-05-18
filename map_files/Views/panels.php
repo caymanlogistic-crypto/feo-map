@@ -4,12 +4,18 @@
 <button class="refresh-btn" id="refreshBtn" title="Обновить позиции транспорта">Обновить транспорт</button>
 
 <div class="routes-panel">
-    <h3 class="routes-title-planned">Планируемые маршруты</h3>
-    <div id="plannedRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
-    <h3 class="routes-title-found" style="margin-top: 14px;">Исполнит. найден</h3>
-    <div id="foundRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
-    <h3 class="routes-title-started" style="margin-top: 14px;">Вывоз начался</h3>
-    <div id="startedRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
+    <div class="routes-section routes-section-planned">
+        <h3 class="routes-title-planned">Планируемые маршруты</h3>
+        <div id="plannedRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
+    </div>
+    <div class="routes-section routes-section-found">
+        <h3 class="routes-title-found">Исполнит. найден</h3>
+        <div id="foundRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
+    </div>
+    <div class="routes-section routes-section-started">
+        <h3 class="routes-title-started">Вывоз начался</h3>
+        <div id="startedRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
+    </div>
 </div>
 
 <div class="layer-panel">

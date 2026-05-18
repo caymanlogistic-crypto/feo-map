@@ -187,6 +187,23 @@ function getTrackerPreset(minutes) {
     return 'islands#redStretchyIcon';
 }
 
+function createHotTrackerIconSvg(content) {
+    const label = escapeHtml(String(content || ''));
+    return `data:image/svg+xml;utf8,${encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="40" viewBox="0 0 64 40">
+            <defs>
+                <filter id="hotGlow" x="-40%" y="-40%" width="180%" height="180%">
+                    <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#ff6b4a" flood-opacity="0.65"/>
+                </filter>
+            </defs>
+            <g filter="url(#hotGlow)">
+                <rect x="4" y="4" width="56" height="30" rx="12" ry="12" fill="#d94b2b" stroke="#b63a1f" stroke-width="2"/>
+                <text x="32" y="23" text-anchor="middle" font-size="14" font-family="Arial, sans-serif" font-weight="700" fill="#ffffff">${label}</text>
+            </g>
+        </svg>`
+    )}`;
+}
+
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/[&<>"']/g, function(m) {
@@ -360,7 +377,23 @@ function addTrackerMarkers(trackers) {
     trackers.forEach(tracker => {
         if (!tracker || typeof tracker !== 'object') return;
         if (!Number.isFinite(Number(tracker.lat)) || !Number.isFinite(Number(tracker.lon))) return;
-        const preset = getTrackerPreset(tracker.time_diff_minutes);
+        const minutes = Number(tracker.time_diff_minutes || 9999);
+        const preset = getTrackerPreset(minutes);
+        const isHotTracker = Number.isFinite(minutes) && minutes < 10;
+        const markerOptions = {
+            preset: preset,
+            iconImageScale: 0.7,
+            iconContentOffset: [0, -7],
+            visible: showTransport,
+            zIndex: 1000 // Transport is always above request markers
+        };
+        if (isHotTracker) {
+            markerOptions.iconLayout = 'default#image';
+            markerOptions.iconImageHref = createHotTrackerIconSvg(tracker.short_name);
+            markerOptions.iconImageSize = [64, 40];
+            markerOptions.iconImageOffset = [-32, -28];
+            delete markerOptions.preset;
+        }
         const placemark = new ymaps.Placemark(
             [Number(tracker.lat), Number(tracker.lon)],
             {
@@ -369,13 +402,7 @@ function addTrackerMarkers(trackers) {
                 balloonContent: createTrackerBalloon(tracker),
                 trackerData: tracker
             },
-            {
-                preset: preset,
-                iconImageScale: 0.7,
-                iconContentOffset: [0, -7],
-                visible: showTransport,
-                zIndex: 1000 // Transport is always above request markers
-            }
+            markerOptions
         );
         trackerPlacemarks.push(placemark);
         trackersCollection.add(placemark);
