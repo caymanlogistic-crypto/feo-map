@@ -2,6 +2,7 @@
 error_reporting(0);
 ini_set('display_errors', 0);
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/Support/max_notify.php';
 header('Content-Type: application/json; charset=utf-8');
 
 const STATUS_PLANNED = 'planned_route';
@@ -56,55 +57,9 @@ function formatDateRu($value): string
     return date('d.m.Y H:i', $ts);
 }
 
-function getMaxNotifyKey(): string
-{
-    global $maxNotifyKey;
-    if (!empty($maxNotifyKey)) {
-        return (string)$maxNotifyKey;
-    }
-    $envKey = getenv('MAX_NOTIFY_KEY');
-    if (is_string($envKey) && trim($envKey) !== '') return trim($envKey);
-    if (!empty($_SERVER['MAX_NOTIFY_KEY'])) return (string)$_SERVER['MAX_NOTIFY_KEY'];
-    if (!empty($_ENV['MAX_NOTIFY_KEY'])) return (string)$_ENV['MAX_NOTIFY_KEY'];
-    return '';
-}
-
 function sendMaxNotification($text): array
 {
-    $secretKey = getMaxNotifyKey();
-    if ($secretKey === '') {
-        mapError('MAX notify: key is not configured');
-        return ['success' => false, 'error' => 'MAX notify key is not configured'];
-    }
-
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? '';
-    $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
-    $baseDir = dirname(dirname($scriptName));
-    if ($host === '' || $baseDir === '') {
-        mapError('MAX notify: host/baseDir not resolved', ['host' => $host, 'script' => $scriptName]);
-        return ['success' => false, 'error' => 'MAX notify base URL is not resolved'];
-    }
-    $url = sprintf('%s://%s%s/notify_max.php?key=%s&text=%s',
-        $scheme,
-        $host,
-        $baseDir === '/' ? '' : $baseDir,
-        rawurlencode($secretKey),
-        rawurlencode((string)$text)
-    );
-
-    $ok = false;
-    $context = stream_context_create(['http' => ['timeout' => 10]]);
-    $resp = @file_get_contents($url, false, $context);
-    if (is_string($resp) && $resp !== '') {
-        $data = json_decode($resp, true);
-        $ok = is_array($data) && !empty($data['success']);
-    }
-    if (!$ok) {
-        mapError('MAX notify failed', ['url' => $url, 'response' => $resp]);
-        return ['success' => false, 'error' => 'MAX notify request failed'];
-    }
-    return ['success' => true, 'error' => null];
+    return sendMaxNotify((string)$text);
 }
 
 function getDriverLabelById(PDO $pdo, $driverId): string
@@ -159,7 +114,7 @@ function getRouteMetrics(PDO $pdo, array $idList): array
 function loadFlightSnapshot(PDO $pdo, $flightId): ?array
 {
     try {
-        $stmt = $pdo->prepare('SELECT id, status, driver_id, zayavki_ids, planned_start_date_from, planned_start_date_to, actual_start_date, actual_end_date, comment, cost, unload_type FROM flights WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT id, status, driver_id, zayavki_ids, planned_start_date_from, planned_start_date_to, actual_start_date, actual_end_date, comment, cost, unload_type, assigned_manager_id FROM flights WHERE id = ? LIMIT 1');
         if (!$stmt || !$stmt->execute([(int)$flightId])) {
             return null;
         }
@@ -358,78 +313,165 @@ function formatUnloadTypeRu(?string $type): string
     return strtoupper(trim((string)$type)) === 'SKLAD' ? 'СКЛАД' : 'ОО';
 }
 
-function buildFoundDiffMessage(array $before, array $after, int $flightId): string
+function formatDateShortRu($value): string
 {
+    $v = trim((string)$value);
+    if ($v === '') return 'не указано';
+    $ts = strtotime($v);
+    return $ts === false ? $v : date('d.m', $ts);
+}
+
+function formatMoneyRu($value): string
+{
+    if ($value === null || $value === '') return '0 ₽';
+    $num = (float)$value;
+    return number_format($num, 0, '.', ' ') . ' ₽';
+}
+
+function formatKgFromTons($tons): string
+{
+    return number_format((int)round((float)$tons * 1000), 0, '.', ' ') . ' кг';
+}
+
+function compactDriverLabel(string $label): string
+{
+    $v = trim($label);
+    if ($v === '') return 'Водитель не указан';
+    if (preg_match('/([А-ЯЁA-Z]\d{3}[А-ЯЁA-Z]{2}\d{2,3})/u', $v, $mPlate)) {
+        $plate = trim($mPlate[1]);
+        if (preg_match('/\(([^)]+)\)/u', $v, $mName)) {
+            $surname = trim((string)explode(' ', trim($mName[1]))[0]);
+            if ($surname !== '') return $plate . ' (' . $surname . ')';
+        }
+        return $plate;
+    }
+    return $v;
+}
+
+function getManagerDisplayNameById(PDO $pdo, $managerId): string
+{
+    $id = (int)$managerId;
+    if ($id <= 0) return 'Менеджер не указан';
+    try {
+        $stmt = $pdo->query('SHOW COLUMNS FROM users');
+        $columns = $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+        $map = [];
+        foreach ((array)$columns as $column) $map[(string)$column] = true;
+
+        $parts = [];
+        if (isset($map['Фамилия'])) $parts[] = "COALESCE(u.`Фамилия`, '')";
+        if (isset($map['Имя'])) $parts[] = "COALESCE(u.`Имя`, '')";
+        if (isset($map['full_name'])) $parts[] = "COALESCE(u.full_name, '')";
+        if (isset($map['name'])) $parts[] = "COALESCE(u.name, '')";
+        if (isset($map['username'])) $parts[] = "COALESCE(u.username, '')";
+        if (isset($map['login'])) $parts[] = "COALESCE(u.login, '')";
+        if (empty($parts)) return 'Менеджер #' . $id;
+
+        $sql = 'SELECT ' . implode(", ' ', ", $parts) . ' AS manager_name FROM users u WHERE u.id = :id LIMIT 1';
+        $q = $pdo->prepare($sql);
+        if (!$q || !$q->execute([':id' => $id])) return 'Менеджер #' . $id;
+        $row = $q->fetch(PDO::FETCH_ASSOC);
+        $name = trim(preg_replace('/\s+/u', ' ', (string)($row['manager_name'] ?? '')));
+        return $name !== '' ? $name : 'Менеджер #' . $id;
+    } catch (Throwable $e) {
+        mapError('Manager name load failed', ['manager_id' => $id, 'error' => $e->getMessage()]);
+        return 'Менеджер #' . $id;
+    }
+}
+
+function buildRouteTitle(array $flight, int $flightId): string
+{
+    $title = trim((string)($flight['comment'] ?? ''));
+    return $title !== '' ? $title : ('Рейс #' . $flightId);
+}
+
+function buildCompactMetaLine(array $flight): string
+{
+    $count = (int)($flight['_count'] ?? 0);
+    $kg = formatKgFromTons((float)($flight['_sum_tons'] ?? 0));
+    $cost = formatMoneyRu($flight['cost'] ?? null);
+    $unload = formatUnloadTypeRu($flight['unload_type'] ?? 'OO');
+    return "{$count} заяв. • {$kg} • {$cost} • {$unload}";
+}
+
+function buildCompactFlightContext(PDO $pdo, array $flight, int $flightId): array
+{
+    $title = buildRouteTitle($flight, $flightId);
+    $manager = getManagerDisplayNameById($pdo, $flight['assigned_manager_id'] ?? 0);
+    $driver = compactDriverLabel((string)($flight['_driver_label'] ?? ''));
+    $meta = buildCompactMetaLine($flight);
+    return [$title, $manager, $driver, $meta];
+}
+
+function buildFoundDiffMessage(PDO $pdo, array $before, array $after, int $flightId): string
+{
+    [$title, $manager] = buildCompactFlightContext($pdo, $after, $flightId);
     $changes = [];
     if ((int)$before['driver_id'] !== (int)$after['driver_id']) {
-        $changes[] = "Водитель:\n{$before['_driver_label']}\n→\n{$after['_driver_label']}";
+        $changes[] = 'Водитель: ' . compactDriverLabel((string)$before['_driver_label']) . ' → ' . compactDriverLabel((string)$after['_driver_label']);
     }
     if ((string)$before['planned_start_date_from'] !== (string)$after['planned_start_date_from']) {
-        $changes[] = "Дата начала:\n" . formatDateRu($before['planned_start_date_from']) . "\n→\n" . formatDateRu($after['planned_start_date_from']);
-    }
-    if ((string)$before['planned_start_date_to'] !== (string)$after['planned_start_date_to']) {
-        $changes[] = "Дата окончания:\n" . formatDateRu($before['planned_start_date_to']) . "\n→\n" . formatDateRu($after['planned_start_date_to']);
+        $changes[] = 'Даты: ' . formatDateShortRu($before['planned_start_date_from']) . '-' . formatDateShortRu($before['planned_start_date_to'])
+            . ' → ' . formatDateShortRu($after['planned_start_date_from']) . '-' . formatDateShortRu($after['planned_start_date_to']);
     }
     if ((string)$before['zayavki_ids'] !== (string)$after['zayavki_ids']) {
-        $changes[] = "Список заявок:\n{$before['zayavki_ids']}\n→\n{$after['zayavki_ids']}";
-    }
-    if ((int)$before['_count'] !== (int)$after['_count']) {
-        $changes[] = "Количество заявок:\n{$before['_count']}\n→\n{$after['_count']}";
+        $changes[] = 'Заявки: ' . (int)$before['_count'] . ' → ' . (int)$after['_count'];
     }
     if (abs((float)$before['_sum_tons'] - (float)$after['_sum_tons']) > 0.0001) {
-        $changes[] = "Общая масса:\n" . formatTons($before['_sum_tons']) . " т\n→\n" . formatTons($after['_sum_tons']) . " т";
+        $changes[] = 'Вес: ' . formatKgFromTons((float)$before['_sum_tons']) . ' → ' . formatKgFromTons((float)$after['_sum_tons']);
     }
     if ((string)$before['cost'] !== (string)$after['cost']) {
-        $changes[] = "Стоимость:\n" . ($before['cost'] === null ? 'не указана' : $before['cost']) . "\n→\n" . ($after['cost'] === null ? 'не указана' : $after['cost']);
+        $changes[] = 'Стоимость: ' . formatMoneyRu($before['cost'] ?? null) . ' → ' . formatMoneyRu($after['cost'] ?? null);
     }
 
     if ((string)($before['unload_type'] ?? 'OO') !== (string)($after['unload_type'] ?? 'OO')) {
-        $changes[] = "Тип выгрузки:\n" . formatUnloadTypeRu($before['unload_type'] ?? 'OO') . "\n→\n" . formatUnloadTypeRu($after['unload_type'] ?? 'OO');
+        $changes[] = 'Тип выгрузки: ' . formatUnloadTypeRu($before['unload_type'] ?? 'OO') . ' → ' . formatUnloadTypeRu($after['unload_type'] ?? 'OO');
+    }
+    if (trim((string)($before['comment'] ?? '')) !== trim((string)($after['comment'] ?? ''))) {
+        $changes[] = 'Название: ' . buildRouteTitle($before, $flightId) . ' → ' . buildRouteTitle($after, $flightId);
     }
 
     if (empty($changes)) {
         return '';
     }
 
-    return "Рейс #{$flightId} изменён в статусе ИСПОЛНИТЕЛЬНАЙДЕН\n\nИзменения:\n\n" . implode("\n\n", $changes);
+    return "Изменён рейс #{$flightId} в «Исполнит. найден»\n{$title} | {$manager}\n" . implode("\n", $changes);
 }
 
 
-function buildStartedDiffMessage(array $before, array $after, int $flightId): string
+function buildStartedDiffMessage(PDO $pdo, array $before, array $after, int $flightId): string
 {
+    [$title, $manager] = buildCompactFlightContext($pdo, $after, $flightId);
     $changes = [];
     if ((int)$before['driver_id'] !== (int)$after['driver_id']) {
-        $changes[] = "Водитель:\n{$before['_driver_label']}\n→\n{$after['_driver_label']}";
+        $changes[] = 'Водитель: ' . compactDriverLabel((string)$before['_driver_label']) . ' → ' . compactDriverLabel((string)$after['_driver_label']);
     }
     if ((string)$before['actual_start_date'] !== (string)$after['actual_start_date']) {
-        $changes[] = "Дата начала:\n" . formatDateRu($before['actual_start_date']) . "\n→\n" . formatDateRu($after['actual_start_date']);
+        $changes[] = 'Старт: ' . formatDateShortRu($before['actual_start_date']) . ' → ' . formatDateShortRu($after['actual_start_date']);
     }
     if ((string)$before['actual_end_date'] !== (string)$after['actual_end_date']) {
-        $changes[] = "Дата завершения:\n" . formatDateRu($before['actual_end_date']) . "\n→\n" . formatDateRu($after['actual_end_date']);
+        $changes[] = 'Финиш: ' . formatDateShortRu($before['actual_end_date']) . ' → ' . formatDateShortRu($after['actual_end_date']);
     }
     if ((string)$before['zayavki_ids'] !== (string)$after['zayavki_ids']) {
-        $changes[] = "Список заявок:\n{$before['zayavki_ids']}\n→\n{$after['zayavki_ids']}";
-    }
-    if ((int)$before['_count'] !== (int)$after['_count']) {
-        $changes[] = "Количество заявок:\n{$before['_count']}\n→\n{$after['_count']}";
+        $changes[] = 'Заявки: ' . (int)$before['_count'] . ' → ' . (int)$after['_count'];
     }
     if (abs((float)$before['_sum_tons'] - (float)$after['_sum_tons']) > 0.0001) {
-        $changes[] = "Общая масса:\n" . formatTons($before['_sum_tons']) . " т\n→\n" . formatTons($after['_sum_tons']) . " т";
+        $changes[] = 'Вес: ' . formatKgFromTons((float)$before['_sum_tons']) . ' → ' . formatKgFromTons((float)$after['_sum_tons']);
     }
     if ((string)$before['cost'] !== (string)$after['cost']) {
-        $changes[] = "Стоимость:\n" . ($before['cost'] === null ? 'не указана' : $before['cost']) . "\n→\n" . ($after['cost'] === null ? 'не указана' : $after['cost']);
+        $changes[] = 'Стоимость: ' . formatMoneyRu($before['cost'] ?? null) . ' → ' . formatMoneyRu($after['cost'] ?? null);
     }
     if (trim((string)($before['comment'] ?? '')) !== trim((string)($after['comment'] ?? ''))) {
-        $changes[] = "Комментарий:\n" . trim((string)($before['comment'] ?? '')) . "\n→\n" . trim((string)($after['comment'] ?? ''));
+        $changes[] = 'Название: ' . buildRouteTitle($before, $flightId) . ' → ' . buildRouteTitle($after, $flightId);
     }
     if ((string)($before['unload_type'] ?? 'OO') !== (string)($after['unload_type'] ?? 'OO')) {
-        $changes[] = "Тип выгрузки:\n" . formatUnloadTypeRu($before['unload_type'] ?? 'OO') . "\n→\n" . formatUnloadTypeRu($after['unload_type'] ?? 'OO');
+        $changes[] = 'Тип выгрузки: ' . formatUnloadTypeRu($before['unload_type'] ?? 'OO') . ' → ' . formatUnloadTypeRu($after['unload_type'] ?? 'OO');
     }
 
     if (empty($changes)) {
         return '';
     }
-    return "Рейс #{$flightId} изменён в статусе ВЫВОЗНАЧАЛСЯ\n\nИзменения:\n\n" . implode("\n\n", $changes) . "\n\nИзменения внесены во время выполнения рейса.";
+    return "Изменён рейс #{$flightId} во время выполнения\n{$title} | {$manager}\n" . implode("\n", $changes) . "\nРейс находится в выполнении. Проверьте корректность изменений.";
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -514,12 +556,12 @@ try {
             $after = loadFlightSnapshot($pdo, $routeId);
             $notifyResult = ['success' => true, 'error' => null];
             if ($after && (string)($before['status'] ?? '') === STATUS_FOUND) {
-                $text = buildFoundDiffMessage($before, $after, $routeId);
+                $text = buildFoundDiffMessage($pdo, $before, $after, $routeId);
                 if ($text !== '') {
                     $notifyResult = sendMaxNotification($text);
                 }
             } elseif ($after && (string)($before['status'] ?? '') === STATUS_STARTED) {
-                $text = buildStartedDiffMessage($before, $after, $routeId);
+                $text = buildStartedDiffMessage($pdo, $before, $after, $routeId);
                 if ($text !== '') {
                     $notifyResult = sendMaxNotification($text);
                 }
@@ -652,14 +694,14 @@ try {
                 ':id' => $routeId,
             ]);
             $afterStarted = loadFlightSnapshot($pdo, $routeId) ?: $flight;
+            [$title, $manager, $driver, $meta] = buildCompactFlightContext($pdo, $afterStarted, $routeId);
             $notifyResult = sendMaxNotification(
-                "Рейс #{$routeId} переведен в статус ВЫВОЗНАЧАЛСЯ\n\n" .
-                "Фактическая дата старта: " . formatDateRu($afterStarted['actual_start_date'] ?? '') . "\n" .
-                "Водитель: {$afterStarted['_driver_label']}\n" .
-                "Заявок: {$afterStarted['_count']}\n" .
-                "Масса: " . formatTons($afterStarted['_sum_tons']) . " т\n" .
-                "Стоимость: " . ($afterStarted['cost'] === null ? 'не указана' : $afterStarted['cost']) . "\n\n" .
-                "Подключается контроль выполнения перевозки и логика трекера."
+                "Рейс #{$routeId} → «Вывоз начался»\n" .
+                "{$title} | {$manager}\n" .
+                "{$meta}\n" .
+                "Водитель: {$driver}\n" .
+                "Старт: " . formatDateShortRu($afterStarted['actual_start_date'] ?? '') . "\n" .
+                "Включён контроль перевозки."
             );
             jsonOut([
                 'success' => true,
@@ -713,13 +755,20 @@ try {
         $after = loadFlightSnapshot($pdo, $routeId) ?: $flight;
 
         if ($target === STATUS_FOUND) {
-            $message = "Рейс #{$routeId} переведен в статус ИСПОЛНИТЕЛЬНАЙДЕН\n\n" .
-                "Заявок: {$after['_count']}\n" .
-                "Общая масса: " . formatTons($after['_sum_tons']) . " т\n\n" .
-                "Водитель:\n{$after['_driver_label']}\n\n" .
-                "Даты:\n" . formatDateRu($after['planned_start_date_from']) . " — " . formatDateRu($after['planned_start_date_to']) . "\n\n" .
-                "Стоимость:\n" . ($after['cost'] === null ? 'не указана' : $after['cost']) . "\n\n" .
-                "Начинаем подготовку транспортных документов на указанные даты и указанного водителя.";
+            [$title, $manager, $driver, $meta] = buildCompactFlightContext($pdo, $after, $routeId);
+            $wasStarted = (string)($flight['status'] ?? '') === STATUS_STARTED;
+            if ($wasStarted) {
+                $message = "Рейс #{$routeId} возвращён в «Исполнит. найден»\n" .
+                    "{$title} | {$manager}\n" .
+                    "Проверьте даты и подготовку документов.";
+            } else {
+                $message = "Рейс #{$routeId} → «Исполнит. найден»\n" .
+                    "{$title} | {$manager}\n" .
+                    "{$meta}\n" .
+                    "Водитель: {$driver}\n" .
+                    "Даты: " . formatDateShortRu($after['planned_start_date_from']) . "–" . formatDateShortRu($after['planned_start_date_to']) . "\n" .
+                    "Начинается подготовка ТН.";
+            }
             $notifyResult = sendMaxNotification($message);
             jsonOut([
                 'success' => true,
@@ -730,7 +779,12 @@ try {
         }
 
         if ($target === STATUS_PLANNED) {
-            $notifyResult = sendMaxNotification("Рейс #{$routeId} возвращён в статус ПЛАНИРУЕМЫЙ\n\nПодготовку документов необходимо проверить/приостановить.");
+            [$title, $manager] = buildCompactFlightContext($pdo, $after, $routeId);
+            $notifyResult = sendMaxNotification(
+                "Рейс #{$routeId} возвращён в «Планируемый»\n" .
+                "{$title} | {$manager}\n" .
+                "Подготовку документов необходимо проверить или приостановить."
+            );
             jsonOut([
                 'success' => true,
                 'message' => 'Рейс возвращен в ПЛАНИРУЕМЫЙ',
