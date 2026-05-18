@@ -36,10 +36,10 @@ const TXT = {
     addressesCount: '\u0410\u0434\u0440\u0435\u0441\u043e\u0432'
 };
 const UI = {
-    pin: '\u{1F4CC}',
-    truck: '\u{1F69B}',
-    ruler: '\u{1F4CF}',
-    clock: '\u23F1',
+    pin: '',
+    truck: '',
+    ruler: '\u0414\u0438\u0441\u0442\u0430\u043d\u0446\u0438\u044f:',
+    clock: '\u0412\u0440\u0435\u043c\u044f:',
     bullet: ' \u2022 ',
     emDash: ' \u2014 ',
     kg: '\u043a\u0433',
@@ -48,9 +48,9 @@ const UI = {
     min: '\u043c\u0438\u043d',
     hourShort: '\u0447',
     totalWeightLabel: '\u041e\u0431\u0449\u0438\u0439 \u0432\u0435\u0441',
-    routeCreate: '\u{1F195} \u0421\u043e\u0437\u0434\u0430\u043d\u0438\u0435 \u043d\u043e\u0432\u043e\u0433\u043e \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u0430',
-    routeSave: '\u{1F4CC} \u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043a\u0430\u043a \u043c\u0430\u0440\u0448\u0440\u0443\u0442',
-    routeUpdate: '\u{1F4BE} \u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c \u043c\u0430\u0440\u0448\u0440\u0443\u0442',
+    routeCreate: '\u0421\u043e\u0437\u0434\u0430\u043d\u0438\u0435 \u043d\u043e\u0432\u043e\u0433\u043e \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u0430',
+    routeSave: '\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043c\u0430\u0440\u0448\u0440\u0443\u0442',
+    routeUpdate: '\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c \u043c\u0430\u0440\u0448\u0440\u0443\u0442',
     routeEditTitle: '\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 \u0440\u0435\u0439\u0441\u0430',
     modalPlanStart: '\u0412\u044b\u0432\u043e\u0437 \u0437\u0430\u043f\u043b\u0430\u043d\u0438\u0440\u043e\u0432\u0430\u043d \u043d\u0430 \u0434\u0430\u0442\u044b',
     modalPlanEnd: '\u041f\u043e',
@@ -181,8 +181,8 @@ function hexToRgba(hex, alpha) {
 
 // === TRACKER FUNCTIONS ===
 function getTrackerPreset(minutes) {
-    if (minutes < 10) return 'islands#blueStretchyIcon';
-    if (minutes < 60) return 'islands#greenStretchyIcon';
+    if (minutes < 10) return 'islands#redStretchyIcon';
+    if (minutes < 60) return 'islands#orangeStretchyIcon';
     if (minutes < 180) return 'islands#orangeStretchyIcon';
     return 'islands#redStretchyIcon';
 }

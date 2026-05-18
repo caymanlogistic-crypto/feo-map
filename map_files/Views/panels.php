@@ -1,15 +1,14 @@
 <?php include 'menu2.php'; ?>
 <div id="map"></div>
 
-<!-- Кнопка обновления трекеров -->
-<button class="refresh-btn" id="refreshBtn" title="Обновить позиции транспорта">🔄 Обновить транспорт</button>
+<button class="refresh-btn" id="refreshBtn" title="Обновить позиции транспорта">Обновить транспорт</button>
 
 <div class="routes-panel">
-    <h3 class="routes-title-planned">🗺️ Планируемые маршруты</h3>
+    <h3 class="routes-title-planned">Планируемые маршруты</h3>
     <div id="plannedRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
-    <h3 class="routes-title-found" style="margin-top: 14px;">✅ Исполнит. найден</h3>
+    <h3 class="routes-title-found" style="margin-top: 14px;">Исполнит. найден</h3>
     <div id="foundRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
-    <h3 class="routes-title-started" style="margin-top: 14px;">🚚 Вывоз начался</h3>
+    <h3 class="routes-title-started" style="margin-top: 14px;">Вывоз начался</h3>
     <div id="startedRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
 </div>
 
@@ -23,7 +22,7 @@
     </div>
     <h3>Управление слоями</h3>
     <div class="layer-group">
-        <div class="layer-group-title">🚚 Рейсы</div>
+        <div class="layer-group-title">Рейсы</div>
         <div class="checkbox-item"><input type="checkbox" id="no_flight_default" checked onchange="filterByCustomLayer('default', this.checked)"><label for="no_flight_default">Доступно к вывозу</label><div class="color-indicator" style="background: #000000"></div></div>
         <?php if (isset($flightStatusList['planned_route'])): ?>
         <div class="checkbox-item"><input type="checkbox" id="flight_status_planned_route" checked onchange="filterByFlightStatus('planned_route', this.checked)"><label for="flight_status_planned_route">Планируемые маршруты</label><div class="color-indicator" style="background: #9c27b0"></div></div>
@@ -34,54 +33,45 @@
         <?php endforeach; ?>
     </div>
     <?php if ($hasDefault || !empty($customLayers)): ?>
-    <div class="layer-group"><div class="layer-group-title">📦 Дополнительно</div>
+    <div class="layer-group"><div class="layer-group-title">Дополнительно</div>
         <?php foreach ($customLayers as $ln => $ld): ?>
-        <div class="checkbox-item"><input type="checkbox" id="custom_layer_<?= md5($ln) ?>" checked onchange="filterByCustomLayer('<?= addslashes($ln) ?>', this.checked)"><label for="custom_layer_<?= md5($ln) ?>"><?= htmlspecialchars($ln) ?> <span class="custom-badge">кастомный</span></label><div class="color-indicator" style="background: <?= $ld['color'] ?>"></div></div>
+        <div class="checkbox-item"><input type="checkbox" id="custom_layer_<?= md5($ln) ?>" checked onchange="filterByCustomLayer('<?= addslashes($ln) ?>', this.checked)"><label for="custom_layer_<?= md5($ln) ?>"><?= htmlspecialchars($ln) ?></label><div class="color-indicator" style="background: <?= $ld['color'] ?>"></div></div>
         <?php endforeach; ?>
     </div>
     <?php endif; ?>
 
     <div class="layer-group" style="border-top: 1px solid #eee; padding-top: 10px; margin-top: 5px;">
-        <div class="layer-group-title">🚛 Транспорт (Slitex)</div>
+        <div class="layer-group-title">Транспорт (Slitex)</div>
         <div class="checkbox-item">
             <input type="radio" name="transportMode" id="transport_mode_active" value="active" checked onchange="setTransportDisplayMode('active')">
             <label for="transport_mode_active">Показать только активный транспорт</label>
-            <div class="color-indicator" style="background: #2196F3"></div>
         </div>
         <div class="checkbox-item">
             <input type="radio" name="transportMode" id="transport_mode_all" value="all" onchange="setTransportDisplayMode('all')">
             <label for="transport_mode_all">Показать весь транспорт</label>
-            <div class="color-indicator" style="background: linear-gradient(135deg, #2196F3, #4CAF50, #FF9800, #F44336)"></div>
         </div>
         <div class="checkbox-item">
             <input type="radio" name="transportMode" id="transport_mode_none" value="none" onchange="setTransportDisplayMode('none')">
             <label for="transport_mode_none">Не отображать транспорт</label>
-            <div class="color-indicator" style="background: #9e9e9e"></div>
-        </div>
-        <div style="font-size: 10px; color: #888; margin-left: 24px; margin-top: 4px;">
-            🔵 &lt;10м | 🟢 &lt;1ч | 🟠 &lt;3ч | 🔴 &gt;3ч
         </div>
     </div>
 
-    <div class="layer-group" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;"><div class="checkbox-item" style="background: #fff3cd; border: 1px solid #ffc107;"><input type="checkbox" id="disable-popups" checked onchange="togglePopups(this.checked)"><label for="disable-popups">🚫 Не показывать попапы</label></div></div>
+    <div class="layer-group" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;"><div class="checkbox-item" style="background: #fff3cd; border: 1px solid #ffc107;"><input type="checkbox" id="disable-popups" checked onchange="togglePopups(this.checked)"><label for="disable-popups">Не показывать попапы</label></div></div>
 </div>
 
 <div class="selection-panel" id="selection-panel">
-    <h4>📝 Выделенные заявки</h4>
-    <div id="stats-box">Заявок: 0 | Адресов: 0</div>
+    <h4>Выделенные заявки</h4>
+    <div id="stats-box">Заявок: 0 • Адресов: 0</div>
     <div id="total-weight">Общий вес: 0 кг</div>
-    <div id="route-edit-status"><span style="color:#28a745;">🆕 Создание нового маршрута</span></div>
-    <div class="cost-input-container">
-        <label for="route-cost-input">💰 Стоимость маршрута (₽):</label>
-        <input type="number" id="route-cost-input" class="cost-input" placeholder="0.00" step="0.01" min="0">
-    </div>
+    <div id="route-edit-status"><span style="color:#28a745;">Создание нового маршрута</span></div>
+    <input type="hidden" id="route-cost-input" value="">
     <div id="route-info-container"></div>
     <div id="selected-list"></div>
     <div class="hint">Введите ID через запятую или Enter</div>
     <textarea id="route-input" class="manual-input" placeholder="ID заявок..."></textarea>
     <div class="route-buttons">
-        <button class="route-btn calculate-route-btn" id="calc-route-btn" onclick="calculateRoute()" disabled>🚚 Рассчитать</button>
-        <button class="route-btn save-route-btn" id="saveRouteBtn" onclick="promptSaveRoute()" disabled>📌 Сохранить как маршрут</button>
+        <button class="route-btn calculate-route-btn" id="calc-route-btn" onclick="calculateRoute()" disabled>Рассчитать</button>
+        <button class="route-btn save-route-btn" id="saveRouteBtn" onclick="promptSaveRoute()" disabled>Сохранить маршрут</button>
     </div>
     <button class="clear-btn" onclick="clearSelection()">Очистить выделение</button>
 </div>
