@@ -196,6 +196,16 @@ function getTrackerPreset(minutes) {
     return 'islands#redStretchyIcon';
 }
 
+function getTrackerMinutes(tracker) {
+    if (!tracker || typeof tracker !== 'object') return 9999;
+    const rawMinutes = tracker.time_diff_minutes;
+    if (rawMinutes === null || rawMinutes === undefined || rawMinutes === '') {
+        return 9999;
+    }
+    const minutes = Number(rawMinutes);
+    return Number.isFinite(minutes) ? minutes : 9999;
+}
+
 function hasTrackerCoords(tracker) {
     return !!(tracker &&
         Number.isFinite(Number(tracker.lat)) &&
@@ -438,8 +448,9 @@ function addTrackerMarkers(trackers) {
     trackers.forEach(tracker => {
         if (!tracker || typeof tracker !== 'object') return;
         if (!hasTrackerCoords(tracker)) return;
+        const minutes = getTrackerMinutes(tracker);
         const markerOptions = {
-            preset: getTrackerPreset(Number(tracker.time_diff_minutes || 9999)),
+            preset: getTrackerPreset(minutes),
             iconImageScale: 0.7,
             iconContentOffset: [0, -7],
             visible: showTransport,
