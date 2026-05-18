@@ -797,7 +797,7 @@ try {
     jsonOut(['success' => false, 'message' => 'Неизвестное действие']);
 } catch (Throwable $e) {
     mapError('save_planned_route fatal', ['error' => $e->getMessage()]);
-    jsonOut(['success' => false, 'message' => 'Внутренняя ошибка', 'debug_error' => $e->getMessage()]);
+    jsonOut(['success' => false, 'message' => 'Внутренняя ошибка']);
 }
 
 
