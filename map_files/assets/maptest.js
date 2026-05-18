@@ -236,7 +236,7 @@ function formatDriverCompactLabel(label) {
     }
     if (!surname) {
         const beforeSlash = String(value.split('/')[0] || '').trim();
-        const words = beforeSlash.match(/[А-ЯЁA-Z][а-яёa-z]+/gu);
+        const words = beforeSlash.match(/[\u0410-\u042F\u0401A-Z][\u0430-\u044F\u0451a-z]+/gu);
         if (words && words.length) {
             surname = words[0];
         }
@@ -1254,7 +1254,7 @@ function loadPlannedRoutes() {
                 return `
                     <div class="route-item route-item-planned" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
                         <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'planned')}</div>
-                        <div class="route-meta">${zayCount} заяв.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}</div>
+                        <div class="route-meta">${zayCount} \u0437\u0430\u044f\u0432.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}</div>
                         <div class="route-meta">${escapeHtml(driverLabel)}</div>
                     </div>
                 `;
@@ -1281,7 +1281,7 @@ function loadPlannedRoutes() {
                     return `
                         <div class="route-item route-item-found" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
                             <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'found')}</div>
-                            <div class="route-meta">${zayCount} заяв.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}</div>
+                            <div class="route-meta">${zayCount} \u0437\u0430\u044f\u0432.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}</div>
                             <div class="route-meta">${escapeHtml(driverLabel)}</div>
                         </div>
                     `;
