@@ -222,6 +222,17 @@ function isRecentActivatedTracker(tracker) {
     return uniqueid !== '' && !!recentActivatedTrackersMap[uniqueid];
 }
 
+function isTrackerAssignedToRoute(tracker) {
+    if (!tracker || typeof tracker !== 'object') return false;
+    const matchedDriverId = Number(tracker.matched_driver_id || 0);
+    if (Number.isFinite(matchedDriverId) && matchedDriverId > 0) return true;
+
+    const matchedFlightId = Number(tracker.matched_flight_id || tracker.flight_id || 0);
+    if (Number.isFinite(matchedFlightId) && matchedFlightId > 0) return true;
+
+    return false;
+}
+
 function mergeWithRecentActivatedTrackers(baseTrackers, allTrackersSource) {
     const result = [];
     const usedUniqueIds = new Set();
@@ -230,7 +241,7 @@ function mergeWithRecentActivatedTrackers(baseTrackers, allTrackersSource) {
         if (!hasTrackerCoords(tracker)) return;
         const uniqueid = getTrackerUniqueId(tracker);
         const merged = { ...tracker };
-        if (uniqueid && recentActivatedTrackersMap[uniqueid]) {
+        if (uniqueid && recentActivatedTrackersMap[uniqueid] && !isTrackerAssignedToRoute(tracker)) {
             merged.is_new_tracker = true;
             merged.first_activation_at = String(recentActivatedTrackersMap[uniqueid].first_activation_at || '');
             usedUniqueIds.add(uniqueid);
@@ -242,6 +253,7 @@ function mergeWithRecentActivatedTrackers(baseTrackers, allTrackersSource) {
         if (!hasTrackerCoords(tracker)) return;
         const uniqueid = getTrackerUniqueId(tracker);
         if (!uniqueid || !recentActivatedTrackersMap[uniqueid] || usedUniqueIds.has(uniqueid)) return;
+        if (isTrackerAssignedToRoute(tracker)) return;
 
         result.push({
             ...tracker,
