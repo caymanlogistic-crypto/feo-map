@@ -64,10 +64,11 @@
 .cost-input:focus { border-color: #9c27b0; outline: none; box-shadow: 0 0 0 2px rgba(156,39,176,0.2); }
 .manual-input { width: 100%; padding: 6px; border: 1px solid #d0d7de; border-radius: 4px; font-size: 11px; font-family: monospace; margin-bottom: 8px; resize: vertical; min-height: 52px; line-height: 1.35; } .manual-input:focus { outline: none; border-color: #8fa4c6; box-shadow: 0 0 0 2px rgba(95,125,170,0.15); }
 .route-buttons { display: flex; gap: 6px; margin-bottom: 8px; }
-.route-btn { flex: 1; padding: 7px 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 12px; transition: all 0.2s; }
+.route-btn { flex: 1; padding: 7px 8px; min-height: 32px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 12px; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; }
 .calculate-route-btn { background: #f3f5f7; color: #374151; border: 1px solid #d1d7de; } .calculate-route-btn:hover { background: #ebeff3; border-color: #c4ccd5; }
 .save-route-btn { background: #26a69a; color: #fff; border: 1px solid #219487; } .save-route-btn:hover { background: #1f8f84; border-color: #1b7f75; }
-.clear-btn { flex: 1; padding: 7px 8px; background: #fff5f5; color: #8f2f2f; border: 1px solid #e9bcbc; border-radius: 4px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 12px; } .clear-btn:hover { background: #fdeaea; border-color: #dfa3a3; color: #7f2424; }
+.save-route-btn.is-editing { background: #1f8f84; border-color: #1b7f75; }
+.clear-btn { flex: 1; min-height: 32px; padding: 7px 8px; background: #fff5f5; color: #8f2f2f; border: 1px solid #e9bcbc; border-radius: 4px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; } .clear-btn:hover { background: #fdeaea; border-color: #dfa3a3; color: #7f2424; }
 .hint { font-size: 10px; color: #7a8390; margin-bottom: 4px; text-align: left; }
 
 /* === СТИЛИ ДЛЯ КНОПКИ ОБНОВЛЕНИЯ ТРЕКЕРОВ === */

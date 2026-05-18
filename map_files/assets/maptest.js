@@ -156,7 +156,12 @@ rebuildFoundRoutesById();
 
 function getTrackersForCurrentMode() {
     if (transportDisplayMode === 'none') return [];
-    if (transportDisplayMode === 'all') return managerFilteredTrackers(Array.isArray(currentAllTrackers) ? currentAllTrackers : []);
+    if (transportDisplayMode === 'all') {
+        const allDataset = Array.isArray(currentAllTrackers) && currentAllTrackers.length
+            ? currentAllTrackers
+            : (Array.isArray(currentActiveTrackers) ? currentActiveTrackers : []);
+        return managerFilteredTrackers(allDataset);
+    }
     return managerFilteredTrackers(Array.isArray(currentActiveTrackers) ? currentActiveTrackers : []);
 }
 
@@ -185,23 +190,6 @@ function getTrackerPreset(minutes) {
     if (minutes < 60) return 'islands#orangeStretchyIcon';
     if (minutes < 180) return 'islands#orangeStretchyIcon';
     return 'islands#redStretchyIcon';
-}
-
-function createHotTrackerIconSvg(content) {
-    const label = escapeHtml(String(content || ''));
-    return `data:image/svg+xml;utf8,${encodeURIComponent(
-        `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="40" viewBox="0 0 64 40">
-            <defs>
-                <filter id="hotGlow" x="-40%" y="-40%" width="180%" height="180%">
-                    <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#ff6b4a" flood-opacity="0.65"/>
-                </filter>
-            </defs>
-            <g filter="url(#hotGlow)">
-                <rect x="4" y="4" width="56" height="30" rx="12" ry="12" fill="#d94b2b" stroke="#b63a1f" stroke-width="2"/>
-                <text x="32" y="23" text-anchor="middle" font-size="14" font-family="Arial, sans-serif" font-weight="700" fill="#ffffff">${label}</text>
-            </g>
-        </svg>`
-    )}`;
 }
 
 function escapeHtml(str) {
@@ -377,23 +365,13 @@ function addTrackerMarkers(trackers) {
     trackers.forEach(tracker => {
         if (!tracker || typeof tracker !== 'object') return;
         if (!Number.isFinite(Number(tracker.lat)) || !Number.isFinite(Number(tracker.lon))) return;
-        const minutes = Number(tracker.time_diff_minutes || 9999);
-        const preset = getTrackerPreset(minutes);
-        const isHotTracker = Number.isFinite(minutes) && minutes < 10;
         const markerOptions = {
-            preset: preset,
+            preset: getTrackerPreset(Number(tracker.time_diff_minutes || 9999)),
             iconImageScale: 0.7,
             iconContentOffset: [0, -7],
             visible: showTransport,
             zIndex: 1000 // Transport is always above request markers
         };
-        if (isHotTracker) {
-            markerOptions.iconLayout = 'default#image';
-            markerOptions.iconImageHref = createHotTrackerIconSvg(tracker.short_name);
-            markerOptions.iconImageSize = [64, 40];
-            markerOptions.iconImageOffset = [-32, -28];
-            delete markerOptions.preset;
-        }
         const placemark = new ymaps.Placemark(
             [Number(tracker.lat), Number(tracker.lon)],
             {
@@ -476,18 +454,18 @@ function createMarkerSVG(totalMass, inFlight, markerColor = '#000000', flightId 
     const key = `${totalMass}_${inFlight}_${markerColor}_${flightId}_${hideTriangle}_${isSelected}`;
     if (svgCache[key]) return svgCache[key];
     const weightInKg = Math.round(totalMass * 1000);
-    let bgColor = isSelected ? '#f4fbf5' : '#ffffff';
+    let bgColor = isSelected ? '#fff5f2' : '#ffffff';
     if (weightInKg > 10000 && !isSelected) bgColor = '#fd4221';
     else if (weightInKg > 5000 && !isSelected) bgColor = '#FF7400';
     else if (weightInKg > 3000 && !isSelected) bgColor = '#FFA459';
     else if (weightInKg > 1000 && !isSelected) bgColor = '#FFCBA1';
     const statusColor = markerColor || '#000000';
-    const strokeColor = isSelected ? '#81c784' : statusColor;
-    const selectedAccentColor = '#81c784';
-    const textColor = isSelected ? '#446a48' : '#000000';
+    const strokeColor = isSelected ? '#d95a3d' : statusColor;
+    const selectedAccentColor = '#d95a3d';
+    const textColor = isSelected ? '#7c2d1f' : '#000000';
     const strokeWidth = isSelected ? 2.6 : 2;
     const filter = isSelected
-        ? `filter="drop-shadow(0 0 1.5px ${hexToRgba(selectedAccentColor, 0.2)})"`
+        ? `filter="drop-shadow(0 0 2px ${hexToRgba(selectedAccentColor, 0.35)})"`
         : '';
     const h = 25, w = 40, bw = 18, bh = 12;
     let svg = `<svg width="${w+10}" height="${h+20}" viewBox="0 0 ${w+10} ${h+20}" xmlns="http://www.w3.org/2000/svg">`;
@@ -633,7 +611,7 @@ function clearSelection() {
     document.getElementById('route-edit-status').innerHTML = `<span style="color:#28a745;">${UI.routeCreate}</span>`;
     const saveBtn = document.getElementById('saveRouteBtn');
     saveBtn.textContent = UI.routeSave;
-    saveBtn.style.background = '#9c27b0';
+    saveBtn.classList.remove('is-editing');
     if (multiRoute) { map.geoObjects.remove(multiRoute); multiRoute = null; }
     refreshMarkerStyles();
     updateSelectionUI();
@@ -1461,11 +1439,11 @@ function selectRoute(idsStr, costVal, element) {
     if (editingRouteId) {
         statusEl.innerHTML = `<span style="color:#9c27b0; font-weight:bold;">\u270F\uFE0F ${UI.routeEditTitle} #${editingRouteId}</span>`;
         saveBtn.textContent = UI.routeUpdate;
-        saveBtn.style.background = '#7b1fa2';
+        saveBtn.classList.add('is-editing');
     } else {
         statusEl.innerHTML = `<span style="color:#28a745;">${UI.routeCreate}</span>`;
         saveBtn.textContent = UI.routeSave;
-        saveBtn.style.background = '#9c27b0';
+        saveBtn.classList.remove('is-editing');
     }
     refreshMarkerStyles();
     updateSelectionUI();
