@@ -9,6 +9,8 @@
     <div id="plannedRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
     <h3 class="routes-title-found" style="margin-top: 14px;">✅ Исполнит. найден</h3>
     <div id="foundRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
+    <h3 class="routes-title-started" style="margin-top: 14px;">🚚 Вывоз начался</h3>
+    <div id="startedRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
 </div>
 
 <div class="layer-panel">
@@ -106,14 +108,31 @@
                 <label class="flight-modal-label" for="edit_driver_id">Водитель / машина</label>
                 <select class="flight-modal-input" id="edit_driver_id"></select>
             </div>
-            <div>
-                <label class="flight-modal-label" for="edit_planned_start_date_from">Вывоз запланирован на даты</label>
-                <label class="flight-modal-label flight-sub-label" for="edit_planned_start_date_from">С</label>
-                <input class="flight-modal-input" type="date" id="edit_planned_start_date_from">
+            <div class="flight-date-range" id="plannedDateRangeWrap">
+                <label class="flight-modal-label" id="plannedDateRangeTitle" for="edit_planned_start_date_from">Вывоз запланирован на даты</label>
+                <div class="flight-date-range-row">
+                    <div class="flight-date-col">
+                        <label class="flight-modal-label flight-sub-label" for="edit_planned_start_date_from">С</label>
+                        <input class="flight-modal-input" type="date" id="edit_planned_start_date_from">
+                    </div>
+                    <div class="flight-date-col">
+                        <label class="flight-modal-label flight-sub-label" for="edit_planned_start_date_to">По</label>
+                        <input class="flight-modal-input" type="date" id="edit_planned_start_date_to">
+                    </div>
+                </div>
             </div>
-            <div>
-                <label class="flight-modal-label flight-sub-label" for="edit_planned_start_date_to">По</label>
-                <input class="flight-modal-input" type="date" id="edit_planned_start_date_to">
+            <div class="flight-date-range" id="actualDateRangeWrap" style="display:none;">
+                <label class="flight-modal-label" id="actualDateRangeTitle" for="edit_actual_start_date">Фактические даты перевозки</label>
+                <div class="flight-date-range-row">
+                    <div class="flight-date-col">
+                        <label class="flight-modal-label flight-sub-label" for="edit_actual_start_date">С</label>
+                        <input class="flight-modal-input" type="date" id="edit_actual_start_date">
+                    </div>
+                    <div class="flight-date-col">
+                        <label class="flight-modal-label flight-sub-label" for="edit_actual_end_date">По</label>
+                        <input class="flight-modal-input" type="date" id="edit_actual_end_date">
+                    </div>
+                </div>
             </div>
             <div>
                 <label class="flight-modal-label" for="edit_cost">Стоимость</label>
@@ -160,6 +179,11 @@
                 <div class="workflow-desc">Рейс будет возвращён из выполнения в статус «Исполнит. найден». В MAX будет отправлено уведомление.</div>
                 <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditBackToFoundBtn">Вернуть в «Исполнит. найден»</button>
             </div>
+            <div class="workflow-action" id="workflowToCompletedWrap">
+                <div class="workflow-subtitle">Перевести в «Груз сдан»</div>
+                <div class="workflow-desc">Рейс будет завершён. Для перевода укажите дату завершения перевозки. В MAX будет отправлено уведомление о завершении рейса.</div>
+                <button class="route-action-btn route-transfer-start-btn route-action-main" id="flightEditToCompletedBtn">Перевести в «Груз сдан»</button>
+            </div>
         </div>
 
         <div class="danger-zone" id="workflowDeleteWrap">
@@ -179,7 +203,7 @@
         <div class="flight-modal-title" id="transitionConfirmTitle">Подтверждение действия</div>
         <input type="hidden" id="start_flight_id" value="">
         <input type="hidden" id="start_target_status" value="">
-        <label class="flight-modal-label" for="start_actual_start_date">Дата начала вывоза</label>
+        <label class="flight-modal-label" id="transitionConfirmDateLabel" for="start_actual_start_date">Дата начала вывоза</label>
         <input class="flight-modal-input" type="date" id="start_actual_start_date">
         <div class="flight-change-preview" id="transitionConfirmPreview"></div>
         <div class="flight-modal-actions">

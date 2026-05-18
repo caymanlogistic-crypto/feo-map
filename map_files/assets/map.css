@@ -22,6 +22,7 @@
 .routes-panel h3 { margin-bottom: 15px; font-size: 14px; border-bottom: 2px solid #9c27b0; padding-bottom: 5px; }
 .routes-title-planned { border-bottom-color: #9c27b0 !important; }
 .routes-title-found { border-bottom-color: #26a69a !important; }
+.routes-title-started { border-bottom-color: #2e7d32 !important; }
 .route-item { padding: 6px 8px; margin-bottom: 4px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #9c27b0; cursor: pointer; transition: all 0.2s; position: relative; border-bottom: 1px solid rgba(0,0,0,0.04); }
 .route-item:hover { background: #e9ecef; }
 .route-item-planned { border-left-color: #9c27b0; }
@@ -30,6 +31,9 @@
 .route-item-found { border-left-color: #26a69a; }
 .route-item-found:hover { background: #e7f4f2; }
 .route-item-found.active { background: #e7f4f2; border-left-color: #1f8f84; box-shadow: inset 0 0 0 1px rgba(38,166,154,0.28); }
+.route-item-started { border-left-color: #2e7d32; }
+.route-item-started:hover { background: #eaf6ec; }
+.route-item-started.active { background: #eaf6ec; border-left-color: #25682a; box-shadow: inset 0 0 0 1px rgba(46,125,50,0.28); }
 .route-name { font-weight: bold; font-size: 12px; line-height: 1.2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .route-meta { font-size: 10px; color: #6c757d; margin-top: 2px; line-height: 1.25; }
 .route-head { display:flex; align-items:flex-start; justify-content:space-between; gap:6px; }
@@ -110,8 +114,6 @@
 .flight-modal-grid .flight-sub-label { margin-top: 0; margin-bottom: 3px; }
 .flight-modal-grid #edit_planned_start_date_from,
 .flight-modal-grid #edit_planned_start_date_to { height: 32px; width: 100%; }
-.flight-modal-grid label[for="edit_planned_start_date_from"].flight-modal-label { margin-bottom: 4px; }
-.flight-modal-grid label[for="edit_planned_start_date_to"].flight-modal-label { visibility: hidden; margin-bottom: 4px; }
 .flight-date-range { grid-column: 1 / -1; }
 .flight-date-range-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
 .flight-date-col { display: flex; flex-direction: column; justify-content: flex-end; }

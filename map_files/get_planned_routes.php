@@ -76,11 +76,13 @@ try {
                f.driver_id,
                f.planned_start_date_from,
                f.planned_start_date_to,
+               f.actual_start_date,
+               f.actual_end_date,
                $managerSelect,
                CONCAT(COALESCE(d.vehicle_make_plate, ''), CASE WHEN d.full_name IS NOT NULL AND d.full_name <> '' THEN CONCAT(' (', d.full_name, ')') ELSE '' END) AS driver_label
         FROM flights f
         LEFT JOIN drivers d ON d.id = f.driver_id
-        WHERE f.status IN ('planned_route', 'found')
+        WHERE f.status IN ('planned_route', 'found', 'started')
     ";
 
     $params = [];
@@ -98,6 +100,7 @@ try {
 
     $plannedRoutes = [];
     $foundRoutes = [];
+    $startedRoutes = [];
 
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         if (!is_array($row)) {
@@ -124,12 +127,16 @@ try {
             'driver_label' => trim((string)($row['driver_label'] ?? '')),
             'planned_start_date_from' => $row['planned_start_date_from'] ?? null,
             'planned_start_date_to' => $row['planned_start_date_to'] ?? null,
+            'actual_start_date' => $row['actual_start_date'] ?? null,
+            'actual_end_date' => $row['actual_end_date'] ?? null,
             'assigned_manager_id' => isset($row['assigned_manager_id']) ? (int)$row['assigned_manager_id'] : null,
             'total_kg' => getTotalKgByIds($pdo, $zayIds),
         ];
 
         if ($normalized['status'] === 'found') {
             $foundRoutes[] = $normalized;
+        } elseif ($normalized['status'] === 'started') {
+            $startedRoutes[] = $normalized;
         } else {
             $plannedRoutes[] = $normalized;
         }
@@ -139,6 +146,7 @@ try {
         'success' => true,
         'routes' => $plannedRoutes,
         'found_routes' => $foundRoutes,
+        'started_routes' => $startedRoutes,
         'manager_id' => $managerId > 0 ? $managerId : null,
     ]);
 } catch (Throwable $e) {

@@ -54,6 +54,7 @@ const UI = {
     routeEditTitle: '\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 \u0440\u0435\u0439\u0441\u0430',
     modalPlanStart: '\u0412\u044b\u0432\u043e\u0437 \u0437\u0430\u043f\u043b\u0430\u043d\u0438\u0440\u043e\u0432\u0430\u043d \u043d\u0430 \u0434\u0430\u0442\u044b',
     modalPlanEnd: '\u041f\u043e',
+    modalActualDates: '\u0424\u0430\u043a\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u0434\u0430\u0442\u044b \u043f\u0435\u0440\u0435\u0432\u043e\u0437\u043a\u0438',
     modalDriver: '\u0412\u043e\u0434\u0438\u0442\u0435\u043b\u044c / \u043c\u0430\u0448\u0438\u043d\u0430',
     modalCost: '\u0421\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c',
     modalSave: '\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c',
@@ -94,6 +95,9 @@ UI.labelBackToFound = '\u0412\u0435\u0440\u043d\u0443\u0442\u044c \u0432 \u00ab\
 UI.labelDriver = '\u0412\u043e\u0434\u0438\u0442\u0435\u043b\u044c';
 UI.msgBackToPlanned = '\u0420\u0435\u0439\u0441 #{id} \u0431\u0443\u0434\u0435\u0442 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0435\u043d \u0432 \u00ab\u041f\u043b\u0430\u043d\u0438\u0440\u0443\u0435\u043c\u044b\u0439\u00bb.\\n\\n\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044c?';
 UI.msgBackToFound = '\u0420\u0435\u0439\u0441 #{id} \u0431\u0443\u0434\u0435\u0442 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0435\u043d \u0432 \u00ab\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442. \u043d\u0430\u0439\u0434\u0435\u043d\u00bb.\\n\\n\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044c?';
+UI.msgToCompleted = '\u0420\u0435\u0439\u0441 #{id} \u0431\u0443\u0434\u0435\u0442 \u043f\u0435\u0440\u0435\u0432\u0435\u0434\u0435\u043d \u0432 \u00ab\u0413\u0440\u0443\u0437 \u0441\u0434\u0430\u043d\u00bb.\\n\\n\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044c?';
+UI.msgNeedEndDate = '\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u0434\u0430\u0442\u0443 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u044f \u043f\u0435\u0440\u0435\u0432\u043e\u0437\u043a\u0438.';
+UI.labelToCompleted = '\u041f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0432 \u0413\u0440\u0443\u0437 \u0441\u0434\u0430\u043d';
 UI.msgTransitionValidationHeader = '\u0427\u0442\u043e\u0431\u044b \u043f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0440\u0435\u0439\u0441 \u0432 \u0441\u0442\u0430\u0442\u0443\u0441 \u00ab\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c \u043d\u0430\u0439\u0434\u0435\u043d\u00bb, \u0437\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u0435 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u044b\u0435 \u043f\u043e\u043b\u044f.';
 UI.msgTransitionValidationDriver = '\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c';
 UI.msgTransitionValidationDates = '\u0434\u0430\u0442\u044b';
@@ -111,6 +115,7 @@ const initialTrackers = Array.isArray(mapBootstrap.initialTrackers) ? mapBootstr
 const allTrackers = Array.isArray(mapBootstrap.allTrackers) ? mapBootstrap.allTrackers : [];
 const routeCardsMeta = (mapBootstrap.routeCardsMeta && typeof mapBootstrap.routeCardsMeta === 'object') ? mapBootstrap.routeCardsMeta : {};
 const foundRoutesData = Array.isArray(mapBootstrap.foundRoutesData) ? mapBootstrap.foundRoutesData : [];
+const startedRoutesData = Array.isArray(mapBootstrap.startedRoutesData) ? mapBootstrap.startedRoutesData : [];
 const driversForSelect = Array.isArray(mapBootstrap.driversForSelect) ? mapBootstrap.driversForSelect : [];
 const statusNames = (mapBootstrap.statusNames && typeof mapBootstrap.statusNames === 'object') ? mapBootstrap.statusNames : {};
 const bootstrapGroupsData = Array.isArray(mapBootstrap.groupsData) ? mapBootstrap.groupsData : [];
@@ -120,6 +125,7 @@ let currentActiveTrackers = Array.isArray(initialTrackers) ? initialTrackers : [
 let currentAllTrackers = Array.isArray(allTrackers) ? allTrackers : [];
 let currentEditingMeta = null;
 let currentFoundRoutes = Array.isArray(foundRoutesData) ? foundRoutesData : [];
+let currentStartedRoutes = Array.isArray(startedRoutesData) ? startedRoutesData : [];
 let managerScopeId = '';
 let managerScopeDriverIds = new Set();
 let managerScopePlates = new Set();
@@ -127,12 +133,21 @@ let managerScopeInitialized = false;
 let currentManagers = [];
 const MANAGER_STORAGE_KEY = 'map_selected_manager_id';
 const foundRoutesById = {};
+const startedRoutesById = {};
 function rebuildFoundRoutesById() {
     Object.keys(foundRoutesById).forEach(key => delete foundRoutesById[key]);
+    Object.keys(startedRoutesById).forEach(key => delete startedRoutesById[key]);
     if (Array.isArray(currentFoundRoutes)) {
         currentFoundRoutes.forEach(route => {
             if (route && route.id !== undefined && route.id !== null) {
                 foundRoutesById[String(route.id)] = route;
+            }
+        });
+    }
+    if (Array.isArray(currentStartedRoutes)) {
+        currentStartedRoutes.forEach(route => {
+            if (route && route.id !== undefined && route.id !== null) {
+                startedRoutesById[String(route.id)] = route;
             }
         });
     }
@@ -195,12 +210,13 @@ function extractPlateFromText(value) {
     return m ? m[0] : '';
 }
 
-function rebuildManagerScopeKeys(plannedRoutes, foundRoutes) {
+function rebuildManagerScopeKeys(plannedRoutes, foundRoutes, startedRoutes) {
     managerScopeDriverIds = new Set();
     managerScopePlates = new Set();
     const allRoutes = []
         .concat(Array.isArray(plannedRoutes) ? plannedRoutes : [])
-        .concat(Array.isArray(foundRoutes) ? foundRoutes : []);
+        .concat(Array.isArray(foundRoutes) ? foundRoutes : [])
+        .concat(Array.isArray(startedRoutes) ? startedRoutes : []);
     allRoutes.forEach(route => {
         if (!route || typeof route !== 'object') return;
         const driverId = Number(route.driver_id || 0);
@@ -266,8 +282,9 @@ function updateFlightModalSummary() {
         .filter(v => /^\d+$/.test(v));
     const uniqueIds = Array.from(new Set(ids));
 
-    const fromVal = document.getElementById('edit_planned_start_date_from')?.value || '';
-    const toVal = document.getElementById('edit_planned_start_date_to')?.value || '';
+    const isStarted = currentEditingMeta && String(currentEditingMeta.status) === 'started';
+    const fromVal = (isStarted ? document.getElementById('edit_actual_start_date') : document.getElementById('edit_planned_start_date_from'))?.value || '';
+    const toVal = (isStarted ? document.getElementById('edit_actual_end_date') : document.getElementById('edit_planned_start_date_to'))?.value || '';
     const costVal = document.getElementById('edit_cost')?.value || '';
     const driverSelect = document.getElementById('edit_driver_id');
     const driverText = driverSelect?.selectedOptions?.[0]?.textContent || UI.driverMissing;
@@ -298,15 +315,18 @@ function updateFlightModalSummary() {
 }
 
 function buildFoundChangePreview(meta) {
-    if (!meta || meta.status !== 'found') return '';
-    const fromVal = document.getElementById('edit_planned_start_date_from')?.value || '';
-    const toVal = document.getElementById('edit_planned_start_date_to')?.value || '';
+    if (!meta || (meta.status !== 'found' && meta.status !== 'started')) return '';
+    const isStarted = meta.status === 'started';
+    const fromVal = (isStarted ? document.getElementById('edit_actual_start_date') : document.getElementById('edit_planned_start_date_from'))?.value || '';
+    const toVal = (isStarted ? document.getElementById('edit_actual_end_date') : document.getElementById('edit_planned_start_date_to'))?.value || '';
     const costVal = document.getElementById('edit_cost')?.value || '';
     const zayavkiVal = document.getElementById('edit_zayavki_ids')?.value || '';
     const driverSelect = document.getElementById('edit_driver_id');
     const currentDriverText = driverSelect?.selectedOptions?.[0]?.textContent || UI.driverMissing;
     const previousDriver = meta.driver_label || UI.driverMissing;
-    const previousDates = `${meta.planned_start_date_from || TXT.notSpecified} ${UI.emDash} ${meta.planned_start_date_to || TXT.notSpecified}`;
+    const previousDates = isStarted
+        ? `${meta.actual_start_date || TXT.notSpecified} ${UI.emDash} ${meta.actual_end_date || TXT.notSpecified}`
+        : `${meta.planned_start_date_from || TXT.notSpecified} ${UI.emDash} ${meta.planned_start_date_to || TXT.notSpecified}`;
     const currentDates = `${fromVal || TXT.notSpecified} ${UI.emDash} ${toVal || TXT.notSpecified}`;
     const previousCost = `${formatRouteCost(meta.cost)} \u20BD`;
     const currentCost = `${formatRouteCost(costVal)} \u20BD`;
@@ -318,7 +338,8 @@ function buildFoundChangePreview(meta) {
         changes.push(`<div><strong>${UI.labelDriver}:</strong> ${escapeHtml(formatDriverCompactLabel(previousDriver))} ${UI.emDash}&gt; ${escapeHtml(formatDriverCompactLabel(currentDriverText))}</div>`);
     }
     if (previousDates !== currentDates) {
-        changes.push(`<div><strong>\u041f\u0435\u0440\u0438\u043e\u0434:</strong> ${escapeHtml(previousDates)} ${UI.emDash}&gt; ${escapeHtml(currentDates)}</div>`);
+        const periodLabel = isStarted ? '\u0424\u0430\u043a\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0439 \u043f\u0435\u0440\u0438\u043e\u0434' : '\u041f\u0435\u0440\u0438\u043e\u0434';
+        changes.push(`<div><strong>${periodLabel}:</strong> ${escapeHtml(previousDates)} ${UI.emDash}&gt; ${escapeHtml(currentDates)}</div>`);
     }
     if (previousCost !== currentCost) {
         changes.push(`<div><strong>${UI.modalCost}:</strong> ${escapeHtml(previousCost)} ${UI.emDash}&gt; ${escapeHtml(currentCost)}</div>`);
@@ -647,7 +668,13 @@ function getRouteMetaById(routeId, source) {
     if (source === 'planned') {
         return (routeCardsMeta && routeCardsMeta[idKey]) ? routeCardsMeta[idKey] : null;
     }
-    return foundRoutesById[idKey] || null;
+    if (source === 'found') {
+        return foundRoutesById[idKey] || null;
+    }
+    if (source === 'started') {
+        return startedRoutesById[idKey] || null;
+    }
+    return (routeCardsMeta && routeCardsMeta[idKey]) || foundRoutesById[idKey] || startedRoutesById[idKey] || null;
 }
 
 function normalizeRouteTitleCandidate(raw) {
@@ -725,7 +752,7 @@ function clearFlightValidationErrors() {
         wrap.style.display = 'none';
         wrap.innerHTML = '';
     }
-    ['edit_driver_id', 'edit_planned_start_date_from', 'edit_planned_start_date_to', 'edit_cost', 'edit_zayavki_ids']
+    ['edit_driver_id', 'edit_planned_start_date_from', 'edit_planned_start_date_to', 'edit_actual_start_date', 'edit_actual_end_date', 'edit_cost', 'edit_zayavki_ids']
         .forEach((id) => {
             const el = document.getElementById(id);
             if (el) el.classList.remove('field-error');
@@ -734,11 +761,13 @@ function clearFlightValidationErrors() {
 
 function showFlightValidationErrors(errorMap) {
     const wrap = document.getElementById('flightValidationErrors');
-    const orderedFields = ['driver_id', 'planned_start_date_from', 'planned_start_date_to', 'cost', 'zayavki_ids'];
+    const orderedFields = ['driver_id', 'planned_start_date_from', 'planned_start_date_to', 'actual_start_date', 'actual_end_date', 'cost', 'zayavki_ids'];
     const fieldToInput = {
         driver_id: 'edit_driver_id',
         planned_start_date_from: 'edit_planned_start_date_from',
         planned_start_date_to: 'edit_planned_start_date_to',
+        actual_start_date: 'edit_actual_start_date',
+        actual_end_date: 'edit_actual_end_date',
         cost: 'edit_cost',
         zayavki_ids: 'edit_zayavki_ids'
     };
@@ -746,6 +775,8 @@ function showFlightValidationErrors(errorMap) {
         driver_id: UI.msgTransitionValidationDriver,
         planned_start_date_from: UI.msgTransitionValidationDates,
         planned_start_date_to: UI.msgTransitionValidationDates,
+        actual_start_date: UI.msgTransitionValidationDates,
+        actual_end_date: UI.msgTransitionValidationDates,
         cost: UI.msgTransitionValidationCost,
         zayavki_ids: UI.msgTransitionValidationRequests
     };
@@ -810,6 +841,12 @@ function openFlightEditModal(routeId, source) {
     const sourceInput = document.getElementById('edit_flight_source');
     const fromInput = document.getElementById('edit_planned_start_date_from');
     const toInput = document.getElementById('edit_planned_start_date_to');
+    const actualFromInput = document.getElementById('edit_actual_start_date');
+    const actualToInput = document.getElementById('edit_actual_end_date');
+    const plannedDateRangeWrap = document.getElementById('plannedDateRangeWrap');
+    const actualDateRangeWrap = document.getElementById('actualDateRangeWrap');
+    const plannedDateRangeTitle = document.getElementById('plannedDateRangeTitle');
+    const actualDateRangeTitle = document.getElementById('actualDateRangeTitle');
     const driverSelect = document.getElementById('edit_driver_id');
     const costInput = document.getElementById('edit_cost');
     const commentInput = document.getElementById('edit_comment');
@@ -820,7 +857,7 @@ function openFlightEditModal(routeId, source) {
     currentEditingMeta = {
         ...meta,
         id: Number(meta.id || routeId),
-        status: String(meta.status || (source === 'found' ? 'found' : 'planned_route'))
+        status: String(meta.status || (source === 'found' ? 'found' : (source === 'started' ? 'started' : 'planned_route')))
     };
     const routeTitle = resolveRouteTitle(meta);
     if (titleEl) {
@@ -829,9 +866,11 @@ function openFlightEditModal(routeId, source) {
             : `${UI.routeEditTitle} #${meta.id || routeId}`;
     }
     if (idInput) idInput.value = String(meta.id || routeId);
-    if (sourceInput) sourceInput.value = source === 'found' ? 'found' : 'planned';
+    if (sourceInput) sourceInput.value = source === 'found' ? 'found' : (source === 'started' ? 'started' : 'planned');
     if (fromInput) fromInput.value = toDateValue(meta.planned_start_date_from);
     if (toInput) toInput.value = toDateValue(meta.planned_start_date_to);
+    if (actualFromInput) actualFromInput.value = toDateValue(meta.actual_start_date);
+    if (actualToInput) actualToInput.value = toDateValue(meta.actual_end_date);
     if (costInput) costInput.value = (meta.cost !== null && meta.cost !== undefined) ? String(meta.cost) : '';
     if (commentInput) commentInput.value = String(meta.comment || routeTitle || '');
     if (zayavkiInput) zayavkiInput.value = String(meta.zayavki_ids || '');
@@ -839,6 +878,12 @@ function openFlightEditModal(routeId, source) {
     if (transferFoundBtn) {
         transferFoundBtn.style.display = source === 'planned' ? 'inline-flex' : 'none';
     }
+
+    const useActualDates = currentEditingMeta.status === 'started';
+    if (plannedDateRangeWrap) plannedDateRangeWrap.style.display = useActualDates ? 'none' : 'block';
+    if (actualDateRangeWrap) actualDateRangeWrap.style.display = useActualDates ? 'block' : 'none';
+    if (plannedDateRangeTitle) plannedDateRangeTitle.textContent = UI.modalPlanStart;
+    if (actualDateRangeTitle) actualDateRangeTitle.textContent = UI.modalActualDates;
 
     if (driverSelect) {
         const currentDriverId = String(meta.driver_id || '');
@@ -866,6 +911,7 @@ function applyLifecycleButtons(status) {
         toStarted: document.getElementById('workflowToStartedWrap'),
         toPlanned: document.getElementById('workflowBackToPlannedWrap'),
         toFoundBack: document.getElementById('workflowBackToFoundWrap'),
+        toCompleted: document.getElementById('workflowToCompletedWrap'),
         deleteWrap: document.getElementById('workflowDeleteWrap')
     };
     Object.values(map).forEach(el => {
@@ -879,6 +925,7 @@ function applyLifecycleButtons(status) {
         if (map.toPlanned) map.toPlanned.style.display = 'block';
     } else if (status === 'started') {
         if (map.toFoundBack) map.toFoundBack.style.display = 'block';
+        if (map.toCompleted) map.toCompleted.style.display = 'block';
     }
 }
 
@@ -886,6 +933,8 @@ function applySafeModalText() {
     const labels = {
         edit_planned_start_date_from: UI.modalPlanStart,
         edit_planned_start_date_to: UI.modalPlanEnd,
+        edit_actual_start_date: '\u0421',
+        edit_actual_end_date: '\u041f\u043e',
         edit_driver_id: UI.modalDriver,
         edit_cost: UI.modalCost,
         start_actual_start_date: UI.modalStartDate
@@ -901,42 +950,69 @@ function applySafeModalText() {
     }
     const startTitle = document.querySelector('#startConfirmModal .flight-modal-title');
     if (startTitle) startTitle.textContent = UI.modalStartTitle;
+    const transitionDateLabel = document.getElementById('transitionConfirmDateLabel');
+    if (transitionDateLabel) transitionDateLabel.textContent = UI.modalStartDate;
 
     const saveBtn = document.getElementById('flightEditSaveBtn');
     const cancelBtn = document.getElementById('flightEditCancelBtn');
     const foundBtn = document.getElementById('flightEditTransferFoundBtn');
+    const completedBtn = document.getElementById('flightEditToCompletedBtn');
     const startBtn = document.getElementById('startConfirmBtn');
     const startCancelBtn = document.getElementById('startCancelBtn');
     if (saveBtn) saveBtn.textContent = UI.modalSave;
     if (cancelBtn) cancelBtn.textContent = UI.modalCancel;
     if (foundBtn) foundBtn.textContent = UI.modalToFound;
+    if (completedBtn) completedBtn.textContent = UI.labelToCompleted;
     if (startBtn) startBtn.textContent = UI.modalToStarted;
     if (startCancelBtn) startCancelBtn.textContent = UI.modalCancel;
 }
 
-function openStartConfirmModal(routeId) {
+function openStartConfirmModal(routeId, targetStatus = 'started') {
     const modal = document.getElementById('startConfirmModal');
     if (!modal) return;
     const idInput = document.getElementById('start_flight_id');
+    const targetInput = document.getElementById('start_target_status');
     const dateInput = document.getElementById('start_actual_start_date');
+    const dateLabel = document.getElementById('transitionConfirmDateLabel');
+    const titleEl = document.getElementById('transitionConfirmTitle');
+    const confirmBtn = document.getElementById('startConfirmBtn');
     if (idInput) idInput.value = String(routeId || '');
+    if (targetInput) targetInput.value = targetStatus;
     if (dateInput) {
+        const metaForDate = getRouteMetaById(routeId, targetStatus === 'started' ? 'found' : 'started') || {};
+        const preferred = targetStatus === 'started'
+            ? (metaForDate.planned_start_date_from || '')
+            : (metaForDate.actual_end_date || '');
+        const fromPreferred = toDateValue(preferred);
         const now = new Date();
         const pad = n => String(n).padStart(2, '0');
-        dateInput.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+        dateInput.value = fromPreferred || `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
     }
     const preview = document.getElementById('transitionConfirmPreview');
-    const meta = getRouteMetaById(routeId, 'found') || getRouteMetaById(routeId, 'planned');
+    const meta = getRouteMetaById(routeId, targetStatus === 'started' ? 'found' : 'started') || getRouteMetaById(routeId, 'planned');
+    if (dateLabel) {
+        dateLabel.textContent = targetStatus === 'started'
+            ? UI.modalStartDate
+            : '\u0414\u0430\u0442\u0430 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u044f \u043f\u0435\u0440\u0435\u0432\u043e\u0437\u043a\u0438';
+    }
+    if (titleEl) {
+        titleEl.textContent = targetStatus === 'started'
+            ? UI.modalStartTitle
+            : '\u041f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0432 \u00ab\u0413\u0440\u0443\u0437 \u0441\u0434\u0430\u043d\u00bb';
+    }
+    if (confirmBtn) {
+        confirmBtn.textContent = targetStatus === 'started' ? UI.modalToStarted : UI.labelToCompleted;
+    }
     if (preview && meta) {
         const ids = String(meta.zayavki_ids || '').split(',').map(v => v.trim()).filter(Boolean);
         const totalKg = Number(meta.total_kg || 0);
         preview.innerHTML = `
             <div><strong>\u0420\u0435\u0439\u0441 #${routeId}</strong></div>
-            <div>\u0421\u0442\u0430\u0442\u0443\u0441: ${escapeHtml(statusNames.found || 'found')} \u2192 ${escapeHtml(statusNames.started || 'started')}</div>
+            <div>\u0421\u0442\u0430\u0442\u0443\u0441: ${escapeHtml(statusNames[String(meta.status || '')] || String(meta.status || TXT.notSpecified))} \u2192 ${escapeHtml(statusNames[targetStatus] || targetStatus)}</div>
             <div>${TXT.requestsCount}: ${ids.length}</div>
             <div>${TXT.totalWeight}: ${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}</div>
             <div>${UI.labelDriver}: ${escapeHtml(formatDriverCompactLabel(meta.driver_label || UI.driverMissing))}</div>
-            <div>\u041f\u0435\u0440\u0438\u043e\u0434: ${escapeHtml(meta.planned_start_date_from || TXT.notSpecified)} ${UI.emDash} ${escapeHtml(meta.planned_start_date_to || TXT.notSpecified)}</div>
+            <div>\u041f\u0435\u0440\u0438\u043e\u0434: ${escapeHtml(meta.planned_start_date_from || meta.actual_start_date || TXT.notSpecified)} ${UI.emDash} ${escapeHtml(meta.planned_start_date_to || meta.actual_end_date || TXT.notSpecified)}</div>
         `;
     }
     modal.style.display = 'flex';
@@ -976,6 +1052,8 @@ async function saveFlightEdit() {
         driver_id: driverId,
         planned_start_date_from: fromInput ? fromInput.value : '',
         planned_start_date_to: toInput ? toInput.value : '',
+        actual_start_date: actualFromInput ? actualFromInput.value : '',
+        actual_end_date: actualToInput ? actualToInput.value : '',
         cost: costInput ? costInput.value : '',
         comment: commentInput ? commentInput.value : '',
         zayavki_ids: zayavkiInput ? zayavkiInput.value : ''
@@ -983,7 +1061,7 @@ async function saveFlightEdit() {
 
     const status = String(statusInput ? statusInput.value : '');
     const previewEl = document.getElementById('flightChangePreview');
-    if (status === 'found' && currentEditingMeta) {
+    if ((status === 'found' || status === 'started') && currentEditingMeta) {
         const previewHtml = buildFoundChangePreview(currentEditingMeta);
         if (previewEl) {
             if (previewHtml) {
@@ -994,7 +1072,10 @@ async function saveFlightEdit() {
                 previewEl.innerHTML = '';
             }
         }
-        if (previewHtml && !confirm('\u041f\u043e\u0441\u043b\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0431\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0432 MAX. \u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c?')) {
+        const warnText = status === 'started'
+            ? '\u0420\u0435\u0439\u0441 \u0443\u0436\u0435 \u043d\u0430\u0445\u043e\u0434\u0438\u0442\u0441\u044f \u0432 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u0438. \u041f\u043e\u0441\u043b\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0431\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0432 MAX. \u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c?'
+            : '\u041f\u043e\u0441\u043b\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0431\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0432 MAX. \u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c?';
+        if (previewHtml && !confirm(warnText)) {
             return;
         }
     }
@@ -1061,18 +1142,25 @@ async function transferPlannedToFound(routeId) {
 
 async function confirmTransferToStarted() {
     const idInput = document.getElementById('start_flight_id');
+    const targetInput = document.getElementById('start_target_status');
     const dateInput = document.getElementById('start_actual_start_date');
     const flightId = Number(idInput ? idInput.value : 0);
+    const targetStatus = String(targetInput ? targetInput.value : 'started').trim() || 'started';
     if (!flightId) {
         alert(UI.msgInvalidFlightId);
+        return;
+    }
+    if (targetStatus === 'completed' && !String(dateInput ? dateInput.value : '').trim()) {
+        alert(UI.msgNeedEndDate);
         return;
     }
 
     try {
         const result = await postRouteAction('transition', {
             id: flightId,
-            target_status: 'started',
-            actual_start_date: dateInput ? dateInput.value : ''
+            target_status: targetStatus,
+            actual_start_date: targetStatus === 'started' ? (dateInput ? dateInput.value : '') : '',
+            actual_end_date: targetStatus === 'completed' ? (dateInput ? dateInput.value : '') : ''
         });
         if (result && result.success) {
             window.location.reload();
@@ -1113,6 +1201,11 @@ async function transferToFound(routeId) {
         console.error('transferToFound error:', e);
         alert(UI.msgNetworkTransfer);
     }
+}
+
+function transferToCompleted(routeId) {
+    if (!confirm(UI.msgToCompleted.replace('{id}', String(routeId)))) return;
+    openStartConfirmModal(routeId, 'completed');
 }
 
 function buildRouteManageMenu(routeId, source) {
@@ -1233,9 +1326,13 @@ function ensureCreateRouteModal() {
 function loadPlannedRoutes() {
     const container = document.getElementById('plannedRoutesList');
     const foundContainer = document.getElementById('foundRoutesList');
+    const startedContainer = document.getElementById('startedRoutesList');
     container.innerHTML = `<div class="route-list-empty">${TXT.loading}</div>`;
     if (foundContainer) {
         foundContainer.innerHTML = `<div class="route-list-empty">${TXT.loading}</div>`;
+    }
+    if (startedContainer) {
+        startedContainer.innerHTML = `<div class="route-list-empty">${TXT.loading}</div>`;
     }
     const managerParam = managerScopeId ? `?manager_id=${encodeURIComponent(managerScopeId)}` : '';
     fetch(`map_files/get_planned_routes.php${managerParam}`).then(r => r.json()).then(data => {
@@ -1247,7 +1344,7 @@ function loadPlannedRoutes() {
             container.innerHTML = data.routes.map(r => {
                 const routeMeta = (routeCardsMeta && routeCardsMeta[String(r.id)]) ? routeCardsMeta[String(r.id)] : {};
                 const zayCount = Number(r.zayavki_count || routeMeta.zayavki_count || 0);
-                const totalKg = Number(routeMeta.total_kg || 0);
+                const totalKg = Number(r.total_kg || routeMeta.total_kg || 0);
                 const driverLabel = formatDriverCompactLabel(routeMeta.driver_label || UI.driverMissing);
                 const routeCost = (r.cost !== null && r.cost !== undefined && r.cost !== '') ? r.cost : (routeMeta.cost ?? null);
                 const costPart = routeCost ? (UI.bullet + parseFloat(routeCost).toLocaleString('ru-RU') + ' \u20BD') : '';
@@ -1262,8 +1359,9 @@ function loadPlannedRoutes() {
         }
 
         currentFoundRoutes = Array.isArray(data.found_routes) ? data.found_routes : [];
+        currentStartedRoutes = Array.isArray(data.started_routes) ? data.started_routes : [];
         rebuildFoundRoutesById();
-        rebuildManagerScopeKeys(data.routes, currentFoundRoutes);
+        rebuildManagerScopeKeys(data.routes, currentFoundRoutes, currentStartedRoutes);
         renderTrackersByMode();
 
         if (foundContainer) {
@@ -1288,10 +1386,36 @@ function loadPlannedRoutes() {
                 }).join('');
             }
         }
+
+        if (startedContainer) {
+            if (!Array.isArray(currentStartedRoutes) || currentStartedRoutes.length === 0) {
+                startedContainer.innerHTML = managerScopeId
+                    ? `<div class="route-list-empty">\u041d\u0435\u0442 \u0440\u0435\u0439\u0441\u043e\u0432 \u0434\u043b\u044f \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u043e\u0433\u043e \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430</div>`
+                    : `<div class="route-list-empty">${TXT.noSavedRoutes}</div>`;
+            } else {
+                startedContainer.innerHTML = currentStartedRoutes.map(r => {
+                    const zayCount = Number(r.zayavki_count || 0);
+                    const totalKg = Number(r.total_kg || 0);
+                    const routeCost = (r.cost !== null && r.cost !== undefined && r.cost !== '') ? r.cost : null;
+                    const costPart = routeCost ? (UI.bullet + parseFloat(routeCost).toLocaleString('ru-RU') + ' \u20BD') : '';
+                    const driverLabel = formatDriverCompactLabel(r.driver_label || UI.driverMissing);
+                    return `
+                        <div class="route-item route-item-started" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
+                            <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'started')}</div>
+                            <div class="route-meta">${zayCount} \u0437\u0430\u044f\u0432.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}</div>
+                            <div class="route-meta">${escapeHtml(driverLabel)}</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
     }).catch(() => {
         container.innerHTML = `<div class="route-list-empty">${TXT.loadError}</div>`;
         if (foundContainer) {
             foundContainer.innerHTML = `<div class="route-list-empty">${TXT.loadError}</div>`;
+        }
+        if (startedContainer) {
+            startedContainer.innerHTML = `<div class="route-list-empty">${TXT.loadError}</div>`;
         }
     });
 }
@@ -1589,6 +1713,7 @@ function init() {
     const transferStartedBtn = document.getElementById('flightEditTransferStartedBtn');
     const backToPlannedBtn = document.getElementById('flightEditBackToPlannedBtn');
     const backToFoundBtn = document.getElementById('flightEditBackToFoundBtn');
+    const toCompletedBtn = document.getElementById('flightEditToCompletedBtn');
     const deleteBtn = document.getElementById('flightEditDeleteBtn');
     const closeTopBtn = document.getElementById('flightEditCloseTopBtn');
     if (saveEditBtn) saveEditBtn.addEventListener('click', saveFlightEdit);
@@ -1607,7 +1732,7 @@ function init() {
         transferStartedBtn.addEventListener('click', () => {
             const idInput = document.getElementById('edit_flight_id');
             const routeId = Number(idInput ? idInput.value : 0);
-            if (routeId > 0) openStartConfirmModal(routeId);
+            if (routeId > 0) openStartConfirmModal(routeId, 'started');
         });
     }
     if (backToPlannedBtn) {
@@ -1624,6 +1749,13 @@ function init() {
             if (routeId > 0) transferToFound(routeId);
         });
     }
+    if (toCompletedBtn) {
+        toCompletedBtn.addEventListener('click', () => {
+            const idInput = document.getElementById('edit_flight_id');
+            const routeId = Number(idInput ? idInput.value : 0);
+            if (routeId > 0) transferToCompleted(routeId);
+        });
+    }
     if (deleteBtn) {
         deleteBtn.addEventListener('click', () => {
             const idInput = document.getElementById('edit_flight_id');
@@ -1637,7 +1769,7 @@ function init() {
     const startCancelBtn = document.getElementById('startCancelBtn');
     if (startConfirmBtn) startConfirmBtn.addEventListener('click', confirmTransferToStarted);
     if (startCancelBtn) startCancelBtn.addEventListener('click', closeStartConfirmModal);
-    ['edit_driver_id', 'edit_planned_start_date_from', 'edit_planned_start_date_to', 'edit_cost', 'edit_zayavki_ids'].forEach((id) => {
+    ['edit_driver_id', 'edit_planned_start_date_from', 'edit_planned_start_date_to', 'edit_actual_start_date', 'edit_actual_end_date', 'edit_cost', 'edit_zayavki_ids'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('input', () => {

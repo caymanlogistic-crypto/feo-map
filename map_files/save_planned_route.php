@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 error_reporting(0);
 ini_set('display_errors', 0);
 require_once __DIR__ . '/bootstrap.php';
@@ -7,6 +7,7 @@ header('Content-Type: application/json; charset=utf-8');
 const STATUS_PLANNED = 'planned_route';
 const STATUS_FOUND = 'found';
 const STATUS_STARTED = 'started';
+const STATUS_COMPLETED = 'completed';
 
 function jsonOut(array $payload): void
 {
@@ -158,7 +159,7 @@ function getRouteMetrics(PDO $pdo, array $idList): array
 function loadFlightSnapshot(PDO $pdo, $flightId): ?array
 {
     try {
-        $stmt = $pdo->prepare('SELECT id, status, driver_id, zayavki_ids, planned_start_date_from, planned_start_date_to, cost FROM flights WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT id, status, driver_id, zayavki_ids, planned_start_date_from, planned_start_date_to, actual_start_date, actual_end_date, comment, cost FROM flights WHERE id = ? LIMIT 1');
         if (!$stmt || !$stmt->execute([(int)$flightId])) {
             return null;
         }
@@ -186,7 +187,21 @@ function assertTransitionAllowed(array $flight, string $targetStatus): ?string
     if ($current === STATUS_FOUND && $targetStatus === STATUS_STARTED) return null;
     if ($current === STATUS_FOUND && $targetStatus === STATUS_PLANNED) return null;
     if ($current === STATUS_STARTED && $targetStatus === STATUS_FOUND) return null;
+    if ($current === STATUS_STARTED && $targetStatus === STATUS_COMPLETED) return null;
     return 'Недопустимый переход статуса';
+}
+
+function normalizeDateToDb($value): ?string
+{
+    $raw = trim((string)$value);
+    if ($raw === '') {
+        return null;
+    }
+    $ts = strtotime($raw);
+    if ($ts === false) {
+        throw new InvalidArgumentException('Некорректная дата');
+    }
+    return date('Y-m-d H:i:s', $ts);
 }
 
 function resolveUsersRoleColumn(PDO $pdo): ?string
@@ -367,6 +382,40 @@ function buildFoundDiffMessage(array $before, array $after, int $flightId): stri
     return "Рейс #{$flightId} изменён в статусе ИСПОЛНИТЕЛЬНАЙДЕН\n\nИзменения:\n\n" . implode("\n\n", $changes);
 }
 
+
+function buildStartedDiffMessage(array $before, array $after, int $flightId): string
+{
+    $changes = [];
+    if ((int)$before['driver_id'] !== (int)$after['driver_id']) {
+        $changes[] = "Водитель:\n{$before['_driver_label']}\n→\n{$after['_driver_label']}";
+    }
+    if ((string)$before['actual_start_date'] !== (string)$after['actual_start_date']) {
+        $changes[] = "Дата начала:\n" . formatDateRu($before['actual_start_date']) . "\n→\n" . formatDateRu($after['actual_start_date']);
+    }
+    if ((string)$before['actual_end_date'] !== (string)$after['actual_end_date']) {
+        $changes[] = "Дата завершения:\n" . formatDateRu($before['actual_end_date']) . "\n→\n" . formatDateRu($after['actual_end_date']);
+    }
+    if ((string)$before['zayavki_ids'] !== (string)$after['zayavki_ids']) {
+        $changes[] = "Список заявок:\n{$before['zayavki_ids']}\n→\n{$after['zayavki_ids']}";
+    }
+    if ((int)$before['_count'] !== (int)$after['_count']) {
+        $changes[] = "Количество заявок:\n{$before['_count']}\n→\n{$after['_count']}";
+    }
+    if (abs((float)$before['_sum_tons'] - (float)$after['_sum_tons']) > 0.0001) {
+        $changes[] = "Общая масса:\n" . formatTons($before['_sum_tons']) . " т\n→\n" . formatTons($after['_sum_tons']) . " т";
+    }
+    if ((string)$before['cost'] !== (string)$after['cost']) {
+        $changes[] = "Стоимость:\n" . ($before['cost'] === null ? 'не указана' : $before['cost']) . "\n→\n" . ($after['cost'] === null ? 'не указана' : $after['cost']);
+    }
+    if (trim((string)($before['comment'] ?? '')) !== trim((string)($after['comment'] ?? ''))) {
+        $changes[] = "Комментарий:\n" . trim((string)($before['comment'] ?? '')) . "\n→\n" . trim((string)($after['comment'] ?? ''));
+    }
+    if (empty($changes)) {
+        return '';
+    }
+    return "Рейс #{$flightId} изменён в статусе ВЫВОЗНАЧАЛСЯ\n\nИзменения:\n\n" . implode("\n\n", $changes) . "\n\nИзменения внесены во время выполнения рейса.";
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonOut(['success' => false, 'message' => 'Неверный метод']);
 }
@@ -400,6 +449,22 @@ try {
             $before = loadFlightSnapshot($pdo, $routeId);
             if (!$before) jsonOut(['success' => false, 'message' => 'Рейс не найден']);
 
+            $statusBefore = (string)($before['status'] ?? '');
+            $actualStartValue = $before['actual_start_date'] ?? null;
+            $actualEndValue = $before['actual_end_date'] ?? null;
+            if ($statusBefore === STATUS_STARTED) {
+                try {
+                    if (array_key_exists('actual_start_date', $data)) {
+                        $actualStartValue = normalizeDateToDb($data['actual_start_date']);
+                    }
+                    if (array_key_exists('actual_end_date', $data)) {
+                        $actualEndValue = normalizeDateToDb($data['actual_end_date']);
+                    }
+                } catch (Throwable $e) {
+                    jsonOut(['success' => false, 'message' => 'Некорректные фактические даты']);
+                }
+            }
+
             $stmt = $pdo->prepare("
                 UPDATE flights
                 SET comment = :comment,
@@ -408,6 +473,8 @@ try {
                     zayavki_count = :count,
                     planned_start_date_from = :planned_from,
                     planned_start_date_to = :planned_to,
+                    actual_start_date = :actual_start_date,
+                    actual_end_date = :actual_end_date,
                     driver_id = :driver_id,
                     block_date = NOW()
                 WHERE id = :id
@@ -420,6 +487,8 @@ try {
                 ':count' => $normalized['zayavki_count'],
                 ':planned_from' => $normalized['planned_start_date_from'],
                 ':planned_to' => $normalized['planned_start_date_to'],
+                ':actual_start_date' => $actualStartValue,
+                ':actual_end_date' => $actualEndValue,
                 ':driver_id' => $normalized['driver_id'],
                 ':id' => $routeId,
             ]);
@@ -428,6 +497,11 @@ try {
             $notifyResult = ['success' => true, 'error' => null];
             if ($after && (string)($before['status'] ?? '') === STATUS_FOUND) {
                 $text = buildFoundDiffMessage($before, $after, $routeId);
+                if ($text !== '') {
+                    $notifyResult = sendMaxNotification($text);
+                }
+            } elseif ($after && (string)($before['status'] ?? '') === STATUS_STARTED) {
+                $text = buildStartedDiffMessage($before, $after, $routeId);
                 if ($text !== '') {
                     $notifyResult = sendMaxNotification($text);
                 }
@@ -501,7 +575,7 @@ try {
 
     if ($action === 'transition') {
         $target = trim((string)($data['target_status'] ?? ''));
-        if (!in_array($target, [STATUS_PLANNED, STATUS_FOUND, STATUS_STARTED], true)) {
+        if (!in_array($target, [STATUS_PLANNED, STATUS_FOUND, STATUS_STARTED, STATUS_COMPLETED], true)) {
             jsonOut(['success' => false, 'message' => 'Некорректный целевой статус']);
         }
         $deny = assertTransitionAllowed($flight, $target);
@@ -543,6 +617,9 @@ try {
 
         if ($target === STATUS_STARTED) {
             $actualRaw = trim((string)($data['actual_start_date'] ?? ''));
+            if ($actualRaw === '') {
+                $actualRaw = trim((string)($flight['planned_start_date_from'] ?? ''));
+            }
             $actualTs = $actualRaw !== '' ? strtotime($actualRaw) : time();
             if ($actualTs === false) {
                 jsonOut(['success' => false, 'message' => 'Некорректная дата начала вывоза']);
@@ -553,10 +630,58 @@ try {
                 ':actual_start' => date('Y-m-d H:i:s', $actualTs),
                 ':id' => $routeId,
             ]);
-            $notifyResult = sendMaxNotification("Рейс #{$routeId} переведен в статус ВЫВОЗНАЧАЛСЯ\n\nПодключается мониторинг выполнения перевозки и логика трекера.");
+            $afterStarted = loadFlightSnapshot($pdo, $routeId) ?: $flight;
+            $notifyResult = sendMaxNotification(
+                "Рейс #{$routeId} переведен в статус ВЫВОЗНАЧАЛСЯ\n\n" .
+                "Фактическая дата старта: " . formatDateRu($afterStarted['actual_start_date'] ?? '') . "\n" .
+                "Водитель: {$afterStarted['_driver_label']}\n" .
+                "Заявок: {$afterStarted['_count']}\n" .
+                "Масса: " . formatTons($afterStarted['_sum_tons']) . " т\n" .
+                "Стоимость: " . ($afterStarted['cost'] === null ? 'не указана' : $afterStarted['cost']) . "\n\n" .
+                "Подключается контроль выполнения перевозки и логика трекера."
+            );
             jsonOut([
                 'success' => true,
                 'message' => 'Рейс переведен в ВЫВОЗНАЧАЛСЯ',
+                'notify_success' => (bool)$notifyResult['success'],
+                'notify_error' => $notifyResult['error']
+            ]);
+        }
+
+        if ($target === STATUS_COMPLETED) {
+            $actualEndRaw = trim((string)($data['actual_end_date'] ?? ''));
+            if ($actualEndRaw === '') {
+                jsonOut(['success' => false, 'message' => 'Укажите дату завершения перевозки.']);
+            }
+            $actualEndTs = strtotime($actualEndRaw);
+            if ($actualEndTs === false) {
+                jsonOut(['success' => false, 'message' => 'Некорректная дата завершения перевозки']);
+            }
+            if ((int)($flight['driver_id'] ?? 0) <= 0) {
+                jsonOut(['success' => false, 'message' => 'Для завершения рейса укажите водителя.']);
+            }
+            if (count((array)($flight['_ids'] ?? [])) === 0) {
+                jsonOut(['success' => false, 'message' => 'Для завершения рейса укажите заявки.']);
+            }
+            $stmt = $pdo->prepare('UPDATE flights SET status = :status, actual_end_date = :actual_end WHERE id = :id LIMIT 1');
+            $stmt->execute([
+                ':status' => STATUS_COMPLETED,
+                ':actual_end' => date('Y-m-d H:i:s', $actualEndTs),
+                ':id' => $routeId,
+            ]);
+            $afterCompleted = loadFlightSnapshot($pdo, $routeId) ?: $flight;
+            $notifyResult = sendMaxNotification(
+                "Рейс #{$routeId} переведен в статус ГРУЗСДАН\n\n" .
+                "Дата завершения: " . formatDateRu($afterCompleted['actual_end_date'] ?? '') . "\n" .
+                "Водитель: {$afterCompleted['_driver_label']}\n" .
+                "Заявок: {$afterCompleted['_count']}\n" .
+                "Масса: " . formatTons($afterCompleted['_sum_tons']) . " т\n" .
+                "Стоимость: " . ($afterCompleted['cost'] === null ? 'не указана' : $afterCompleted['cost']) . "\n\n" .
+                "Груз сдан. Рейс завершён."
+            );
+            jsonOut([
+                'success' => true,
+                'message' => 'Рейс переведен в ГРУЗСДАН',
                 'notify_success' => (bool)$notifyResult['success'],
                 'notify_error' => $notifyResult['error']
             ]);
@@ -599,3 +724,5 @@ try {
     mapError('save_planned_route fatal', ['error' => $e->getMessage()]);
     jsonOut(['success' => false, 'message' => 'Внутренняя ошибка']);
 }
+
+
