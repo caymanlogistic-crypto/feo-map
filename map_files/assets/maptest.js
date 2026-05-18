@@ -132,6 +132,7 @@ let managerScopePlates = new Set();
 let managerScopeInitialized = false;
 let currentManagers = [];
 const MANAGER_STORAGE_KEY = 'map_selected_manager_id';
+let recentActivatedTrackersMap = {};
 const foundRoutesById = {};
 const startedRoutesById = {};
 function rebuildFoundRoutesById() {
@@ -156,13 +157,16 @@ rebuildFoundRoutesById();
 
 function getTrackersForCurrentMode() {
     if (transportDisplayMode === 'none') return [];
+    const allDataset = Array.isArray(currentAllTrackers) && currentAllTrackers.length
+        ? currentAllTrackers
+        : (Array.isArray(currentActiveTrackers) ? currentActiveTrackers : []);
+
     if (transportDisplayMode === 'all') {
-        const allDataset = Array.isArray(currentAllTrackers) && currentAllTrackers.length
-            ? currentAllTrackers
-            : (Array.isArray(currentActiveTrackers) ? currentActiveTrackers : []);
-        return managerFilteredTrackers(allDataset);
+        return allDataset.filter(hasTrackerCoords);
     }
-    return managerFilteredTrackers(Array.isArray(currentActiveTrackers) ? currentActiveTrackers : []);
+
+    const activeDataset = managerFilteredTrackers(Array.isArray(currentActiveTrackers) ? currentActiveTrackers : []);
+    return mergeWithRecentActivatedTrackers(activeDataset, allDataset);
 }
 
 function renderTrackersByMode() {
@@ -192,6 +196,72 @@ function getTrackerPreset(minutes) {
     return 'islands#redStretchyIcon';
 }
 
+function hasTrackerCoords(tracker) {
+    return !!(tracker &&
+        Number.isFinite(Number(tracker.lat)) &&
+        Number.isFinite(Number(tracker.lon)));
+}
+
+function getTrackerUniqueId(tracker) {
+    if (!tracker || tracker.uniqueid === undefined || tracker.uniqueid === null) return '';
+    return String(tracker.uniqueid).trim();
+}
+
+function isRecentActivatedTracker(tracker) {
+    const uniqueid = getTrackerUniqueId(tracker);
+    return uniqueid !== '' && !!recentActivatedTrackersMap[uniqueid];
+}
+
+function mergeWithRecentActivatedTrackers(baseTrackers, allTrackersSource) {
+    const result = [];
+    const usedUniqueIds = new Set();
+
+    (Array.isArray(baseTrackers) ? baseTrackers : []).forEach(tracker => {
+        if (!hasTrackerCoords(tracker)) return;
+        const uniqueid = getTrackerUniqueId(tracker);
+        const merged = { ...tracker };
+        if (uniqueid && recentActivatedTrackersMap[uniqueid]) {
+            merged.is_new_tracker = true;
+            merged.first_activation_at = String(recentActivatedTrackersMap[uniqueid].first_activation_at || '');
+            usedUniqueIds.add(uniqueid);
+        }
+        result.push(merged);
+    });
+
+    (Array.isArray(allTrackersSource) ? allTrackersSource : []).forEach(tracker => {
+        if (!hasTrackerCoords(tracker)) return;
+        const uniqueid = getTrackerUniqueId(tracker);
+        if (!uniqueid || !recentActivatedTrackersMap[uniqueid] || usedUniqueIds.has(uniqueid)) return;
+
+        result.push({
+            ...tracker,
+            is_new_tracker: true,
+            first_activation_at: String(recentActivatedTrackersMap[uniqueid].first_activation_at || '')
+        });
+        usedUniqueIds.add(uniqueid);
+    });
+
+    return result;
+}
+
+async function loadRecentActivatedTrackers() {
+    try {
+        const response = await fetch('map_files/get_tracker_first_activation.php', {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await response.json();
+        if (data && data.success && data.trackers && typeof data.trackers === 'object') {
+            recentActivatedTrackersMap = data.trackers;
+        } else {
+            recentActivatedTrackersMap = {};
+        }
+    } catch (e) {
+        console.warn('Activation data unavailable', e);
+        recentActivatedTrackersMap = {};
+    }
+}
+
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/[&<>"']/g, function(m) {
@@ -201,11 +271,14 @@ function escapeHtml(str) {
 }
 
 function createTrackerBalloon(tracker) {
+    const newTrackerBadge = tracker && tracker.is_new_tracker
+        ? `<br><span style="display:inline-block; margin-top:6px; font-size:11px; font-weight:700; color:#0d47a1;">НОВЫЙ ТРЕКЕР</span>`
+        : '';
     return `<div style="padding:12px; font-family:Arial,sans-serif; max-width:280px;">
         <b>${UI.truck} ${escapeHtml(tracker.name)}</b><br>
         <span style="color:#666; font-size:12px;">ID: ${tracker.uniqueid}</span><br>
         <span style="color:#888; font-size:11px;">${UI.clock} ${tracker.time_diff_text} \u043d\u0430\u0437\u0430\u0434</span><br>
-        <span style="color:#555; font-size:11px;">${UI.pin} ${tracker.lat.toFixed(5)}, ${tracker.lon.toFixed(5)}</span>
+        <span style="color:#555; font-size:11px;">${UI.pin} ${tracker.lat.toFixed(5)}, ${tracker.lon.toFixed(5)}</span>${newTrackerBadge}
     </div>`;
 }
 
@@ -364,7 +437,7 @@ function addTrackerMarkers(trackers) {
     
     trackers.forEach(tracker => {
         if (!tracker || typeof tracker !== 'object') return;
-        if (!Number.isFinite(Number(tracker.lat)) || !Number.isFinite(Number(tracker.lon))) return;
+        if (!hasTrackerCoords(tracker)) return;
         const markerOptions = {
             preset: getTrackerPreset(Number(tracker.time_diff_minutes || 9999)),
             iconImageScale: 0.7,
@@ -397,6 +470,7 @@ async function fetchTrackers() {
     btn.disabled = true;
     
     try {
+        await loadRecentActivatedTrackers();
         const response = await fetch(window.location.href, {
             method: 'GET',
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -1673,7 +1747,9 @@ function init() {
     });
     
     // === INITIALIZE TRANSPORT MARKERS ===
-    renderTrackersByMode();
+    loadRecentActivatedTrackers().finally(() => {
+        renderTrackersByMode();
+    });
     
     // === REFRESH BUTTON SETUP ===
     const refreshBtn = document.getElementById('refreshBtn');
