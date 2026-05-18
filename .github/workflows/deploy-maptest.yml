@@ -55,7 +55,8 @@ jobs:
 
       - name: Deploy to server
         run: |
-          rsync -az --delete \
+          set -e
+          if ! rsync -az --delete \
             --exclude "map2.php" \
             --exclude "config.php" \
             --exclude "menu2.php" \
@@ -63,7 +64,12 @@ jobs:
             --exclude ".github" \
             -e "ssh -i ~/.ssh/deploy_key" \
             maptest.php map_files CODEX_WORKFLOW_RULES.md \
-            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/"
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/"; then
+            echo "rsync failed, using scp fallback"
+            ssh -i ~/.ssh/deploy_key "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" "mkdir -p '${{ secrets.DEPLOY_PATH }}'"
+            scp -i ~/.ssh/deploy_key maptest.php CODEX_WORKFLOW_RULES.md "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/"
+            scp -i ~/.ssh/deploy_key -r map_files "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/"
+          fi
 
       - name: Server syntax check after deploy
         run: |
