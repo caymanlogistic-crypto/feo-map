@@ -284,7 +284,7 @@ function updateFlightModalSummary() {
         });
     }
     const totalKg = Math.round(totalTons * 1000);
-    const periodText = fromVal || toVal ? `${fromVal || 'Р Р†Р вЂљРІР‚Сњ'} ${UI.emDash} ${toVal || 'Р Р†Р вЂљРІР‚Сњ'}` : TXT.notSpecified;
+    const periodText = fromVal || toVal ? `${fromVal || TXT.notSpecified} ${UI.emDash} ${toVal || TXT.notSpecified}` : TXT.notSpecified;
     const statusLabel = statusNames[currentEditingMeta.status] || currentEditingMeta.status || TXT.notSpecified;
 
     summary.innerHTML = `
@@ -306,8 +306,8 @@ function buildFoundChangePreview(meta) {
     const driverSelect = document.getElementById('edit_driver_id');
     const currentDriverText = driverSelect?.selectedOptions?.[0]?.textContent || UI.driverMissing;
     const previousDriver = meta.driver_label || UI.driverMissing;
-    const previousDates = `${meta.planned_start_date_from || 'Р Р†Р вЂљРІР‚Сњ'} ${UI.emDash} ${meta.planned_start_date_to || 'Р Р†Р вЂљРІР‚Сњ'}`;
-    const currentDates = `${fromVal || 'Р Р†Р вЂљРІР‚Сњ'} ${UI.emDash} ${toVal || 'Р Р†Р вЂљРІР‚Сњ'}`;
+    const previousDates = `${meta.planned_start_date_from || TXT.notSpecified} ${UI.emDash} ${meta.planned_start_date_to || TXT.notSpecified}`;
+    const currentDates = `${fromVal || TXT.notSpecified} ${UI.emDash} ${toVal || TXT.notSpecified}`;
     const previousCost = `${formatRouteCost(meta.cost)} \u20BD`;
     const currentCost = `${formatRouteCost(costVal)} \u20BD`;
     const previousIds = String(meta.zayavki_ids || '').trim();
@@ -324,7 +324,7 @@ function buildFoundChangePreview(meta) {
         changes.push(`<div><strong>${UI.modalCost}:</strong> ${escapeHtml(previousCost)} ${UI.emDash}&gt; ${escapeHtml(currentCost)}</div>`);
     }
     if (previousIds !== currentIds) {
-        changes.push(`<div><strong>${TXT.requests}:</strong> ${escapeHtml(previousIds || 'Р Р†Р вЂљРІР‚Сњ')} ${UI.emDash}&gt; ${escapeHtml(currentIds || 'Р Р†Р вЂљРІР‚Сњ')}</div>`);
+        changes.push(`<div><strong>${TXT.requests}:</strong> ${escapeHtml(previousIds || TXT.notSpecified)} ${UI.emDash}&gt; ${escapeHtml(currentIds || TXT.notSpecified)}</div>`);
     }
     if (changes.length === 0) return '';
     return `<div><strong>\u0411\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0432 MAX:</strong></div>${changes.join('')}`;
@@ -936,7 +936,7 @@ function openStartConfirmModal(routeId) {
             <div>${TXT.requestsCount}: ${ids.length}</div>
             <div>${TXT.totalWeight}: ${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}</div>
             <div>${UI.labelDriver}: ${escapeHtml(formatDriverCompactLabel(meta.driver_label || UI.driverMissing))}</div>
-            <div>\u041f\u0435\u0440\u0438\u043e\u0434: ${escapeHtml(meta.planned_start_date_from || 'Р Р†Р вЂљРІР‚Сњ')} ${UI.emDash} ${escapeHtml(meta.planned_start_date_to || 'Р Р†Р вЂљРІР‚Сњ')}</div>
+            <div>\u041f\u0435\u0440\u0438\u043e\u0434: ${escapeHtml(meta.planned_start_date_from || TXT.notSpecified)} ${UI.emDash} ${escapeHtml(meta.planned_start_date_to || TXT.notSpecified)}</div>
         `;
     }
     modal.style.display = 'flex';
