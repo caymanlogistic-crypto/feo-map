@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 error_reporting(0);
 ini_set('display_errors', 0);
 require_once __DIR__ . '/bootstrap.php';
@@ -159,7 +159,7 @@ function getRouteMetrics(PDO $pdo, array $idList): array
 function loadFlightSnapshot(PDO $pdo, $flightId): ?array
 {
     try {
-        $stmt = $pdo->prepare('SELECT id, status, driver_id, zayavki_ids, planned_start_date_from, planned_start_date_to, actual_start_date, actual_end_date, comment, cost FROM flights WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT id, status, driver_id, zayavki_ids, planned_start_date_from, planned_start_date_to, actual_start_date, actual_end_date, comment, cost, unload_type FROM flights WHERE id = ? LIMIT 1');
         if (!$stmt || !$stmt->execute([(int)$flightId])) {
             return null;
         }
@@ -298,6 +298,8 @@ function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTrans
     $plannedFromRaw = trim((string)($data['planned_start_date_from'] ?? ''));
     $plannedToRaw = trim((string)($data['planned_start_date_to'] ?? ''));
     $costRaw = $data['cost'] ?? null;
+    $unloadTypeRaw = strtoupper(trim((string)($data['unload_type'] ?? 'OO')));
+    $unloadType = $unloadTypeRaw === 'SKLAD' ? 'SKLAD' : 'OO';
 
     $plannedFrom = null;
     $plannedTo = null;
@@ -347,7 +349,13 @@ function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTrans
         'planned_start_date_from' => $plannedFrom,
         'planned_start_date_to' => $plannedTo,
         'cost' => $cost,
+        'unload_type' => $unloadType,
     ], []];
+}
+
+function formatUnloadTypeRu(?string $type): string
+{
+    return strtoupper(trim((string)$type)) === 'SKLAD' ? 'СКЛАД' : 'ОО';
 }
 
 function buildFoundDiffMessage(array $before, array $after, int $flightId): string
@@ -373,6 +381,10 @@ function buildFoundDiffMessage(array $before, array $after, int $flightId): stri
     }
     if ((string)$before['cost'] !== (string)$after['cost']) {
         $changes[] = "Стоимость:\n" . ($before['cost'] === null ? 'не указана' : $before['cost']) . "\n→\n" . ($after['cost'] === null ? 'не указана' : $after['cost']);
+    }
+
+    if ((string)($before['unload_type'] ?? 'OO') !== (string)($after['unload_type'] ?? 'OO')) {
+        $changes[] = "Тип выгрузки:\n" . formatUnloadTypeRu($before['unload_type'] ?? 'OO') . "\n→\n" . formatUnloadTypeRu($after['unload_type'] ?? 'OO');
     }
 
     if (empty($changes)) {
@@ -410,6 +422,10 @@ function buildStartedDiffMessage(array $before, array $after, int $flightId): st
     if (trim((string)($before['comment'] ?? '')) !== trim((string)($after['comment'] ?? ''))) {
         $changes[] = "Комментарий:\n" . trim((string)($before['comment'] ?? '')) . "\n→\n" . trim((string)($after['comment'] ?? ''));
     }
+    if ((string)($before['unload_type'] ?? 'OO') !== (string)($after['unload_type'] ?? 'OO')) {
+        $changes[] = "Тип выгрузки:\n" . formatUnloadTypeRu($before['unload_type'] ?? 'OO') . "\n→\n" . formatUnloadTypeRu($after['unload_type'] ?? 'OO');
+    }
+
     if (empty($changes)) {
         return '';
     }
@@ -475,6 +491,7 @@ try {
                     planned_start_date_to = :planned_to,
                     actual_start_date = :actual_start_date,
                     actual_end_date = :actual_end_date,
+                    unload_type = :unload_type,
                     driver_id = :driver_id,
                     block_date = NOW()
                 WHERE id = :id
@@ -489,6 +506,7 @@ try {
                 ':planned_to' => $normalized['planned_start_date_to'],
                 ':actual_start_date' => $actualStartValue,
                 ':actual_end_date' => $actualEndValue,
+                ':unload_type' => $normalized['unload_type'],
                 ':driver_id' => $normalized['driver_id'],
                 ':id' => $routeId,
             ]);
@@ -539,13 +557,14 @@ try {
         $quotedManagerColumn = quoteIdent($managerColumn);
 
         $stmt = $pdo->prepare("
-            INSERT INTO flights (status, comment, cost, zayavki_ids, zayavki_count, {$quotedManagerColumn}, planned_start_date_from, planned_start_date_to, driver_id, block_date)
-            VALUES (:status, :comment, :cost, :zayavki_ids, :count, :assigned_manager_id, :planned_from, :planned_to, :driver_id, NOW())
+            INSERT INTO flights (status, comment, cost, unload_type, zayavki_ids, zayavki_count, {$quotedManagerColumn}, planned_start_date_from, planned_start_date_to, driver_id, block_date)
+            VALUES (:status, :comment, :cost, :unload_type, :zayavki_ids, :count, :assigned_manager_id, :planned_from, :planned_to, :driver_id, NOW())
         ");
         $stmt->execute([
             ':status' => STATUS_PLANNED,
             ':comment' => $name !== '' ? $name : 'Новый рейс',
             ':cost' => $normalized['cost'],
+            ':unload_type' => $normalized['unload_type'],
             ':zayavki_ids' => $normalized['zayavki_ids_canonical'],
             ':count' => $normalized['zayavki_count'],
             ':assigned_manager_id' => $assignedManagerId,
@@ -597,6 +616,7 @@ try {
                     zayavki_count = :count,
                     planned_start_date_from = :planned_from,
                     planned_start_date_to = :planned_to,
+                    unload_type = :unload_type,
                     driver_id = :driver_id,
                     block_date = NOW()
                 WHERE id = :id
@@ -609,6 +629,7 @@ try {
                 ':count' => $normalized['zayavki_count'],
                 ':planned_from' => $normalized['planned_start_date_from'],
                 ':planned_to' => $normalized['planned_start_date_to'],
+                ':unload_type' => $normalized['unload_type'],
                 ':driver_id' => $normalized['driver_id'],
                 ':id' => $routeId,
             ]);

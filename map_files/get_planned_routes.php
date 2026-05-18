@@ -71,6 +71,7 @@ try {
                f.status,
                f.comment AS name,
                f.cost,
+               f.unload_type,
                f.zayavki_ids,
                f.zayavki_count,
                f.driver_id,
@@ -114,6 +115,10 @@ try {
         }
 
         $zayIds = parseZayavkiIds((string)($row['zayavki_ids'] ?? ''));
+        $unloadType = strtoupper(trim((string)($row['unload_type'] ?? 'OO')));
+        if ($unloadType !== 'SKLAD') {
+            $unloadType = 'OO';
+        }
 
         $normalized = [
             'id' => $flightId,
@@ -121,6 +126,7 @@ try {
             'name' => $name,
             'route_title' => $name,
             'cost' => $row['cost'] ?? null,
+            'unload_type' => $unloadType,
             'zayavki_ids' => (string)($row['zayavki_ids'] ?? ''),
             'zayavki_count' => isset($row['zayavki_count']) ? (int)$row['zayavki_count'] : count($zayIds),
             'driver_id' => isset($row['driver_id']) ? (int)$row['driver_id'] : null,
