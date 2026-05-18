@@ -50,7 +50,7 @@
         <div class="layer-group-title">Транспорт (Slitex)</div>
         <div class="checkbox-item">
             <input type="radio" name="transportMode" id="transport_mode_active" value="active" checked onchange="setTransportDisplayMode('active')">
-            <label for="transport_mode_active">Показать только активный транспорт</label>
+            <label for="transport_mode_active">Транспорт в активных рейсах</label>
         </div>
         <div class="checkbox-item">
             <input type="radio" name="transportMode" id="transport_mode_all" value="all" onchange="setTransportDisplayMode('all')">
