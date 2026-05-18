@@ -186,7 +186,7 @@ function hexToRgba(hex, alpha) {
 
 // === TRACKER FUNCTIONS ===
 function getTrackerPreset(minutes) {
-    if (minutes < 10) return 'islands#redStretchyIcon';
+    if (minutes < 10) return 'islands#blueStretchyIcon';
     if (minutes < 60) return 'islands#orangeStretchyIcon';
     if (minutes < 180) return 'islands#orangeStretchyIcon';
     return 'islands#redStretchyIcon';
@@ -454,18 +454,18 @@ function createMarkerSVG(totalMass, inFlight, markerColor = '#000000', flightId 
     const key = `${totalMass}_${inFlight}_${markerColor}_${flightId}_${hideTriangle}_${isSelected}`;
     if (svgCache[key]) return svgCache[key];
     const weightInKg = Math.round(totalMass * 1000);
-    let bgColor = isSelected ? '#fff5f2' : '#ffffff';
+    let bgColor = isSelected ? '#f1f6ff' : '#ffffff';
     if (weightInKg > 10000 && !isSelected) bgColor = '#fd4221';
     else if (weightInKg > 5000 && !isSelected) bgColor = '#FF7400';
     else if (weightInKg > 3000 && !isSelected) bgColor = '#FFA459';
     else if (weightInKg > 1000 && !isSelected) bgColor = '#FFCBA1';
     const statusColor = markerColor || '#000000';
-    const strokeColor = isSelected ? '#d95a3d' : statusColor;
-    const selectedAccentColor = '#d95a3d';
-    const textColor = isSelected ? '#7c2d1f' : '#000000';
+    const strokeColor = isSelected ? '#1f73ff' : statusColor;
+    const selectedAccentColor = '#1f73ff';
+    const textColor = isSelected ? '#174ea6' : '#000000';
     const strokeWidth = isSelected ? 2.6 : 2;
     const filter = isSelected
-        ? `filter="drop-shadow(0 0 2px ${hexToRgba(selectedAccentColor, 0.35)})"`
+        ? `filter="drop-shadow(0 0 2.8px ${hexToRgba(selectedAccentColor, 0.5)})"`
         : '';
     const h = 25, w = 40, bw = 18, bh = 12;
     let svg = `<svg width="${w+10}" height="${h+20}" viewBox="0 0 ${w+10} ${h+20}" xmlns="http://www.w3.org/2000/svg">`;
