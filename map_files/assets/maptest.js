@@ -1,4 +1,4 @@
-
+﻿
 let map, placemarks = [], groupsData = [], flightStatusFilters = {}, customLayerFilters = {};
 let selectedOrder = [];
 let weightById = {};
@@ -74,7 +74,7 @@ UI.msgFlightDataNotFound = '\u0414\u0430\u043d\u043d\u044b\u0435 \u0440\u0435\u0
 UI.msgSetFlightAndDriver = '\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u0440\u0435\u0439\u0441 \u0438 \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f';
 UI.msgSaveFailed = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f';
 UI.msgNetworkUpdateFlight = '\u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u0435\u0442\u0438 \u043f\u0440\u0438 \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0438 \u0440\u0435\u0439\u0441\u0430';
-UI.msgConfirmToFound = '\u041f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0440\u0435\u0439\u0441 \u0432 \"\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442. \u043d\u0430\u0439\u0434\u0435\u043d\"?';
+UI.msgConfirmToFound = 'Сформировать рейс?';
 UI.msgTransferFailed = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0440\u0435\u0439\u0441';
 UI.msgNetworkTransfer = '\u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u0435\u0442\u0438 \u043f\u0440\u0438 \u043f\u0435\u0440\u0435\u0432\u043e\u0434\u0435 \u0440\u0435\u0439\u0441\u0430';
 UI.msgInvalidFlightId = '\u041d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0439 ID \u0440\u0435\u0439\u0441\u0430';
@@ -88,17 +88,17 @@ UI.msgDeleteRouteConfirm = '\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u043c\u0
 UI.msgMinTwoRequests = '\u041c\u0438\u043d\u0438\u043c\u0443\u043c 2 \u0437\u0430\u044f\u0432\u043a\u0438';
 UI.msgCoordsNotFound = '\u041a\u043e\u043e\u0440\u0434\u0438\u043d\u0430\u0442\u044b \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u044b';
 UI.labelEditRoute = '\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0440\u0435\u0439\u0441';
-UI.labelToFound = '\u041f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0432 \u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442. \u043d\u0430\u0439\u0434\u0435\u043d';
+UI.labelToFound = 'В «Рейс сформирован»';
 UI.labelToStarted = '\u041f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0432 \u0412\u044b\u0432\u043e\u0437 \u043d\u0430\u0447\u0430\u043b\u0441\u044f';
 UI.labelBackToPlanned = '\u0412\u0435\u0440\u043d\u0443\u0442\u044c \u0432 \u00ab\u041f\u043b\u0430\u043d\u0438\u0440\u0443\u0435\u043c\u044b\u0439\u00bb';
-UI.labelBackToFound = '\u0412\u0435\u0440\u043d\u0443\u0442\u044c \u0432 \u00ab\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442. \u043d\u0430\u0439\u0434\u0435\u043d\u00bb';
+UI.labelBackToFound = 'Вернуть в «Рейс сформирован»';
 UI.labelDriver = '\u0412\u043e\u0434\u0438\u0442\u0435\u043b\u044c';
 UI.msgBackToPlanned = '\u0420\u0435\u0439\u0441 #{id} \u0431\u0443\u0434\u0435\u0442 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0435\u043d \u0432 \u00ab\u041f\u043b\u0430\u043d\u0438\u0440\u0443\u0435\u043c\u044b\u0439\u00bb.\\n\\n\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044c?';
-UI.msgBackToFound = '\u0420\u0435\u0439\u0441 #{id} \u0431\u0443\u0434\u0435\u0442 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0435\u043d \u0432 \u00ab\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442. \u043d\u0430\u0439\u0434\u0435\u043d\u00bb.\\n\\n\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044c?';
+UI.msgBackToFound = 'Рейс #{id} будет возвращён в «Рейс сформирован».\n\nПодтвердить?';
 UI.msgToCompleted = '\u0420\u0435\u0439\u0441 #{id} \u0431\u0443\u0434\u0435\u0442 \u043f\u0435\u0440\u0435\u0432\u0435\u0434\u0435\u043d \u0432 \u00ab\u0413\u0440\u0443\u0437 \u0441\u0434\u0430\u043d\u00bb.\\n\\n\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044c?';
 UI.msgNeedEndDate = '\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u0434\u0430\u0442\u0443 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u044f \u043f\u0435\u0440\u0435\u0432\u043e\u0437\u043a\u0438.';
 UI.labelToCompleted = '\u041f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0432 \u0413\u0440\u0443\u0437 \u0441\u0434\u0430\u043d';
-UI.msgTransitionValidationHeader = '\u0427\u0442\u043e\u0431\u044b \u043f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0440\u0435\u0439\u0441 \u0432 \u0441\u0442\u0430\u0442\u0443\u0441 \u00ab\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c \u043d\u0430\u0439\u0434\u0435\u043d\u00bb, \u0437\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u0435 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u044b\u0435 \u043f\u043e\u043b\u044f.';
+UI.msgTransitionValidationHeader = 'Чтобы сформировать рейс, заполните обязательные поля.';
 UI.msgTransitionValidationTitle = '\u043a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0439 / \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a';
 UI.msgTransitionValidationDriver = '\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c';
 UI.msgTransitionValidationDates = '\u0434\u0430\u0442\u044b';
@@ -300,7 +300,7 @@ function escapeHtml(str) {
 
 function createTrackerBalloon(tracker) {
     const newTrackerBadge = tracker && tracker.is_new_tracker
-        ? `<br><span style="display:inline-block; margin-top:6px; font-size:11px; font-weight:700; color:#0d47a1;">НОВЫЙ ТРЕКЕР</span>`
+        ? `<br><span style="display:inline-block; margin-top:6px; font-size:11px; font-weight:700; color:#0d47a1;">РќРћР’Р«Р™ РўР Р•РљР•Р </span>`
         : '';
     return `<div style="padding:12px; font-family:Arial,sans-serif; max-width:280px;">
         <b>${UI.truck} ${escapeHtml(tracker.name)}</b><br>
@@ -1120,16 +1120,16 @@ function applyLifecycleButtons(status) {
         if (el) el.style.display = 'none';
     });
     if (status === 'planned_route') {
-        if (updateTitle) updateTitle.textContent = 'Актуализация рейса';
-        if (updateDesc) updateDesc.textContent = 'Изменения дат автоматически фиксируются в МАКС.';
-        if (saveBtn) saveBtn.textContent = 'Сохранить изменения';
+        if (updateTitle) updateTitle.textContent = 'РђРєС‚СѓР°Р»РёР·Р°С†РёСЏ СЂРµР№СЃР°';
+        if (updateDesc) updateDesc.textContent = 'РР·РјРµРЅРµРЅРёСЏ РґР°С‚ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё С„РёРєСЃРёСЂСѓСЋС‚СЃСЏ РІ РњРђРљРЎ.';
+        if (saveBtn) saveBtn.textContent = 'РЎРѕС…СЂР°РЅРёС‚СЊ РёР·РјРµРЅРµРЅРёСЏ';
         if (map.updateSection) map.updateSection.style.display = 'block';
         if (map.toFound) map.toFound.style.display = 'block';
         if (map.deleteWrap) map.deleteWrap.style.display = 'block';
     } else if (status === 'found') {
-        if (updateTitle) updateTitle.textContent = 'Актуализация рейса';
-        if (updateDesc) updateDesc.textContent = 'Изменения автоматически фиксируются в МАКС.';
-        if (saveBtn) saveBtn.textContent = 'Сохранить изменения';
+        if (updateTitle) updateTitle.textContent = 'РђРєС‚СѓР°Р»РёР·Р°С†РёСЏ СЂРµР№СЃР°';
+        if (updateDesc) updateDesc.textContent = 'РР·РјРµРЅРµРЅРёСЏ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё С„РёРєСЃРёСЂСѓСЋС‚СЃСЏ РІ РњРђРљРЎ.';
+        if (saveBtn) saveBtn.textContent = 'РЎРѕС…СЂР°РЅРёС‚СЊ РёР·РјРµРЅРµРЅРёСЏ';
         if (map.updateSection) map.updateSection.style.display = 'block';
         if (map.toStarted) map.toStarted.style.display = 'block';
         if (map.toPlanned) map.toPlanned.style.display = 'block';

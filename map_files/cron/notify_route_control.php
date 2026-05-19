@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 error_reporting(0);
 ini_set('display_errors', 0);
 
@@ -20,21 +20,21 @@ function out(array $payload): void
 function fmtDateShort($value): string
 {
     $v = trim((string)$value);
-    if ($v === '') return 'не указано';
+    if ($v === '') return 'РЅРµ СѓРєР°Р·Р°РЅРѕ';
     $ts = strtotime($v);
     return $ts === false ? $v : date('d.m', $ts);
 }
 
 function fmtKg($tons): string
 {
-    return number_format((int)round((float)$tons * 1000), 0, '.', ' ') . ' кг';
+    return number_format((int)round((float)$tons * 1000), 0, '.', ' ') . ' РєРі';
 }
 
 function compactDriver(string $label): string
 {
     $v = trim($label);
-    if ($v === '') return 'Водитель не указан';
-    if (preg_match('/([А-ЯЁA-Z]\d{3}[А-ЯЁA-Z]{2}\d{2,3})/u', $v, $mPlate)) {
+    if ($v === '') return 'Р’РѕРґРёС‚РµР»СЊ РЅРµ СѓРєР°Р·Р°РЅ';
+    if (preg_match('/([Рђ-РЇРЃA-Z]\d{3}[Рђ-РЇРЃA-Z]{2}\d{2,3})/u', $v, $mPlate)) {
         $plate = trim($mPlate[1]);
         if (preg_match('/\(([^)]+)\)/u', $v, $mName)) {
             $surname = trim((string)explode(' ', trim($mName[1]))[0]);
@@ -48,9 +48,9 @@ function compactDriver(string $label): string
 function managerName(PDO $pdo, $managerId): string
 {
     $id = (int)$managerId;
-    if ($id <= 0) return 'Менеджер не указан';
+    if ($id <= 0) return 'РњРµРЅРµРґР¶РµСЂ РЅРµ СѓРєР°Р·Р°РЅ';
     try {
-        $stmt = $pdo->prepare("SELECT TRIM(CONCAT(COALESCE(`Фамилия`,''),' ',COALESCE(`Имя`,''))) AS n FROM users WHERE id=:id LIMIT 1");
+        $stmt = $pdo->prepare("SELECT TRIM(CONCAT(COALESCE(`Р¤Р°РјРёР»РёСЏ`,''),' ',COALESCE(`РРјСЏ`,''))) AS n FROM users WHERE id=:id LIMIT 1");
         if ($stmt && $stmt->execute([':id' => $id])) {
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             $n = trim((string)($row['n'] ?? ''));
@@ -59,7 +59,7 @@ function managerName(PDO $pdo, $managerId): string
     } catch (Throwable $e) {
         mapError('notify_route_control managerName failed', ['id' => $id, 'error' => $e->getMessage()]);
     }
-    return 'Менеджер #' . $id;
+    return 'РњРµРЅРµРґР¶РµСЂ #' . $id;
 }
 
 try {
@@ -92,39 +92,39 @@ try {
     $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
     if (empty($rows)) {
-        out(['success' => true, 'mode' => $mode, 'sent' => 0, 'message' => 'Проблемных рейсов нет']);
+        out(['success' => true, 'mode' => $mode, 'sent' => 0, 'message' => 'РџСЂРѕР±Р»РµРјРЅС‹С… СЂРµР№СЃРѕРІ РЅРµС‚']);
     }
 
-    $header = $mode === 'morning' ? 'MAX: контроль вывоза на сегодня' : 'MAX: вечерний контроль вывоза';
+    $header = $mode === 'morning' ? 'MAX: РєРѕРЅС‚СЂРѕР»СЊ РІС‹РІРѕР·Р° РЅР° СЃРµРіРѕРґРЅСЏ' : 'MAX: РІРµС‡РµСЂРЅРёР№ РєРѕРЅС‚СЂРѕР»СЊ РІС‹РІРѕР·Р°';
     $lines = [$header];
 
     foreach ($rows as $row) {
         $id = (int)($row['id'] ?? 0);
         if ($id <= 0) continue;
         $title = trim((string)($row['comment'] ?? ''));
-        if ($title === '') $title = 'Рейс #' . $id;
+        if ($title === '') $title = 'Р РµР№СЃ #' . $id;
         $manager = managerName($pdo, $row['assigned_manager_id'] ?? 0);
-        $status = ((string)($row['status'] ?? '') === STATUS_FOUND) ? 'Исполнит. найден' : 'Планируемый';
+        $status = ((string)($row['status'] ?? '') === STATUS_FOUND) ? 'Рейс сформирован' : 'Планируемый';
         $driverRaw = trim((string)($row['vehicle_make_plate'] ?? ''));
         $full = trim((string)($row['full_name'] ?? ''));
         if ($full !== '') $driverRaw .= ($driverRaw !== '' ? " ({$full})" : $full);
         $driver = compactDriver($driverRaw);
         $count = (int)($row['zayavki_count'] ?? 0);
         $kg = fmtKg((float)($row['sum_tons'] ?? 0));
-        $unload = strtoupper(trim((string)($row['unload_type'] ?? 'OO'))) === 'SKLAD' ? 'СКЛАД' : 'ОО';
-        $period = fmtDateShort($row['planned_start_date_from'] ?? '') . '–' . fmtDateShort($row['planned_start_date_to'] ?? '');
+        $unload = strtoupper(trim((string)($row['unload_type'] ?? 'OO'))) === 'SKLAD' ? 'РЎРљР›РђР”' : 'РћРћ';
+        $period = fmtDateShort($row['planned_start_date_from'] ?? '') . 'вЂ“' . fmtDateShort($row['planned_start_date_to'] ?? '');
 
         $lines[] = "#{$id} {$title} | {$manager}";
-        $lines[] = "Статус: {$status}";
-        $lines[] = "{$count} заяв. • {$kg} • {$unload}";
-        $lines[] = "Водитель: {$driver}";
-        $lines[] = "Даты: {$period}";
+        $lines[] = "РЎС‚Р°С‚СѓСЃ: {$status}";
+        $lines[] = "{$count} Р·Р°СЏРІ. вЂў {$kg} вЂў {$unload}";
+        $lines[] = "Р’РѕРґРёС‚РµР»СЊ: {$driver}";
+        $lines[] = "Р”Р°С‚С‹: {$period}";
         if ((string)($row['status'] ?? '') === STATUS_FOUND) {
             $lines[] = $mode === 'morning'
-                ? 'Если вывоз начался — переведите рейс в «Вывоз начался».'
-                : 'Если вывоз начался — переведите рейс в «Вывоз начался». Если дата изменилась — скорректируйте даты рейса.';
+                ? 'Р•СЃР»Рё РІС‹РІРѕР· РЅР°С‡Р°Р»СЃСЏ вЂ” РїРµСЂРµРІРµРґРёС‚Рµ СЂРµР№СЃ РІ В«Р’С‹РІРѕР· РЅР°С‡Р°Р»СЃСЏВ».'
+                : 'Р•СЃР»Рё РІС‹РІРѕР· РЅР°С‡Р°Р»СЃСЏ вЂ” РїРµСЂРµРІРµРґРёС‚Рµ СЂРµР№СЃ РІ В«Р’С‹РІРѕР· РЅР°С‡Р°Р»СЃСЏВ». Р•СЃР»Рё РґР°С‚Р° РёР·РјРµРЅРёР»Р°СЃСЊ вЂ” СЃРєРѕСЂСЂРµРєС‚РёСЂСѓР№С‚Рµ РґР°С‚С‹ СЂРµР№СЃР°.';
         } else {
-            $lines[] = 'Назначьте водителя/стоимость или измените дату вывоза.';
+            $lines[] = 'РќР°Р·РЅР°С‡СЊС‚Рµ РІРѕРґРёС‚РµР»СЏ/СЃС‚РѕРёРјРѕСЃС‚СЊ РёР»Рё РёР·РјРµРЅРёС‚Рµ РґР°С‚Сѓ РІС‹РІРѕР·Р°.';
         }
     }
 
@@ -139,5 +139,5 @@ try {
     ]);
 } catch (Throwable $e) {
     mapError('notify_route_control fatal', ['error' => $e->getMessage()]);
-    out(['success' => false, 'message' => 'Внутренняя ошибка']);
+    out(['success' => false, 'message' => 'Р’РЅСѓС‚СЂРµРЅРЅСЏСЏ РѕС€РёР±РєР°']);
 }
