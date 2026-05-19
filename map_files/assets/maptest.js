@@ -828,8 +828,9 @@ function buildRouteCardDateLabel(route) {
 function buildRouteCardDriverLine(route, driverLabel) {
     const dateLabel = buildRouteCardDateLabel(route);
     const safeDriverLabel = String(driverLabel || UI.driverMissing).trim() || UI.driverMissing;
-    if (!dateLabel) return safeDriverLabel;
-    return `${dateLabel}${UI.bullet}${safeDriverLabel}`;
+    const escapedDriver = escapeHtml(safeDriverLabel);
+    if (!dateLabel) return escapedDriver;
+    return `<span class="route-date-strong">${escapeHtml(dateLabel)}</span>${UI.bullet}${escapedDriver}`;
 }
 
 function getRouteMetaById(routeId, source) {
@@ -1082,6 +1083,7 @@ function openFlightEditModal(routeId, source) {
     }
 
     applyLifecycleButtons(currentEditingMeta.status);
+    setFlightEditReadOnlyMode(currentEditingMeta.status === 'started');
     syncRequiredFieldLabels(currentEditingMeta.status);
     clearFlightValidationErrors();
     updateFlightModalSummary();
@@ -1090,25 +1092,62 @@ function openFlightEditModal(routeId, source) {
 
 function applyLifecycleButtons(status) {
     const map = {
+        updateSection: document.getElementById('workflowUpdateSection'),
         toFound: document.getElementById('workflowToFoundWrap'),
         toStarted: document.getElementById('workflowToStartedWrap'),
         toPlanned: document.getElementById('workflowBackToPlannedWrap'),
         toFoundBack: document.getElementById('workflowBackToFoundWrap'),
         toCompleted: document.getElementById('workflowToCompletedWrap'),
+        startedInfo: document.getElementById('workflowStartedInfoWrap'),
         deleteWrap: document.getElementById('workflowDeleteWrap')
     };
     Object.values(map).forEach(el => {
         if (el) el.style.display = 'none';
     });
     if (status === 'planned_route') {
+        if (map.updateSection) map.updateSection.style.display = 'block';
         if (map.toFound) map.toFound.style.display = 'block';
         if (map.deleteWrap) map.deleteWrap.style.display = 'block';
     } else if (status === 'found') {
+        if (map.updateSection) map.updateSection.style.display = 'block';
         if (map.toStarted) map.toStarted.style.display = 'block';
         if (map.toPlanned) map.toPlanned.style.display = 'block';
     } else if (status === 'started') {
+        if (map.updateSection) map.updateSection.style.display = 'none';
+        if (map.startedInfo) map.startedInfo.style.display = 'block';
         if (map.toFoundBack) map.toFoundBack.style.display = 'block';
         if (map.toCompleted) map.toCompleted.style.display = 'block';
+    }
+}
+
+function setFlightEditReadOnlyMode(isReadOnly) {
+    const modal = document.querySelector('#flightEditModal .flight-modal');
+    const fieldIds = [
+        'edit_comment',
+        'edit_driver_id',
+        'edit_planned_start_date_from',
+        'edit_planned_start_date_to',
+        'edit_actual_start_date',
+        'edit_actual_end_date',
+        'edit_cost',
+        'edit_zayavki_ids',
+        'edit_unload_type'
+    ];
+    fieldIds.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (isReadOnly) {
+            el.setAttribute('disabled', 'disabled');
+            if (id === 'edit_comment' || id === 'edit_zayavki_ids') {
+                el.setAttribute('readonly', 'readonly');
+            }
+        } else {
+            el.removeAttribute('disabled');
+            el.removeAttribute('readonly');
+        }
+    });
+    if (modal) {
+        modal.classList.toggle('is-started-readonly', !!isReadOnly);
     }
 }
 
@@ -1574,8 +1613,8 @@ function loadPlannedRoutes() {
                 return `
                     <div class="route-item route-item-planned" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
                         <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'planned')}</div>
-                        <div class="route-meta">${zayCount} \u0437\u0430\u044f\u0432.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}${unloadPart}</div>
-                        <div class="route-meta">${escapeHtml(driverLine)}</div>
+                        <div class="route-meta route-timeline">${driverLine}</div>
+                        <div class="route-meta route-metrics">${zayCount} \u0437\u0430\u044f\u0432.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}${unloadPart}</div>
                     </div>
                 `;
             }).join('');
@@ -1605,8 +1644,8 @@ function loadPlannedRoutes() {
                     return `
                         <div class="route-item route-item-found" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
                             <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'found')}</div>
-                            <div class="route-meta">${zayCount} \u0437\u0430\u044f\u0432.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}${unloadPart}</div>
-                            <div class="route-meta">${escapeHtml(driverLine)}</div>
+                            <div class="route-meta route-timeline">${driverLine}</div>
+                            <div class="route-meta route-metrics">${zayCount} \u0437\u0430\u044f\u0432.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}${unloadPart}</div>
                         </div>
                     `;
                 }).join('');
@@ -1631,8 +1670,8 @@ function loadPlannedRoutes() {
                     return `
                         <div class="route-item route-item-started" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
                             <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'started')}</div>
-                            <div class="route-meta">${zayCount} \u0437\u0430\u044f\u0432.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}${unloadPart}</div>
-                            <div class="route-meta">${escapeHtml(driverLine)}</div>
+                            <div class="route-meta route-timeline">${driverLine}</div>
+                            <div class="route-meta route-metrics">${zayCount} \u0437\u0430\u044f\u0432.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}${unloadPart}</div>
                         </div>
                     `;
                 }).join('');

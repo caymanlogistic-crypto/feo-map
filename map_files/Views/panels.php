@@ -149,49 +149,54 @@
         <div class="flight-change-preview" id="flightChangePreview" style="display:none;"></div>
         <div class="flight-validation-errors" id="flightValidationErrors" style="display:none;"></div>
 
-        <div class="workflow-section">
+        <div class="workflow-section workflow-card workflow-card-update" id="workflowUpdateSection">
             <div class="workflow-title">Обновление данных по рейсу</div>
             <div class="workflow-desc">При добавлении или изменении планируемых дат в МАКС направляется сообщение для фиксации изменений.</div>
             <button class="route-action-btn route-edit-btn route-action-main" id="flightEditSaveBtn">Сохранить/Обновить</button>
         </div>
 
-        <div class="workflow-section">
+        <div class="workflow-section workflow-card workflow-card-lifecycle" id="workflowLifecycleSection">
             <div class="workflow-title">Смена состояния</div>
 
-            <div class="workflow-action" id="workflowToFoundWrap">
+            <div class="workflow-action workflow-action-info" id="workflowStartedInfoWrap">
+                <div class="workflow-subtitle">Рейс выполняется</div>
+                <div class="workflow-desc">Контроль перевозки активен. Изменение параметров рейса недоступно.</div>
+            </div>
+
+            <div class="workflow-action workflow-action-primary workflow-action-found" id="workflowToFoundWrap">
                 <div class="workflow-subtitle">Сформировать рейс</div>
                 <div class="workflow-desc">После перевода рейс считается согласованным. Будут зафиксированы водитель, даты, стоимость и заявки. В MAX отправится уведомление, начнётся подготовка транспортных документов.</div>
-                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditTransferFoundBtn">Сохранить и сформировать рейс</button>
+                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditTransferFoundBtn">Сформировать рейс</button>
             </div>
 
-            <div class="workflow-action" id="workflowToStartedWrap">
-                <div class="workflow-subtitle">Начать выполнение маршрута</div>
+            <div class="workflow-action workflow-action-primary workflow-action-started" id="workflowToStartedWrap">
+                <div class="workflow-subtitle">Начало выполнения</div>
                 <div class="workflow-desc">Рейс перейдёт в статус «Вывоз начался». Подключается контроль выполнения перевозки и логика трекера. В MAX будет отправлено уведомление.</div>
-                <button class="route-action-btn route-transfer-start-btn route-action-main" id="flightEditTransferStartedBtn">Перевести в «Вывоз начался»</button>
+                <button class="route-action-btn route-transfer-start-btn route-action-main" id="flightEditTransferStartedBtn">Подтвердить начало вывоза</button>
             </div>
 
-            <div class="workflow-action" id="workflowBackToPlannedWrap">
-                <div class="workflow-subtitle">Вернуть в планирование</div>
+            <div class="workflow-action workflow-action-secondary workflow-action-return" id="workflowBackToPlannedWrap">
+                <div class="workflow-subtitle">Возврат в планирование</div>
                 <div class="workflow-desc">Рейс будет возвращён в планирование. Подготовку документов нужно проверить или приостановить. В MAX будет отправлено уведомление.</div>
-                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditBackToPlannedBtn">Вернуть в «Планируемый»</button>
+                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditBackToPlannedBtn">Вернуть в планируемые</button>
             </div>
 
-            <div class="workflow-action" id="workflowBackToFoundWrap">
-                <div class="workflow-subtitle">Вернуть к найденному исполнителю</div>
+            <div class="workflow-action workflow-action-secondary workflow-action-found" id="workflowBackToFoundWrap">
+                <div class="workflow-subtitle">Приостановить выполнение</div>
                 <div class="workflow-desc">Рейс будет возвращён из выполнения в статус «Исполнит. найден». В MAX будет отправлено уведомление.</div>
-                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditBackToFoundBtn">Вернуть в «Исполнит. найден»</button>
+                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditBackToFoundBtn">Вернуть в сформированные</button>
             </div>
-            <div class="workflow-action" id="workflowToCompletedWrap">
-                <div class="workflow-subtitle">Перевести в «Груз сдан»</div>
-                <div class="workflow-desc">Рейс будет завершён. Для перевода укажите дату завершения перевозки. В MAX будет отправлено уведомление о завершении рейса.</div>
-                <button class="route-action-btn route-transfer-start-btn route-action-main" id="flightEditToCompletedBtn">Перевести в «Груз сдан»</button>
+            <div class="workflow-action workflow-action-primary workflow-action-completed" id="workflowToCompletedWrap">
+                <div class="workflow-subtitle">Завершение рейса</div>
+                <div class="workflow-desc">После завершения рейс будет переведен в архив перевозок.</div>
+                <button class="route-action-btn route-transfer-start-btn route-action-main" id="flightEditToCompletedBtn">Завершить рейс</button>
             </div>
         </div>
 
-        <div class="danger-zone" id="workflowDeleteWrap">
-            <div class="workflow-title">Опасная зона</div>
-            <div class="workflow-desc">Удаление доступно только для планируемого рейса. Действие удалит маршрут из списка планируемых маршрутов.</div>
-            <button class="route-action-btn route-manage-danger route-action-main" id="flightEditDeleteBtn">Удалить рейс</button>
+        <div class="danger-zone workflow-card workflow-card-danger" id="workflowDeleteWrap">
+            <div class="workflow-title">Удаление маршрута</div>
+            <div class="workflow-desc">Маршрут будет удалён из списка планируемых рейсов.</div>
+            <button class="route-action-btn route-manage-danger route-action-main" id="flightEditDeleteBtn">Удалить маршрут</button>
         </div>
 
         <div class="flight-modal-footer">

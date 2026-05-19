@@ -44,6 +44,9 @@
 .route-item-started.active { background: #eaf6ec; border-left-color: #25682a; box-shadow: inset 0 0 0 1px rgba(46,125,50,0.28); }
 .route-name { font-weight: bold; font-size: 12px; line-height: 1.2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .route-meta { font-size: 10px; color: #6c757d; margin-top: 2px; line-height: 1.25; }
+.route-meta.route-timeline { color: #566171; }
+.route-meta.route-metrics { color: #66717f; }
+.route-meta .route-date-strong { font-weight: 700; color: #2f3d52; }
 .route-head { display:flex; align-items:flex-start; justify-content:space-between; gap:6px; }
 .route-status-line { display:none; }
 .route-delete { position: absolute; right: 8px; top: 8px; transform: none; width: 18px; height: 18px; padding: 0; border: 1px solid #dadada; border-radius: 3px; background: #fff; cursor: pointer; font-size: 11px; color: #9e9e9e; opacity: 0.85; line-height: 1; display: inline-flex; align-items: center; justify-content: center; } .route-delete:hover { opacity: 1; color: #d85a5a; border-color: #edcaca; background: #fff8f8; }
@@ -139,14 +142,36 @@
 .flight-modal-actions { margin-top: 10px; display:flex; flex-wrap:wrap; gap:6px; }
 .flight-modal-actions .route-action-btn { width:auto; height:28px; padding:0 10px; font-size:12px; opacity:1; }
 .route-action-main { height: 28px; padding: 0 12px; font-size: 12px; }
-.workflow-section { margin-top: 10px; border: 1px solid #e6eaef; border-radius: 8px; padding: 10px; background: #fafbfc; }
-.workflow-title { font-size: 13px; font-weight: 700; color: #343a40; margin-bottom: 6px; }
-.workflow-subtitle { font-size: 12px; font-weight: 700; color: #434a54; margin-bottom: 4px; }
-.workflow-desc { font-size: 11px; color: #5f6670; line-height: 1.35; margin-bottom: 8px; }
+.workflow-section { margin-top: 8px; border: 1px solid #e4e8ee; border-radius: 8px; padding: 8px; background: #fbfcfd; }
+.workflow-title { font-size: 12px; font-weight: 700; color: #343a40; margin-bottom: 5px; }
+.workflow-subtitle { font-size: 12px; font-weight: 700; color: #434a54; margin-bottom: 3px; }
+.workflow-desc { font-size: 11px; color: #5f6670; line-height: 1.3; margin-bottom: 6px; }
 .flight-title-planned { color: #9c27b0; }
 .flight-title-found { color: #17a2b8; }
 .flight-status-planned { color: #9c27b0; font-weight: 700; }
 .flight-status-found { color: #17a2b8; font-weight: 700; }
-.workflow-action + .workflow-action { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #d9dee3; }
-.danger-zone { margin-top: 10px; border: 1px solid #efc8c8; border-radius: 8px; padding: 10px; background: #fff8f8; }
+.workflow-action { border: 1px solid #e3e8ee; border-left-width: 3px; border-radius: 7px; padding: 8px; background: #fff; }
+.workflow-action + .workflow-action { margin-top: 6px; }
+.workflow-card-update { border-left: 3px solid #9c27b0; background: rgba(156,39,176,0.03); }
+.workflow-card-lifecycle { border-left: 3px solid #d8e0ea; background: #fbfcfd; }
+.workflow-card-danger { margin-top: 8px; border: 1px solid #efc8c8; border-left-width: 3px; border-left-color: #dc3545; border-radius: 8px; padding: 8px; background: rgba(220,53,69,0.035); }
+.workflow-action-found { border-left-color: #17a2b8; background: rgba(23,162,184,0.03); }
+.workflow-action-started { border-left-color: #28a745; background: rgba(40,167,69,0.03); }
+.workflow-action-completed { border-left-color: #2c8f3f; background: rgba(40,167,69,0.05); }
+.workflow-action-return { border-left-color: #d19a41; background: rgba(209,154,65,0.07); }
+.workflow-action-info { border-left-color: #28a745; background: rgba(40,167,69,0.03); }
+.danger-zone { margin-top: 8px; }
 .flight-modal-footer { margin-top: 10px; display: flex; justify-content: flex-end; }
+
+.flight-modal.is-started-readonly .flight-modal-grid input,
+.flight-modal.is-started-readonly .flight-modal-grid select,
+.flight-modal.is-started-readonly .flight-modal-grid textarea {
+    background: #f6f7f9;
+    color: #6b7280;
+}
+.flight-modal.is-started-readonly .flight-modal-grid input:disabled,
+.flight-modal.is-started-readonly .flight-modal-grid select:disabled,
+.flight-modal.is-started-readonly .flight-modal-grid textarea:disabled {
+    border-color: #d8dee6;
+    opacity: 1;
+}
