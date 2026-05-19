@@ -9,7 +9,7 @@
         <div id="plannedRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
     </div>
     <div class="routes-section routes-section-found">
-        <h3 class="routes-title-found">Исполнит. найден</h3>
+        <h3 class="routes-title-found">Сформированные рейсы</h3>
         <div id="foundRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
     </div>
     <div class="routes-section routes-section-started">
@@ -148,23 +148,20 @@
 
         <div class="flight-change-preview" id="flightChangePreview" style="display:none;"></div>
         <div class="flight-validation-errors" id="flightValidationErrors" style="display:none;"></div>
-        <div class="flight-requirements-hint" id="plannedRequirementsHint" style="display:none;">
-            Для перевода в «Исполнит. найден» заполните: водитель, даты вывоза, стоимость и заявки.
+
+        <div class="workflow-section">
+            <div class="workflow-title">Обновление данных по рейсу</div>
+            <div class="workflow-desc">При добавлении или изменении планируемых дат в МАКС направляется сообщение для фиксации изменений.</div>
+            <button class="route-action-btn route-edit-btn route-action-main" id="flightEditSaveBtn">Сохранить/Обновить</button>
         </div>
 
         <div class="workflow-section">
-            <div class="workflow-title">Изменение данных рейса</div>
-            <div class="workflow-desc">Изменения полей сохраняются в карточке рейса. Для статуса «Исполнит. найден» изменения отправляются в MAX.</div>
-            <button class="route-action-btn route-edit-btn route-action-main" id="flightEditSaveBtn">Сохранить изменения</button>
-        </div>
-
-        <div class="workflow-section">
-            <div class="workflow-title">Смена состояния рейса</div>
+            <div class="workflow-title">Смена состояния</div>
 
             <div class="workflow-action" id="workflowToFoundWrap">
-                <div class="workflow-subtitle">Перевести в «Исполнитель найден»</div>
+                <div class="workflow-subtitle">Сформировать рейс</div>
                 <div class="workflow-desc">После перевода рейс считается согласованным. Будут зафиксированы водитель, даты, стоимость и заявки. В MAX отправится уведомление, начнётся подготовка транспортных документов.</div>
-                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditTransferFoundBtn">Перевести в «Исполнит. найден»</button>
+                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditTransferFoundBtn">Сохранить и сформировать рейс</button>
             </div>
 
             <div class="workflow-action" id="workflowToStartedWrap">

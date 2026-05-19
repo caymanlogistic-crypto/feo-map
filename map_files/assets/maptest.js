@@ -57,9 +57,9 @@ const UI = {
     modalActualDates: '\u0424\u0430\u043a\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u0434\u0430\u0442\u044b \u043f\u0435\u0440\u0435\u0432\u043e\u0437\u043a\u0438',
     modalDriver: '\u0412\u043e\u0434\u0438\u0442\u0435\u043b\u044c / \u043c\u0430\u0448\u0438\u043d\u0430',
     modalCost: '\u0421\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c',
-    modalSave: '\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c',
+    modalSave: '\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c/\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c',
     modalCancel: '\u041e\u0442\u043c\u0435\u043d\u0430',
-    modalToFound: '\u0412 \u201c\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442. \u043d\u0430\u0439\u0434\u0435\u043d\u201d',
+    modalToFound: '\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0438 \u0441\u0444\u043e\u0440\u043c\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0440\u0435\u0439\u0441',
     modalToStarted: '\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044c',
     modalStartTitle: '\u041f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0432 \u201c\u0412\u044b\u0432\u043e\u0437 \u043d\u0430\u0447\u0430\u043b\u0441\u044f\u201d',
     modalStartDate: '\u0414\u0430\u0442\u0430 \u043d\u0430\u0447\u0430\u043b\u0430 \u0432\u044b\u0432\u043e\u0437\u0430',
@@ -99,10 +99,12 @@ UI.msgToCompleted = '\u0420\u0435\u0439\u0441 #{id} \u0431\u0443\u0434\u0435\u04
 UI.msgNeedEndDate = '\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u0434\u0430\u0442\u0443 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u044f \u043f\u0435\u0440\u0435\u0432\u043e\u0437\u043a\u0438.';
 UI.labelToCompleted = '\u041f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0432 \u0413\u0440\u0443\u0437 \u0441\u0434\u0430\u043d';
 UI.msgTransitionValidationHeader = '\u0427\u0442\u043e\u0431\u044b \u043f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0440\u0435\u0439\u0441 \u0432 \u0441\u0442\u0430\u0442\u0443\u0441 \u00ab\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c \u043d\u0430\u0439\u0434\u0435\u043d\u00bb, \u0437\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u0435 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u044b\u0435 \u043f\u043e\u043b\u044f.';
+UI.msgTransitionValidationTitle = '\u043a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0439 / \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a';
 UI.msgTransitionValidationDriver = '\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c';
 UI.msgTransitionValidationDates = '\u0434\u0430\u0442\u044b';
 UI.msgTransitionValidationCost = '\u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c';
 UI.msgTransitionValidationRequests = '\u0437\u0430\u044f\u0432\u043a\u0438';
+UI.msgSaveValidationTitle = '\u0414\u043b\u044f \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f/\u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u044f \u0437\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u0435 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u044b\u0435 \u043f\u043e\u043b\u044f.';
 UI.msgChooseManagerForRoute = '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430 \u0434\u043b\u044f \u043f\u043b\u0430\u043d\u0438\u0440\u0443\u0435\u043c\u043e\u0433\u043e \u0440\u0435\u0439\u0441\u0430.';
 UI.msgChooseManagerOption = '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430';
 UI.msgCreateRouteTitleRequired = '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u0430 \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u0431\u044b\u0442\u044c \u043f\u0443\u0441\u0442\u044b\u043c';
@@ -420,6 +422,9 @@ function updateFlightModalSummary() {
     const totalKg = Math.round(totalTons * 1000);
     const periodText = fromVal || toVal ? `${fromVal || TXT.notSpecified} ${UI.emDash} ${toVal || TXT.notSpecified}` : TXT.notSpecified;
     const statusLabel = statusNames[currentEditingMeta.status] || currentEditingMeta.status || TXT.notSpecified;
+    const statusClass = currentEditingMeta.status === 'planned_route'
+        ? 'flight-status-planned'
+        : (currentEditingMeta.status === 'found' ? 'flight-status-found' : '');
 
     summary.innerHTML = `
         <div><strong>${TXT.requestsCount}:</strong> ${uniqueIds.length}</div>
@@ -427,7 +432,7 @@ function updateFlightModalSummary() {
         <div><strong>${UI.modalCost}:</strong> ${formatRouteCost(costVal)} \u20BD</div>
         <div><strong>${UI.labelUnloadType}:</strong> ${getUnloadTypeLabel(unloadType)}</div>
         <div><strong>${UI.labelDriver}:</strong> ${escapeHtml(formatDriverCompactLabel(driverText))}</div>
-        <div><strong>${TXT.routeStatus}:</strong> ${escapeHtml(statusLabel)}</div>
+        <div><strong>${TXT.routeStatus}:</strong> <span class="${statusClass}">${escapeHtml(statusLabel)}</span></div>
         <div><strong>\u041f\u0435\u0440\u0438\u043e\u0434:</strong> ${escapeHtml(periodText)}</div>
     `;
 }
@@ -917,17 +922,18 @@ function clearFlightValidationErrors() {
         wrap.style.display = 'none';
         wrap.innerHTML = '';
     }
-    ['edit_driver_id', 'edit_planned_start_date_from', 'edit_planned_start_date_to', 'edit_actual_start_date', 'edit_actual_end_date', 'edit_cost', 'edit_zayavki_ids', 'edit_unload_type']
+    ['edit_comment', 'edit_driver_id', 'edit_planned_start_date_from', 'edit_planned_start_date_to', 'edit_actual_start_date', 'edit_actual_end_date', 'edit_cost', 'edit_zayavki_ids', 'edit_unload_type']
         .forEach((id) => {
             const el = document.getElementById(id);
             if (el) el.classList.remove('field-error');
         });
 }
 
-function showFlightValidationErrors(errorMap) {
+function showFlightValidationErrors(errorMap, headerText = UI.msgTransitionValidationHeader) {
     const wrap = document.getElementById('flightValidationErrors');
-    const orderedFields = ['driver_id', 'planned_start_date_from', 'planned_start_date_to', 'actual_start_date', 'actual_end_date', 'cost', 'zayavki_ids'];
+    const orderedFields = ['comment', 'driver_id', 'planned_start_date_from', 'planned_start_date_to', 'actual_start_date', 'actual_end_date', 'cost', 'zayavki_ids'];
     const fieldToInput = {
+        comment: 'edit_comment',
         driver_id: 'edit_driver_id',
         planned_start_date_from: 'edit_planned_start_date_from',
         planned_start_date_to: 'edit_planned_start_date_to',
@@ -937,6 +943,7 @@ function showFlightValidationErrors(errorMap) {
         zayavki_ids: 'edit_zayavki_ids'
     };
     const fieldLabels = {
+        comment: UI.msgTransitionValidationTitle,
         driver_id: UI.msgTransitionValidationDriver,
         planned_start_date_from: UI.msgTransitionValidationDates,
         planned_start_date_to: UI.msgTransitionValidationDates,
@@ -959,7 +966,7 @@ function showFlightValidationErrors(errorMap) {
 
     if (wrap && labels.length > 0) {
         wrap.style.display = 'block';
-        wrap.innerHTML = `<div>${UI.msgTransitionValidationHeader}</div><ul>${labels.map(label => `<li>${label}</li>`).join('')}</ul>`;
+        wrap.innerHTML = `<div>${headerText}</div><ul>${labels.map(label => `<li>${label}</li>`).join('')}</ul>`;
     }
 
     const firstField = orderedFields.find(f => errorMap[f]);
@@ -974,6 +981,7 @@ function showFlightValidationErrors(errorMap) {
 
 function validateRequiredForFoundTransition() {
     const errors = {};
+    const titleVal = String(document.getElementById('edit_comment')?.value || '').trim();
     const driverId = String(document.getElementById('edit_driver_id')?.value || '').trim();
     const fromVal = String(document.getElementById('edit_planned_start_date_from')?.value || '').trim();
     const toVal = String(document.getElementById('edit_planned_start_date_to')?.value || '').trim();
@@ -983,6 +991,7 @@ function validateRequiredForFoundTransition() {
         .map(v => v.trim())
         .filter(v => /^\d+$/.test(v));
 
+    if (!titleVal) errors.comment = true;
     if (!driverId) errors.driver_id = true;
     if (!fromVal) errors.planned_start_date_from = true;
     if (!toVal) errors.planned_start_date_to = true;
@@ -1019,7 +1028,6 @@ function openFlightEditModal(routeId, source) {
     const unloadTypeInput = document.getElementById('edit_unload_type');
     const transferFoundBtn = document.getElementById('flightEditTransferFoundBtn');
     const statusInput = document.getElementById('edit_current_status');
-    const plannedRequirementsHint = document.getElementById('plannedRequirementsHint');
 
     currentEditingMeta = {
         ...meta,
@@ -1031,6 +1039,12 @@ function openFlightEditModal(routeId, source) {
         titleEl.textContent = routeTitle
             ? `${UI.routeEditTitle} #${meta.id || routeId}: ${routeTitle}`
             : `${UI.routeEditTitle} #${meta.id || routeId}`;
+        titleEl.classList.remove('flight-title-planned', 'flight-title-found');
+        if (currentEditingMeta.status === 'planned_route') {
+            titleEl.classList.add('flight-title-planned');
+        } else if (currentEditingMeta.status === 'found') {
+            titleEl.classList.add('flight-title-found');
+        }
     }
     if (idInput) idInput.value = String(meta.id || routeId);
     if (sourceInput) sourceInput.value = source === 'found' ? 'found' : (source === 'started' ? 'started' : 'planned');
@@ -1068,10 +1082,8 @@ function openFlightEditModal(routeId, source) {
     }
 
     applyLifecycleButtons(currentEditingMeta.status);
+    syncRequiredFieldLabels(currentEditingMeta.status);
     clearFlightValidationErrors();
-    if (plannedRequirementsHint) {
-        plannedRequirementsHint.style.display = currentEditingMeta.status === 'planned_route' ? 'block' : 'none';
-    }
     updateFlightModalSummary();
     modal.style.display = 'flex';
 }
@@ -1097,6 +1109,23 @@ function applyLifecycleButtons(status) {
     } else if (status === 'started') {
         if (map.toFoundBack) map.toFoundBack.style.display = 'block';
         if (map.toCompleted) map.toCompleted.style.display = 'block';
+    }
+}
+
+function setLabelTextForField(fieldId, text) {
+    const label = document.querySelector(`label[for="${fieldId}"]`);
+    if (label) label.textContent = text;
+}
+
+function syncRequiredFieldLabels(status) {
+    const isPlanned = status === 'planned_route';
+    setLabelTextForField('edit_comment', `\u041a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0439 / \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a *`);
+    setLabelTextForField('edit_zayavki_ids', `\u0421\u043f\u0438\u0441\u043e\u043a \u0437\u0430\u044f\u0432\u043e\u043a *`);
+    setLabelTextForField('edit_driver_id', isPlanned ? `${UI.modalDriver} *` : UI.modalDriver);
+    setLabelTextForField('edit_cost', isPlanned ? `${UI.modalCost} *` : UI.modalCost);
+    const plannedRangeTitle = document.getElementById('plannedDateRangeTitle');
+    if (plannedRangeTitle) {
+        plannedRangeTitle.textContent = isPlanned ? `${UI.modalPlanStart} *` : UI.modalPlanStart;
     }
 }
 
@@ -1219,8 +1248,20 @@ async function saveFlightEdit() {
 
     const flightId = Number(idInput ? idInput.value : 0);
     const driverId = Number(driverInput ? driverInput.value : 0);
-    if (!flightId || !driverId) {
-        alert(UI.msgSetFlightAndDriver);
+    if (!flightId) {
+        alert(UI.msgFlightDataNotFound);
+        return;
+    }
+    const commentVal = String(commentInput ? commentInput.value : '').trim();
+    const idsForSave = String(zayavkiInput ? zayavkiInput.value : '')
+        .split(',')
+        .map(v => v.trim())
+        .filter(v => /^\d+$/.test(v));
+    const saveErrors = {};
+    if (!commentVal) saveErrors.comment = true;
+    if (idsForSave.length === 0) saveErrors.zayavki_ids = true;
+    if (Object.keys(saveErrors).length > 0) {
+        showFlightValidationErrors(saveErrors, UI.msgSaveValidationTitle);
         return;
     }
 

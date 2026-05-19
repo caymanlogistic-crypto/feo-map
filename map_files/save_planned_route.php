@@ -225,8 +225,15 @@ function resolveFlightsManagerColumn(PDO $pdo): ?string
     return null;
 }
 
-function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTransition): array
+function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTransition, bool $requireTitle = false): array
 {
+    if ($requireTitle) {
+        $title = trim((string)($data['comment'] ?? $data['name'] ?? ''));
+        if ($title === '') {
+            return [false, 'Укажите комментарий / заголовок рейса', [], ['comment' => 'Обязательный комментарий / заголовок']];
+        }
+    }
+
     $ids = normalizeIdsString($data['zayavki_ids'] ?? '');
     if (empty($ids)) {
         return [false, 'Список заявок пустой', [], ['zayavki_ids' => 'Список заявок пустой']];
@@ -321,6 +328,17 @@ function formatDateShortRu($value): string
     return $ts === false ? $v : date('d.m', $ts);
 }
 
+function formatDateRangeShortRu($from, $to): string
+{
+    $fromShort = formatDateShortRu($from);
+    $toShort = formatDateShortRu($to);
+    if ($fromShort === 'не указано' && $toShort === 'не указано') return 'не указано';
+    if ($fromShort === 'не указано') return $toShort;
+    if ($toShort === 'не указано') return $fromShort;
+    if ($fromShort === $toShort) return $fromShort;
+    return $fromShort . '–' . $toShort;
+}
+
 function formatMoneyRu($value): string
 {
     if ($value === null || $value === '') return '0 ₽';
@@ -390,8 +408,11 @@ function buildCompactMetaLine(array $flight): string
     $count = (int)($flight['_count'] ?? 0);
     $kg = formatKgFromTons((float)($flight['_sum_tons'] ?? 0));
     $cost = formatMoneyRu($flight['cost'] ?? null);
-    $unload = formatUnloadTypeRu($flight['unload_type'] ?? 'OO');
-    return "{$count} заяв. • {$kg} • {$cost} • {$unload}";
+    $meta = "{$count} заяв. • {$kg} • {$cost}";
+    if (strtoupper(trim((string)($flight['unload_type'] ?? 'OO'))) === 'SKLAD') {
+        $meta .= " • СКЛАД";
+    }
+    return $meta;
 }
 
 function buildCompactFlightContext(PDO $pdo, array $flight, int $flightId): array
@@ -401,6 +422,53 @@ function buildCompactFlightContext(PDO $pdo, array $flight, int $flightId): arra
     $driver = compactDriverLabel((string)($flight['_driver_label'] ?? ''));
     $meta = buildCompactMetaLine($flight);
     return [$title, $manager, $driver, $meta];
+}
+
+function buildPlannedDateRangeUpdateMessage(array $before, array $after, int $flightId): string
+{
+    $beforeFrom = trim((string)($before['planned_start_date_from'] ?? ''));
+    $beforeTo = trim((string)($before['planned_start_date_to'] ?? ''));
+    $afterFrom = trim((string)($after['planned_start_date_from'] ?? ''));
+    $afterTo = trim((string)($after['planned_start_date_to'] ?? ''));
+
+    $hadBefore = ($beforeFrom !== '' || $beforeTo !== '');
+    $hasAfter = ($afterFrom !== '' || $afterTo !== '');
+    if (!$hasAfter) return '';
+    if ($beforeFrom === $afterFrom && $beforeTo === $afterTo) return '';
+
+    $title = buildRouteTitle($after, $flightId);
+    $driver = compactDriverLabel((string)($after['_driver_label'] ?? ''));
+    $meta = buildCompactMetaLine($after);
+    $rangeAfter = formatDateRangeShortRu($afterFrom, $afterTo);
+
+    if (!$hadBefore) {
+        return "В плановый рейс добавлена предварительная дата начала вывоза\n" .
+            "#{$flightId} {$title}\n" .
+            "Начало вывоза: {$rangeAfter}\n" .
+            "{$meta}\n\n" .
+            "{$driver}\n\n" .
+            "> Сообщаемые даты носят ознакомительный характер и могут быть изменены";
+    }
+
+    $rangeBefore = formatDateRangeShortRu($beforeFrom, $beforeTo);
+    return "В плановом маршруте изменены предварительные даты вывоза\n" .
+        "#{$flightId} {$title}\n\n" .
+        "Было: {$rangeBefore}\n" .
+        "Стало: {$rangeAfter}\n\n" .
+        "> Обновленные даты также ознакомительные и могут быть изменены";
+}
+
+function buildPlannedToFoundMessage(PDO $pdo, array $after, int $flightId): string
+{
+    [$title, $manager, $driver, $meta] = buildCompactFlightContext($pdo, $after, $flightId);
+    $dateRange = formatDateRangeShortRu($after['planned_start_date_from'] ?? '', $after['planned_start_date_to'] ?? '');
+    return "РЕЙС СФОРМИРОВАН\n" .
+        "#{$flightId} {$title}\n" .
+        "Начало вывоза: {$dateRange}\n" .
+        "{$meta}\n\n" .
+        "{$driver}\n\n" .
+        "{$manager}\n\n" .
+        "> Просим подготовить товаросопроводительные документы на заявленные дату и водителя";
 }
 
 function buildFoundDiffMessage(PDO $pdo, array $before, array $after, int $flightId): string
@@ -498,7 +566,7 @@ try {
             $current = loadFlightSnapshot($pdo, $routeId);
             $requireFull = is_array($current) && (string)$current['status'] === STATUS_FOUND;
         }
-        [$ok, $msg, $normalized, $errors] = validateRouteData($pdo, $data, $requireFull);
+            [$ok, $msg, $normalized, $errors] = validateRouteData($pdo, $data, $requireFull, true);
         if (!$ok) {
             jsonOut(['success' => false, 'message' => $msg, 'errors' => $errors]);
         }
@@ -555,7 +623,12 @@ try {
 
             $after = loadFlightSnapshot($pdo, $routeId);
             $notifyResult = ['success' => true, 'error' => null];
-            if ($after && (string)($before['status'] ?? '') === STATUS_FOUND) {
+            if ($after && (string)($before['status'] ?? '') === STATUS_PLANNED) {
+                $text = buildPlannedDateRangeUpdateMessage($before, $after, $routeId);
+                if ($text !== '') {
+                    $notifyResult = sendMaxNotification($text);
+                }
+            } elseif ($after && (string)($before['status'] ?? '') === STATUS_FOUND) {
                 $text = buildFoundDiffMessage($pdo, $before, $after, $routeId);
                 if ($text !== '') {
                     $notifyResult = sendMaxNotification($text);
@@ -645,7 +718,7 @@ try {
         }
 
         if ($target === STATUS_FOUND) {
-            [$ok, $msg, $normalized, $errors] = validateRouteData($pdo, $data, true);
+            [$ok, $msg, $normalized, $errors] = validateRouteData($pdo, $data, true, true);
             if (!$ok) {
                 jsonOut(['success' => false, 'message' => $msg, 'errors' => $errors]);
             }
@@ -755,19 +828,14 @@ try {
         $after = loadFlightSnapshot($pdo, $routeId) ?: $flight;
 
         if ($target === STATUS_FOUND) {
-            [$title, $manager, $driver, $meta] = buildCompactFlightContext($pdo, $after, $routeId);
+            [$title, $manager] = buildCompactFlightContext($pdo, $after, $routeId);
             $wasStarted = (string)($flight['status'] ?? '') === STATUS_STARTED;
             if ($wasStarted) {
                 $message = "Рейс #{$routeId} возвращён в «Исполнит. найден»\n" .
                     "{$title} | {$manager}\n" .
                     "Проверьте даты и подготовку документов.";
             } else {
-                $message = "Рейс #{$routeId} → «Исполнит. найден»\n" .
-                    "{$title} | {$manager}\n" .
-                    "{$meta}\n" .
-                    "Водитель: {$driver}\n" .
-                    "Даты: " . formatDateShortRu($after['planned_start_date_from']) . "–" . formatDateShortRu($after['planned_start_date_to']) . "\n" .
-                    "Начинается подготовка ТН.";
+                $message = buildPlannedToFoundMessage($pdo, $after, $routeId);
             }
             $notifyResult = sendMaxNotification($message);
             jsonOut([
