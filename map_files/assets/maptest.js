@@ -300,7 +300,7 @@ function escapeHtml(str) {
 
 function createTrackerBalloon(tracker) {
     const newTrackerBadge = tracker && tracker.is_new_tracker
-        ? `<br><span style="display:inline-block; margin-top:6px; font-size:11px; font-weight:700; color:#0d47a1;">РќРћР’Р«Р™ РўР Р•РљР•Р </span>`
+        ? `<br><span style="display:inline-block; margin-top:6px; font-size:11px; font-weight:700; color:#0d47a1;">НОВЫЙ ТРЕКЕР</span>`
         : '';
     return `<div style="padding:12px; font-family:Arial,sans-serif; max-width:280px;">
         <b>${UI.truck} ${escapeHtml(tracker.name)}</b><br>
@@ -765,8 +765,20 @@ function updateMap() {
     placemarks.forEach((pm, idx) => {
         const g = pm.properties.get('groupData');
         let visible = true;
-        if (g.in_flight) { const filterVal = flightStatusFilters[g.flight_status]; if (filterVal === false) visible = false; }
-        else { const layer = g.custom_layer || 'default'; const filterVal = customLayerFilters[layer]; if (filterVal === false) visible = false; }
+        if (g.in_flight) {
+            const filterVal = flightStatusFilters[g.flight_status];
+            if (filterVal === false) visible = false;
+        } else {
+            // "Доступно к вывозу" must gate all requests outside routes.
+            const defaultLayerVisible = customLayerFilters.default !== false;
+            if (!defaultLayerVisible) {
+                visible = false;
+            } else {
+                const layer = g.custom_layer || 'default';
+                const layerVisible = customLayerFilters[layer];
+                if (layerVisible === false) visible = false;
+            }
+        }
         if (!visible) { pm.options.set('visible', false); return; }
         const key = `${g.mno_sh}|${g.mno_d}`;
         if (!visibleByCoord[key]) visibleByCoord[key] = [];
@@ -1120,16 +1132,16 @@ function applyLifecycleButtons(status) {
         if (el) el.style.display = 'none';
     });
     if (status === 'planned_route') {
-        if (updateTitle) updateTitle.textContent = 'РђРєС‚СѓР°Р»РёР·Р°С†РёСЏ СЂРµР№СЃР°';
-        if (updateDesc) updateDesc.textContent = 'РР·РјРµРЅРµРЅРёСЏ РґР°С‚ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё С„РёРєСЃРёСЂСѓСЋС‚СЃСЏ РІ РњРђРљРЎ.';
-        if (saveBtn) saveBtn.textContent = 'РЎРѕС…СЂР°РЅРёС‚СЊ РёР·РјРµРЅРµРЅРёСЏ';
+        if (updateTitle) updateTitle.textContent = 'Актуализация рейса';
+        if (updateDesc) updateDesc.textContent = 'Изменения дат автоматически фиксируются в МАКС.';
+        if (saveBtn) saveBtn.textContent = 'Сохранить изменения';
         if (map.updateSection) map.updateSection.style.display = 'block';
         if (map.toFound) map.toFound.style.display = 'block';
         if (map.deleteWrap) map.deleteWrap.style.display = 'block';
     } else if (status === 'found') {
-        if (updateTitle) updateTitle.textContent = 'РђРєС‚СѓР°Р»РёР·Р°С†РёСЏ СЂРµР№СЃР°';
-        if (updateDesc) updateDesc.textContent = 'РР·РјРµРЅРµРЅРёСЏ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё С„РёРєСЃРёСЂСѓСЋС‚СЃСЏ РІ РњРђРљРЎ.';
-        if (saveBtn) saveBtn.textContent = 'РЎРѕС…СЂР°РЅРёС‚СЊ РёР·РјРµРЅРµРЅРёСЏ';
+        if (updateTitle) updateTitle.textContent = 'Актуализация рейса';
+        if (updateDesc) updateDesc.textContent = 'Изменения автоматически фиксируются в МАКС.';
+        if (saveBtn) saveBtn.textContent = 'Сохранить изменения';
         if (map.updateSection) map.updateSection.style.display = 'block';
         if (map.toStarted) map.toStarted.style.display = 'block';
         if (map.toPlanned) map.toPlanned.style.display = 'block';
@@ -2101,4 +2113,3 @@ function init() {
         if (bounds) map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 50 });
     }
 }
-
