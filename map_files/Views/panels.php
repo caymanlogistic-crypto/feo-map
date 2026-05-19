@@ -150,13 +150,12 @@
         <div class="flight-validation-errors" id="flightValidationErrors" style="display:none;"></div>
 
         <div class="workflow-section workflow-card workflow-card-update" id="workflowUpdateSection">
-            <div class="workflow-title">Обновление данных по рейсу</div>
-            <div class="workflow-desc">При добавлении или изменении планируемых дат в МАКС направляется сообщение для фиксации изменений.</div>
+            <div class="workflow-title" id="workflowUpdateTitle">Актуализация рейса</div>
+            <div class="workflow-desc" id="workflowUpdateDesc">Изменения дат автоматически фиксируются в МАКС.</div>
             <button class="route-action-btn route-edit-btn route-action-main" id="flightEditSaveBtn">Сохранить/Обновить</button>
         </div>
 
         <div class="workflow-section workflow-card workflow-card-lifecycle" id="workflowLifecycleSection">
-            <div class="workflow-title">Смена состояния</div>
 
             <div class="workflow-action workflow-action-info" id="workflowStartedInfoWrap">
                 <div class="workflow-subtitle">Рейс выполняется</div>

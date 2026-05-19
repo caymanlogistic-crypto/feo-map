@@ -153,7 +153,7 @@
 .workflow-action { border: 1px solid #e3e8ee; border-left-width: 3px; border-radius: 7px; padding: 8px; background: #fff; }
 .workflow-action + .workflow-action { margin-top: 6px; }
 .workflow-card-update { border-left: 3px solid #9c27b0; background: rgba(156,39,176,0.03); }
-.workflow-card-lifecycle { border-left: 3px solid #d8e0ea; background: #fbfcfd; }
+.workflow-card-lifecycle { border: 0; background: transparent; padding: 0; margin-top: 6px; }
 .workflow-card-danger { margin-top: 8px; border: 1px solid #efc8c8; border-left-width: 3px; border-left-color: #dc3545; border-radius: 8px; padding: 8px; background: rgba(220,53,69,0.035); }
 .workflow-action-found { border-left-color: #17a2b8; background: rgba(23,162,184,0.03); }
 .workflow-action-started { border-left-color: #28a745; background: rgba(40,167,69,0.03); }

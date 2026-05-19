@@ -454,8 +454,10 @@ function buildFoundChangePreview(meta) {
     const currentDates = `${fromVal || TXT.notSpecified} ${UI.emDash} ${toVal || TXT.notSpecified}`;
     const previousCost = `${formatRouteCost(meta.cost)} \u20BD`;
     const currentCost = `${formatRouteCost(costVal)} \u20BD`;
-    const previousIds = String(meta.zayavki_ids || '').trim();
-    const currentIds = zayavkiVal.split(',').map(v => v.trim()).filter(Boolean).join(',');
+    const previousIdsArr = String(meta.zayavki_ids || '').split(',').map(v => v.trim()).filter(Boolean);
+    const currentIdsArr = zayavkiVal.split(',').map(v => v.trim()).filter(Boolean);
+    const previousIds = previousIdsArr.join(',');
+    const currentIds = currentIdsArr.join(',');
     const previousUnloadType = normalizeUnloadType(meta.unload_type || 'OO');
 
     const changes = [];
@@ -470,7 +472,17 @@ function buildFoundChangePreview(meta) {
         changes.push(`<div><strong>${UI.modalCost}:</strong> ${escapeHtml(previousCost)} ${UI.emDash}&gt; ${escapeHtml(currentCost)}</div>`);
     }
     if (previousIds !== currentIds) {
-        changes.push(`<div><strong>${TXT.requests}:</strong> ${escapeHtml(previousIds || TXT.notSpecified)} ${UI.emDash}&gt; ${escapeHtml(currentIds || TXT.notSpecified)}</div>`);
+        changes.push(`<div><strong>${TXT.requests}:</strong> ${previousIdsArr.length} ${UI.emDash}&gt; ${currentIdsArr.length}</div>`);
+        const prevSet = new Set(previousIdsArr);
+        const currSet = new Set(currentIdsArr);
+        const removed = previousIdsArr.filter(id => !currSet.has(id));
+        const added = currentIdsArr.filter(id => !prevSet.has(id));
+        if (removed.length > 0) {
+            changes.push(`<div><strong>\u0418\u0441\u043a\u043b\u044e\u0447\u0435\u043d\u043d\u044b\u0435 \u0437\u0430\u044f\u0432\u043a\u0438:</strong> ${escapeHtml(removed.join(','))}</div>`);
+        }
+        if (added.length > 0) {
+            changes.push(`<div><strong>\u0414\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043d\u044b\u0435 \u0437\u0430\u044f\u0432\u043a\u0438:</strong> ${escapeHtml(added.join(','))}</div>`);
+        }
     }
     if (previousUnloadType !== currentUnloadType) {
         changes.push(`<div><strong>${UI.labelUnloadType}:</strong> ${getUnloadTypeLabel(previousUnloadType)} ${UI.emDash}&gt; ${getUnloadTypeLabel(currentUnloadType)}</div>`);
@@ -1091,6 +1103,9 @@ function openFlightEditModal(routeId, source) {
 }
 
 function applyLifecycleButtons(status) {
+    const updateTitle = document.getElementById('workflowUpdateTitle');
+    const updateDesc = document.getElementById('workflowUpdateDesc');
+    const saveBtn = document.getElementById('flightEditSaveBtn');
     const map = {
         updateSection: document.getElementById('workflowUpdateSection'),
         toFound: document.getElementById('workflowToFoundWrap'),
@@ -1105,10 +1120,16 @@ function applyLifecycleButtons(status) {
         if (el) el.style.display = 'none';
     });
     if (status === 'planned_route') {
+        if (updateTitle) updateTitle.textContent = 'Актуализация рейса';
+        if (updateDesc) updateDesc.textContent = 'Изменения дат автоматически фиксируются в МАКС.';
+        if (saveBtn) saveBtn.textContent = 'Сохранить изменения';
         if (map.updateSection) map.updateSection.style.display = 'block';
         if (map.toFound) map.toFound.style.display = 'block';
         if (map.deleteWrap) map.deleteWrap.style.display = 'block';
     } else if (status === 'found') {
+        if (updateTitle) updateTitle.textContent = 'Актуализация рейса';
+        if (updateDesc) updateDesc.textContent = 'Изменения автоматически фиксируются в МАКС.';
+        if (saveBtn) saveBtn.textContent = 'Сохранить изменения';
         if (map.updateSection) map.updateSection.style.display = 'block';
         if (map.toStarted) map.toStarted.style.display = 'block';
         if (map.toPlanned) map.toPlanned.style.display = 'block';

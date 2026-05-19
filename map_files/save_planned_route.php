@@ -423,6 +423,38 @@ function buildCompactFlightContext(PDO $pdo, array $flight, int $flightId): arra
     return [$title, $manager, $driver, $meta];
 }
 
+function splitIds(string $raw): array
+{
+    return normalizeIdsString($raw);
+}
+
+function formatIdsList(array $ids): string
+{
+    if (empty($ids)) {
+        return '';
+    }
+    return implode(',', array_values($ids));
+}
+
+function buildAddedRemovedIds(array $beforeIds, array $afterIds): array
+{
+    $beforeMap = array_fill_keys($beforeIds, true);
+    $afterMap = array_fill_keys($afterIds, true);
+    $removed = [];
+    $added = [];
+    foreach ($beforeIds as $id) {
+        if (!isset($afterMap[$id])) {
+            $removed[] = $id;
+        }
+    }
+    foreach ($afterIds as $id) {
+        if (!isset($beforeMap[$id])) {
+            $added[] = $id;
+        }
+    }
+    return [$removed, $added];
+}
+
 function buildPlannedDateRangeUpdateMessage(PDO $pdo, array $before, array $after, int $flightId): string
 {
     $beforeFrom = trim((string)($before['planned_start_date_from'] ?? ''));
@@ -447,6 +479,7 @@ function buildPlannedDateRangeUpdateMessage(PDO $pdo, array $before, array $afte
             "Начало вывоза: {$rangeAfter}\n" .
             "{$meta}\n" .
             "{$driver}\n" .
+            "Рейс закреплен: {$manager}\n" .
             "> 💡 *Сообщаемые даты носят ознакомительный характер и могут быть изменены.*";
     }
 
@@ -485,6 +518,13 @@ function buildFoundDiffMessage(PDO $pdo, array $before, array $after, int $fligh
     }
     if ((string)$before['zayavki_ids'] !== (string)$after['zayavki_ids']) {
         $changes[] = 'Заявки: ' . (int)$before['_count'] . ' → ' . (int)$after['_count'];
+        [$removed, $added] = buildAddedRemovedIds(splitIds((string)($before['zayavki_ids'] ?? '')), splitIds((string)($after['zayavki_ids'] ?? '')));
+        if (!empty($removed)) {
+            $changes[] = 'Исключенные заявки: ' . formatIdsList($removed);
+        }
+        if (!empty($added)) {
+            $changes[] = 'Добавленные заявки: ' . formatIdsList($added);
+        }
     }
     if (abs((float)$before['_sum_tons'] - (float)$after['_sum_tons']) > 0.0001) {
         $changes[] = 'Вес: ' . formatKgFromTons((float)$before['_sum_tons']) . ' → ' . formatKgFromTons((float)$after['_sum_tons']);
@@ -501,7 +541,7 @@ function buildFoundDiffMessage(PDO $pdo, array $before, array $after, int $fligh
         return '';
     }
 
-    return "Изменён рейс #{$flightId} в «Исполнит. найден»\n{$title} | {$manager}\n" . implode("\n", $changes);
+    return "**⚠️ ИЗМЕНЕНИЕ В СФОРМИРОВАННОМ РЕЙСЕ ⚠️**\n#{$flightId} {$title}\n" . implode("\n", $changes) . "\nРейс закреплен: {$manager}";
 }
 
 
@@ -520,6 +560,13 @@ function buildStartedDiffMessage(PDO $pdo, array $before, array $after, int $fli
     }
     if ((string)$before['zayavki_ids'] !== (string)$after['zayavki_ids']) {
         $changes[] = 'Заявки: ' . (int)$before['_count'] . ' → ' . (int)$after['_count'];
+        [$removed, $added] = buildAddedRemovedIds(splitIds((string)($before['zayavki_ids'] ?? '')), splitIds((string)($after['zayavki_ids'] ?? '')));
+        if (!empty($removed)) {
+            $changes[] = 'Исключенные заявки: ' . formatIdsList($removed);
+        }
+        if (!empty($added)) {
+            $changes[] = 'Добавленные заявки: ' . formatIdsList($added);
+        }
     }
     if (abs((float)$before['_sum_tons'] - (float)$after['_sum_tons']) > 0.0001) {
         $changes[] = 'Вес: ' . formatKgFromTons((float)$before['_sum_tons']) . ' → ' . formatKgFromTons((float)$after['_sum_tons']);
@@ -723,7 +770,8 @@ try {
         }
 
         if ($target === STATUS_FOUND) {
-            [$ok, $msg, $normalized, $errors] = validateRouteData($pdo, $data, true, true);
+            $requireTitle = (string)($flight['status'] ?? '') !== STATUS_STARTED;
+            [$ok, $msg, $normalized, $errors] = validateRouteData($pdo, $data, true, $requireTitle);
             if (!$ok) {
                 jsonOut(['success' => false, 'message' => $msg, 'errors' => $errors]);
             }
@@ -774,12 +822,14 @@ try {
             $afterStarted = loadFlightSnapshot($pdo, $routeId) ?: $flight;
             [$title, $manager, $driver, $meta] = buildCompactFlightContext($pdo, $afterStarted, $routeId);
             $notifyResult = sendMaxNotification(
-                "Рейс #{$routeId} → «Вывоз начался»\n" .
-                "{$title} | {$manager}\n" .
-                "{$meta}\n" .
+                "**✅ ВЫВОЗ НАЧАЛСЯ**\n" .
+                "#{$routeId} {$title}\n" .
                 "Водитель: {$driver}\n" .
                 "Старт: " . formatDateShortRu($afterStarted['actual_start_date'] ?? '') . "\n" .
-                "Включён контроль перевозки."
+                "Заявки: " . (int)($afterStarted['_count'] ?? 0) . "\n" .
+                "Вес: " . formatKgFromTons((float)($afterStarted['_sum_tons'] ?? 0)) . "\n" .
+                "Рейс закреплен: {$manager}\n" .
+                "> 💡 *Включено слежение за состоянием трекера.*"
             );
             jsonOut([
                 'success' => true,
@@ -811,13 +861,14 @@ try {
                 ':id' => $routeId,
             ]);
             $afterCompleted = loadFlightSnapshot($pdo, $routeId) ?: $flight;
+            $driver = compactDriverLabel((string)($afterCompleted['_driver_label'] ?? ''));
+            $title = buildRouteTitle($afterCompleted, $routeId);
             $notifyResult = sendMaxNotification(
-                "Рейс #{$routeId} переведен в статус ГРУЗСДАН\n" .
-                "Дата завершения: " . formatDateRu($afterCompleted['actual_end_date'] ?? '') . "\n" .
-                "Водитель: {$afterCompleted['_driver_label']}\n" .
-                "Заявок: {$afterCompleted['_count']}\n" .
-                "Масса: " . formatTons($afterCompleted['_sum_tons']) . " т\n" .
-                "Груз сдан. Рейс завершён."
+                "ТС ПРИБЫЛО НА РАЗГРУЗКУ\n" .
+                "───────────────────\n" .
+                "{$driver}\n" .
+                "#{$routeId} — {$title}\n" .
+                "> 💡 *Напоминаю: для оплаты подрядчику нужен полный пакет документов (диагностическая карта, путевой лист и т.д.). Прошу не затягивать с предоставлением.*"
             );
             jsonOut([
                 'success' => true,
@@ -835,9 +886,15 @@ try {
             [$title, $manager] = buildCompactFlightContext($pdo, $after, $routeId);
             $wasStarted = (string)($flight['status'] ?? '') === STATUS_STARTED;
             if ($wasStarted) {
-                $message = "Рейс #{$routeId} возвращён в «Исполнит. найден»\n" .
-                    "{$title} | {$manager}\n" .
-                    "Проверьте даты и подготовку документов.";
+                $driver = compactDriverLabel((string)($after['_driver_label'] ?? ''));
+                $message = "**⚠️ ПРЕОСТАНОВКА ВЫПОЛНЯЕМОГО РЕЙСА ⚠️**\n" .
+                    "#{$routeId} {$title}\n" .
+                    "Водитель: {$driver}\n" .
+                    "Старт: " . formatDateShortRu($after['actual_start_date'] ?? '') . "\n" .
+                    "Заявки: " . (int)($after['_count'] ?? 0) . "\n" .
+                    "Вес: " . formatKgFromTons((float)($after['_sum_tons'] ?? 0)) . "\n" .
+                    "Рейс закреплен: {$manager}\n" .
+                    "> 💡 *ВНИМАНИЕ. Статус рейса изменён с «Выполняемые» на «Сформированные». В связи с этим вероятна корректировка перечня вывозимых заявок либо замена подрядчика.*";
             } else {
                 $message = buildPlannedToFoundMessage($pdo, $after, $routeId);
             }
@@ -853,7 +910,7 @@ try {
         if ($target === STATUS_PLANNED) {
             [$title, $manager] = buildCompactFlightContext($pdo, $after, $routeId);
             $notifyResult = sendMaxNotification(
-                "#{$routeId} {$title}\n" .
+                "**#{$routeId} {$title}**\n" .
                 "возвращён в «Планируемый»\n" .
                 "Рейс закреплен: {$manager}\n" .
                 "> 💡 *Подготовку документов приостановить до переформирования рейса.*"
