@@ -25,12 +25,6 @@ function fmtDateShort($value): string
     return $ts === false ? $v : date('d.m', $ts);
 }
 
-function fmtMoney($value): string
-{
-    if ($value === null || $value === '') return '0 ₽';
-    return number_format((float)$value, 0, '.', ' ') . ' ₽';
-}
-
 function fmtKg($tons): string
 {
     return number_format((int)round((float)$tons * 1000), 0, '.', ' ') . ' кг';
@@ -117,13 +111,12 @@ try {
         $driver = compactDriver($driverRaw);
         $count = (int)($row['zayavki_count'] ?? 0);
         $kg = fmtKg((float)($row['sum_tons'] ?? 0));
-        $cost = fmtMoney($row['cost'] ?? null);
         $unload = strtoupper(trim((string)($row['unload_type'] ?? 'OO'))) === 'SKLAD' ? 'СКЛАД' : 'ОО';
         $period = fmtDateShort($row['planned_start_date_from'] ?? '') . '–' . fmtDateShort($row['planned_start_date_to'] ?? '');
 
         $lines[] = "#{$id} {$title} | {$manager}";
         $lines[] = "Статус: {$status}";
-        $lines[] = "{$count} заяв. • {$kg} • {$cost} • {$unload}";
+        $lines[] = "{$count} заяв. • {$kg} • {$unload}";
         $lines[] = "Водитель: {$driver}";
         $lines[] = "Даты: {$period}";
         if ((string)($row['status'] ?? '') === STATUS_FOUND) {
@@ -148,4 +141,3 @@ try {
     mapError('notify_route_control fatal', ['error' => $e->getMessage()]);
     out(['success' => false, 'message' => 'Внутренняя ошибка']);
 }
-
