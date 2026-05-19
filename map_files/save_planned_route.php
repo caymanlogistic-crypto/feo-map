@@ -447,7 +447,7 @@ function buildPlannedDateRangeUpdateMessage(PDO $pdo, array $before, array $afte
             "Начало вывоза: {$rangeAfter}\n" .
             "{$meta}\n" .
             "{$driver}\n" .
-            "> Сообщаемые даты носят ознакомительный характер и могут быть изменены";
+            "> 💡 *Сообщаемые даты носят ознакомительный характер и могут быть изменены.*";
     }
 
     $rangeBefore = formatDateRangeShortRu($beforeFrom, $beforeTo);
@@ -456,20 +456,20 @@ function buildPlannedDateRangeUpdateMessage(PDO $pdo, array $before, array $afte
         "Было: {$rangeBefore}\n" .
         "Стало: {$rangeAfter}\n" .
         "Рейс закреплен: {$manager}\n" .
-        "> Обновленные даты также ознакомительные и могут быть изменены";
+        "> 💡 *Обновленные даты также ознакомительные и могут быть изменены.*";
 }
 
 function buildPlannedToFoundMessage(PDO $pdo, array $after, int $flightId): string
 {
     [$title, $manager, $driver, $meta] = buildCompactFlightContext($pdo, $after, $flightId);
     $dateRange = formatDateRangeShortRu($after['planned_start_date_from'] ?? '', $after['planned_start_date_to'] ?? '');
-    return "РЕЙС СФОРМИРОВАН\n" .
+    return "**РЕЙС СФОРМИРОВАН**\n" .
         "#{$flightId} {$title}\n" .
         "Начало вывоза: {$dateRange}\n" .
         "{$meta}\n" .
         "{$driver}\n" .
         "Рейс закреплен: {$manager}\n" .
-        "> Просим подготовить товаросопроводительные документы на заявленные дату и водителя";
+        "> 💡 *Просим подготовить товаросопроводительные документы на заявленные дату и водителя.*";
 }
 
 function buildFoundDiffMessage(PDO $pdo, array $before, array $after, int $flightId): string
@@ -856,7 +856,7 @@ try {
                 "#{$routeId} {$title}\n" .
                 "возвращён в «Планируемый»\n" .
                 "Рейс закреплен: {$manager}\n" .
-                "> Подготовку документов приостановить до переформирования рейса."
+                "> 💡 *Подготовку документов приостановить до переформирования рейса.*"
             );
             jsonOut([
                 'success' => true,
