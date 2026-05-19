@@ -1,4 +1,4 @@
-﻿<?php include 'menu2.php'; ?>
+<?php include 'menu2.php'; ?>
 <div id="map"></div>
 
 <button class="refresh-btn" id="refreshBtn" title="РћР±РЅРѕРІРёС‚СЊ РїРѕР·РёС†РёРё С‚СЂР°РЅСЃРїРѕСЂС‚Р°">РћР±РЅРѕРІРёС‚СЊ С‚СЂР°РЅСЃРїРѕСЂС‚</button>
