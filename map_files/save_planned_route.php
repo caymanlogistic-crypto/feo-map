@@ -59,7 +59,7 @@ function formatDateRu($value): string
 
 function sendMaxNotification($text): array
 {
-    return sendMaxNotify((string)$text);
+    return sendMaxNotify((string)$text, 'markdown');
 }
 
 function getDriverLabelById(PDO $pdo, $driverId): string
