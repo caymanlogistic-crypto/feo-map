@@ -787,6 +787,46 @@ function toDateValue(dateValue) {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+function formatCardDate(dateValue) {
+    const normalized = toDateValue(dateValue);
+    if (!normalized) return null;
+    const parts = normalized.split('-');
+    if (parts.length !== 3) return null;
+    return {
+        year: parts[0],
+        month: parts[1],
+        day: parts[2]
+    };
+}
+
+function buildRouteCardDateLabel(route) {
+    if (!route || typeof route !== 'object') return '';
+    const status = String(route.status || '');
+    const isStarted = status === 'started';
+    const rawFrom = isStarted ? route.actual_start_date : route.planned_start_date_from;
+    const rawTo = isStarted ? route.actual_end_date : route.planned_start_date_to;
+    const from = formatCardDate(rawFrom);
+    const to = formatCardDate(rawTo);
+
+    if (!from && !to) return '';
+    if (from && !to) return `${from.day}.${from.month}`;
+    if (!from && to) return `${to.day}.${to.month}`;
+    if (from.day === to.day && from.month === to.month && from.year === to.year) {
+        return `${from.day}.${from.month}`;
+    }
+    if (from.month === to.month && from.year === to.year) {
+        return `${from.day}-${to.day}.${from.month}`;
+    }
+    return `${from.day}.${from.month}-${to.day}.${to.month}`;
+}
+
+function buildRouteCardDriverLine(route, driverLabel) {
+    const dateLabel = buildRouteCardDateLabel(route);
+    const safeDriverLabel = String(driverLabel || UI.driverMissing).trim() || UI.driverMissing;
+    if (!dateLabel) return safeDriverLabel;
+    return `${dateLabel}${UI.bullet}${safeDriverLabel}`;
+}
+
 function getRouteMetaById(routeId, source) {
     const idKey = String(routeId || '');
     if (!idKey) return null;
@@ -979,6 +1019,7 @@ function openFlightEditModal(routeId, source) {
     const unloadTypeInput = document.getElementById('edit_unload_type');
     const transferFoundBtn = document.getElementById('flightEditTransferFoundBtn');
     const statusInput = document.getElementById('edit_current_status');
+    const plannedRequirementsHint = document.getElementById('plannedRequirementsHint');
 
     currentEditingMeta = {
         ...meta,
@@ -1028,6 +1069,9 @@ function openFlightEditModal(routeId, source) {
 
     applyLifecycleButtons(currentEditingMeta.status);
     clearFlightValidationErrors();
+    if (plannedRequirementsHint) {
+        plannedRequirementsHint.style.display = currentEditingMeta.status === 'planned_route' ? 'block' : 'none';
+    }
     updateFlightModalSummary();
     modal.style.display = 'flex';
 }
@@ -1481,6 +1525,8 @@ function loadPlannedRoutes() {
                 const zayCount = Number(r.zayavki_count || routeMeta.zayavki_count || 0);
                 const totalKg = Number(r.total_kg || routeMeta.total_kg || 0);
                 const driverLabel = formatDriverCompactLabel(routeMeta.driver_label || UI.driverMissing);
+                const routeForDate = { ...routeMeta, ...r, status: 'planned_route' };
+                const driverLine = buildRouteCardDriverLine(routeForDate, driverLabel);
                 const routeCost = (r.cost !== null && r.cost !== undefined && r.cost !== '') ? r.cost : (routeMeta.cost ?? null);
                 const costPart = routeCost ? (UI.bullet + parseFloat(routeCost).toLocaleString('ru-RU') + ' \u20BD') : '';
                 const unloadPart = getUnloadTypeCompactSuffix(r.unload_type || routeMeta.unload_type);
@@ -1488,7 +1534,7 @@ function loadPlannedRoutes() {
                     <div class="route-item route-item-planned" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
                         <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'planned')}</div>
                         <div class="route-meta">${zayCount} \u0437\u0430\u044f\u0432.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}${unloadPart}</div>
-                        <div class="route-meta">${escapeHtml(driverLabel)}</div>
+                        <div class="route-meta">${escapeHtml(driverLine)}</div>
                     </div>
                 `;
             }).join('');
@@ -1513,11 +1559,13 @@ function loadPlannedRoutes() {
                     const costPart = routeCost ? (UI.bullet + parseFloat(routeCost).toLocaleString('ru-RU') + ' \u20BD') : '';
                     const unloadPart = getUnloadTypeCompactSuffix(r.unload_type);
                     const driverLabel = formatDriverCompactLabel(r.driver_label || UI.driverMissing);
+                    const routeForDate = { ...r, status: 'found' };
+                    const driverLine = buildRouteCardDriverLine(routeForDate, driverLabel);
                     return `
                         <div class="route-item route-item-found" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
                             <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'found')}</div>
                             <div class="route-meta">${zayCount} \u0437\u0430\u044f\u0432.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}${unloadPart}</div>
-                            <div class="route-meta">${escapeHtml(driverLabel)}</div>
+                            <div class="route-meta">${escapeHtml(driverLine)}</div>
                         </div>
                     `;
                 }).join('');
@@ -1537,11 +1585,13 @@ function loadPlannedRoutes() {
                     const costPart = routeCost ? (UI.bullet + parseFloat(routeCost).toLocaleString('ru-RU') + ' \u20BD') : '';
                     const unloadPart = getUnloadTypeCompactSuffix(r.unload_type);
                     const driverLabel = formatDriverCompactLabel(r.driver_label || UI.driverMissing);
+                    const routeForDate = { ...r, status: 'started' };
+                    const driverLine = buildRouteCardDriverLine(routeForDate, driverLabel);
                     return `
                         <div class="route-item route-item-started" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
                             <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'started')}</div>
                             <div class="route-meta">${zayCount} \u0437\u0430\u044f\u0432.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}${unloadPart}</div>
-                            <div class="route-meta">${escapeHtml(driverLabel)}</div>
+                            <div class="route-meta">${escapeHtml(driverLine)}</div>
                         </div>
                     `;
                 }).join('');

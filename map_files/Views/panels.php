@@ -79,7 +79,7 @@
         <button class="route-btn calculate-route-btn" id="calc-route-btn" onclick="calculateRoute()" disabled>Рассчитать</button>
         <button class="route-btn save-route-btn" id="saveRouteBtn" onclick="promptSaveRoute()" disabled>Сохранить маршрут</button>
     </div>
-    <button class="clear-btn" onclick="clearSelection()">Очистить выделение</button>
+    <button class="clear-btn" onclick="clearSelection()">Закрыть</button>
 </div>
 
 <div class="flight-modal-backdrop" id="flightEditModal" style="display:none;">
@@ -148,6 +148,9 @@
 
         <div class="flight-change-preview" id="flightChangePreview" style="display:none;"></div>
         <div class="flight-validation-errors" id="flightValidationErrors" style="display:none;"></div>
+        <div class="flight-requirements-hint" id="plannedRequirementsHint" style="display:none;">
+            Для перевода в «Исполнит. найден» заполните: водитель, даты вывоза, стоимость и заявки.
+        </div>
 
         <div class="workflow-section">
             <div class="workflow-title">Изменение данных рейса</div>

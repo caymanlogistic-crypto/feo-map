@@ -136,6 +136,7 @@
 .flight-change-preview { margin-top:8px; background:#fff8e6; border:1px solid #f2d39f; border-radius:6px; padding:8px; font-size:12px; color:#5d4a2d; line-height:1.4; }
 .flight-validation-errors { margin-top: 8px; background: #fff4f4; border: 1px solid #efb0b0; border-radius: 6px; padding: 8px; font-size: 12px; color: #842029; line-height: 1.35; }
 .flight-validation-errors ul { margin: 6px 0 0 16px; padding: 0; }
+.flight-requirements-hint { margin-top: 8px; background: #f7f8fa; border: 1px solid #d9dfe6; border-radius: 6px; padding: 8px; font-size: 12px; color: #4a5563; line-height: 1.35; }
 .flight-modal-actions { margin-top: 10px; display:flex; flex-wrap:wrap; gap:6px; }
 .flight-modal-actions .route-action-btn { width:auto; height:28px; padding:0 10px; font-size:12px; opacity:1; }
 .route-action-main { height: 28px; padding: 0 12px; font-size: 12px; }
