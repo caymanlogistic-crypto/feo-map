@@ -58,7 +58,10 @@ function sendMaxNotify(string $message): array
         return ['success' => false, 'error' => 'MAX notify base URL is not resolved'];
     }
 
-    $url = $baseUrl . '?key=' . rawurlencode($secretKey) . '&text=' . rawurlencode($message);
+    $url = $baseUrl
+        . '?key=' . rawurlencode($secretKey)
+        . '&format=' . rawurlencode('markdown')
+        . '&text=' . rawurlencode($message);
     $context = stream_context_create(['http' => ['timeout' => 10]]);
     $resp = @file_get_contents($url, false, $context);
     $ok = false;
