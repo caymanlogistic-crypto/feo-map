@@ -424,7 +424,9 @@ function updateFlightModalSummary() {
     const statusLabel = statusNames[currentEditingMeta.status] || currentEditingMeta.status || TXT.notSpecified;
     const statusClass = currentEditingMeta.status === 'planned_route'
         ? 'flight-status-planned'
-        : (currentEditingMeta.status === 'found' ? 'flight-status-found' : '');
+        : (currentEditingMeta.status === 'found'
+            ? 'flight-status-found'
+            : (currentEditingMeta.status === 'started' ? 'flight-status-started' : ''));
 
     summary.innerHTML = `
         <div><strong>${TXT.requestsCount}:</strong> ${uniqueIds.length}</div>
@@ -1064,11 +1066,13 @@ function openFlightEditModal(routeId, source) {
         titleEl.textContent = routeTitle
             ? `${UI.routeEditTitle} #${meta.id || routeId}: ${routeTitle}`
             : `${UI.routeEditTitle} #${meta.id || routeId}`;
-        titleEl.classList.remove('flight-title-planned', 'flight-title-found');
+        titleEl.classList.remove('flight-title-planned', 'flight-title-found', 'flight-title-started');
         if (currentEditingMeta.status === 'planned_route') {
             titleEl.classList.add('flight-title-planned');
         } else if (currentEditingMeta.status === 'found') {
             titleEl.classList.add('flight-title-found');
+        } else if (currentEditingMeta.status === 'started') {
+            titleEl.classList.add('flight-title-started');
         }
     }
     if (idInput) idInput.value = String(meta.id || routeId);
@@ -1396,7 +1400,7 @@ async function transferPlannedToFound(routeId) {
 
     const meta = getRouteMetaById(routeId, 'planned') || getRouteMetaById(routeId, 'found');
     const text = [
-        `\u041f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0440\u0435\u0439\u0441 #${routeId} \u0432 "\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442. \u043d\u0430\u0439\u0434\u0435\u043d"?`,
+        `\u0421\u0444\u043e\u0440\u043c\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0440\u0435\u0439\u0441 #${routeId}?`,
         '',
         '\u0411\u0443\u0434\u0443\u0442 \u0437\u0430\u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u044b \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c, \u0434\u0430\u0442\u044b, \u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c \u0438 \u0437\u0430\u044f\u0432\u043a\u0438.',
         '\u0412 MAX \u0431\u0443\u0434\u0435\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435.',

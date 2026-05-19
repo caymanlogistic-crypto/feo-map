@@ -86,7 +86,7 @@
     <div class="flight-modal">
         <div class="flight-modal-header">
             <div class="flight-modal-title" id="flightEditTitle">Редактирование рейса</div>
-            <button class="route-action-btn route-icon-btn" id="flightEditCloseTopBtn">вњ•</button>
+            <button class="route-action-btn route-icon-btn" id="flightEditCloseTopBtn">&times;</button>
         </div>
 
         <input type="hidden" id="edit_flight_id" value="">
@@ -108,7 +108,7 @@
                 <label class="flight-modal-label" id="plannedDateRangeTitle" for="edit_planned_start_date_from">Вывоз запланирован на даты</label>
                 <div class="flight-date-range-row">
                     <div class="flight-date-col">
-                        <label class="flight-modal-label flight-sub-label" for="edit_planned_start_date_from">РЎ</label>
+                        <label class="flight-modal-label flight-sub-label" for="edit_planned_start_date_from">С</label>
                         <input class="flight-modal-input" type="date" id="edit_planned_start_date_from">
                     </div>
                     <div class="flight-date-col">
@@ -121,7 +121,7 @@
                 <label class="flight-modal-label" id="actualDateRangeTitle" for="edit_actual_start_date">Фактические даты перевозки</label>
                 <div class="flight-date-range-row">
                     <div class="flight-date-col">
-                        <label class="flight-modal-label flight-sub-label" for="edit_actual_start_date">РЎ</label>
+                        <label class="flight-modal-label flight-sub-label" for="edit_actual_start_date">С</label>
                         <input class="flight-modal-input" type="date" id="edit_actual_start_date">
                     </div>
                     <div class="flight-date-col">
@@ -180,9 +180,10 @@
                 <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditBackToPlannedBtn">Вернуть в планируемые</button>
             </div>
 
-            <div class="workflow-action workflow-action-secondary workflow-action-found" id="workflowBackToFoundWrap">
+            <div class="workflow-action workflow-action-secondary workflow-action-danger-soft" id="workflowBackToFoundWrap">
                 <div class="workflow-subtitle">Приостановить выполнение</div>
                 <div class="workflow-desc">Рейс будет возвращён из выполнения в статус «Рейс сформирован». В MAX будет отправлено уведомление.</div>
+                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditBackToFoundBtn">Вернуть в сформированные</button>
             </div>
             <div class="workflow-action workflow-action-primary workflow-action-completed" id="workflowToCompletedWrap">
                 <div class="workflow-subtitle">Завершение рейса</div>
