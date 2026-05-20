@@ -80,7 +80,10 @@
         <button class="route-btn calculate-route-btn" id="calc-route-btn" onclick="calculateRoute()" disabled>Рассчитать</button>
         <button class="route-btn save-route-btn" id="saveRouteBtn" onclick="promptSaveRoute()" disabled>Сохранить маршрут</button>
     </div>
-    <button class="clear-btn" onclick="clearSelection()">Закрыть</button>
+    <div class="route-buttons route-buttons-secondary">
+        <button class="route-btn edit-data-btn" id="editRouteDataBtn" onclick="openSelectedRouteEditor()" disabled>Редактирование данных</button>
+        <button class="route-btn clear-btn" onclick="clearSelection()">Закрыть</button>
+    </div>
 </div>
 
 <div class="flight-modal-backdrop" id="flightEditModal" style="display:none;">
@@ -144,13 +147,15 @@
                     <option value="warehouse_to_utilizer">Склад → Утилизатор</option>
                 </select>
             </div>
-            <div class="flight-warehouse-wrap" id="edit_source_warehouse_wrap" style="display:none;">
-                <label class="flight-modal-label" for="edit_source_warehouse_id">Склад отправления</label>
-                <select class="flight-modal-input" id="edit_source_warehouse_id"></select>
-            </div>
-            <div class="flight-warehouse-wrap" id="edit_destination_warehouse_wrap" style="display:none;">
-                <label class="flight-modal-label" for="edit_destination_warehouse_id">Склад назначения</label>
-                <select class="flight-modal-input" id="edit_destination_warehouse_id"></select>
+            <div class="flight-warehouse-group" id="edit_warehouse_group" style="display:none;">
+                <div class="flight-warehouse-wrap" id="edit_source_warehouse_wrap" style="display:none;">
+                    <label class="flight-modal-label" for="edit_source_warehouse_id">Склад отправления</label>
+                    <select class="flight-modal-input" id="edit_source_warehouse_id"></select>
+                </div>
+                <div class="flight-warehouse-wrap" id="edit_destination_warehouse_wrap" style="display:none;">
+                    <label class="flight-modal-label" for="edit_destination_warehouse_id">Склад назначения</label>
+                    <select class="flight-modal-input" id="edit_destination_warehouse_id"></select>
+                </div>
             </div>
             <div class="flight-zayavki-wrap">
                 <label class="flight-modal-label" for="edit_zayavki_ids">Список заявок</label>

@@ -775,11 +775,26 @@ function clearSelection() {
     document.querySelectorAll('.route-item').forEach(el => el.classList.remove('active'));
     document.getElementById('route-edit-status').innerHTML = `<span style="color:#28a745;">${UI.routeCreate}</span>`;
     const saveBtn = document.getElementById('saveRouteBtn');
+    const editBtn = document.getElementById('editRouteDataBtn');
     saveBtn.textContent = UI.routeSave;
     saveBtn.classList.remove('is-editing');
+    if (editBtn) editBtn.disabled = true;
     if (multiRoute) { map.geoObjects.remove(multiRoute); multiRoute = null; }
     refreshMarkerStyles();
     updateSelectionUI();
+}
+
+function openSelectedRouteEditor() {
+    const activeRouteEl = document.querySelector('.route-item.active[data-route-editable="1"]');
+    if (!activeRouteEl) {
+        alert('Выберите рейс для редактирования.');
+        return;
+    }
+    const routeId = Number(activeRouteEl.dataset.routeId || 0);
+    const source = String(activeRouteEl.dataset.routeSource || '').trim();
+    if (routeId > 0 && source) {
+        openFlightEditModal(routeId, source);
+    }
 }
 
 function togglePopups(disabled) {
@@ -1074,12 +1089,20 @@ function syncRouteTypeFieldsVisibility(routeTypeRaw) {
     const routeType = normalizeRouteType(routeTypeRaw, 'OO');
     const sourceWrap = document.getElementById('edit_source_warehouse_wrap');
     const destWrap = document.getElementById('edit_destination_warehouse_wrap');
+    const warehouseGroup = document.getElementById('edit_warehouse_group');
     const routeTypeInput = document.getElementById('edit_route_type');
     const sourceWarehouseInput = document.getElementById('edit_source_warehouse_id');
     const destinationWarehouseInput = document.getElementById('edit_destination_warehouse_id');
 
-    if (sourceWrap) sourceWrap.style.display = (routeType === 'warehouse_to_warehouse' || routeType === 'warehouse_to_utilizer') ? 'block' : 'none';
-    if (destWrap) destWrap.style.display = (routeType === 'generator_to_warehouse' || routeType === 'warehouse_to_warehouse') ? 'block' : 'none';
+    const showSource = routeType === 'warehouse_to_warehouse' || routeType === 'warehouse_to_utilizer';
+    const showDest = routeType === 'generator_to_warehouse' || routeType === 'warehouse_to_warehouse';
+    if (sourceWrap) sourceWrap.style.display = showSource ? 'block' : 'none';
+    if (destWrap) destWrap.style.display = showDest ? 'block' : 'none';
+    if (warehouseGroup) {
+        const hasVisibleFields = showSource || showDest;
+        warehouseGroup.style.display = hasVisibleFields ? 'grid' : 'none';
+        warehouseGroup.classList.toggle('is-visible', hasVisibleFields);
+    }
 }
 
 function openFlightEditModal(routeId, source) {
@@ -1582,7 +1605,7 @@ function transferToCompleted(routeId) {
 }
 
 function buildRouteManageMenu(routeId, source) {
-    return `<button class="route-manage-btn" title="${UI.labelEditRoute}" aria-label="${UI.labelEditRoute}" onclick="event.stopPropagation(); openFlightEditModal(${routeId}, '${source}')"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75l11-11.03-3.75-3.75L3 17.25zm17.71-10.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.84 1.84 3.75 3.75 2.01-1.67z"/></svg></button>`;
+    return '';
 }
 
 function renderWarehousesLayer() {
@@ -1769,7 +1792,7 @@ function loadPlannedRoutes() {
                 const costPart = routeCost ? (UI.bullet + parseFloat(routeCost).toLocaleString('ru-RU') + ' \u20BD') : '';
                 const unloadPart = getRouteTypeCompactSuffix(r.route_type || routeMeta.route_type, r.unload_type || routeMeta.unload_type);
                 return `
-                    <div class="route-item route-item-planned" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
+                    <div class="route-item route-item-planned" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" ondblclick="openFlightEditModal(${r.id}, 'planned')" data-route-id="${r.id}" data-route-source="planned" data-route-editable="1">
                         <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'planned')}</div>
                         <div class="route-meta route-timeline">${driverLine}</div>
                         <div class="route-meta route-metrics">${zayCount} \u0437\u0430\u044f\u0432.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}${unloadPart}</div>
@@ -1800,7 +1823,7 @@ function loadPlannedRoutes() {
                     const routeForDate = { ...r, status: 'found' };
                     const driverLine = buildRouteCardDriverLine(routeForDate, driverLabel);
                     return `
-                        <div class="route-item route-item-found" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
+                        <div class="route-item route-item-found" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" ondblclick="openFlightEditModal(${r.id}, 'found')" data-route-id="${r.id}" data-route-source="found" data-route-editable="1">
                             <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'found')}</div>
                             <div class="route-meta route-timeline">${driverLine}</div>
                             <div class="route-meta route-metrics">${zayCount} \u0437\u0430\u044f\u0432.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}${unloadPart}</div>
@@ -1826,7 +1849,7 @@ function loadPlannedRoutes() {
                     const routeForDate = { ...r, status: 'started' };
                     const driverLine = buildRouteCardDriverLine(routeForDate, driverLabel);
                     return `
-                        <div class="route-item route-item-started" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
+                        <div class="route-item route-item-started" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" ondblclick="openFlightEditModal(${r.id}, 'started')" data-route-id="${r.id}" data-route-source="started" data-route-editable="1">
                             <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'started')}</div>
                             <div class="route-meta route-timeline">${driverLine}</div>
                             <div class="route-meta route-metrics">${zayCount} \u0437\u0430\u044f\u0432.${UI.bullet}${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}${costPart}${unloadPart}</div>
@@ -1857,14 +1880,17 @@ function selectRoute(idsStr, costVal, element) {
     document.getElementById('route-cost-input').value = costVal;
     const statusEl = document.getElementById('route-edit-status');
     const saveBtn = document.getElementById('saveRouteBtn');
+    const editBtn = document.getElementById('editRouteDataBtn');
     if (editingRouteId) {
         statusEl.innerHTML = `<span style="color:#9c27b0; font-weight:bold;">\u270F\uFE0F ${UI.routeEditTitle} #${editingRouteId}</span>`;
         saveBtn.textContent = UI.routeUpdate;
         saveBtn.classList.add('is-editing');
+        if (editBtn) editBtn.disabled = false;
     } else {
         statusEl.innerHTML = `<span style="color:#28a745;">${UI.routeCreate}</span>`;
         saveBtn.textContent = UI.routeSave;
         saveBtn.classList.remove('is-editing');
+        if (editBtn) editBtn.disabled = true;
     }
     refreshMarkerStyles();
     updateSelectionUI();
