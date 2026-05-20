@@ -132,6 +132,24 @@ function sendMaxNotify(string $message, string $format = 'markdown'): array
             'curl_error' => $curlErr,
             'response' => $resp,
         ]);
+
+        $notifyKey = mapGetNotifyKey();
+        if ($notifyKey !== '') {
+            $fallbackQuery = http_build_query([
+                'key' => $notifyKey,
+                'text' => normalizeUtf8Message($message),
+                'format' => $normalizedFormat === 'html' ? 'html' : 'markdown',
+            ], '', '&', PHP_QUERY_RFC3986);
+            $fallbackUrl = 'http://spugovxsim.temp.swtest.ru/fregat/feo/notify_max.php?' . $fallbackQuery;
+            $fallbackResp = @file_get_contents($fallbackUrl);
+            if (is_string($fallbackResp) && $fallbackResp !== '') {
+                $decoded = json_decode($fallbackResp, true);
+                if (is_array($decoded) && !empty($decoded['success'])) {
+                    return ['success' => true, 'error' => null];
+                }
+            }
+        }
+
         return ['success' => false, 'error' => 'MAX notify request failed'];
     }
     return ['success' => true, 'error' => null];
