@@ -125,6 +125,7 @@ const routeCardsMeta = (mapBootstrap.routeCardsMeta && typeof mapBootstrap.route
 const foundRoutesData = Array.isArray(mapBootstrap.foundRoutesData) ? mapBootstrap.foundRoutesData : [];
 const startedRoutesData = Array.isArray(mapBootstrap.startedRoutesData) ? mapBootstrap.startedRoutesData : [];
 const driversForSelect = Array.isArray(mapBootstrap.driversForSelect) ? mapBootstrap.driversForSelect : [];
+let currentDriversCatalog = Array.isArray(driversForSelect) ? driversForSelect.slice() : [];
 const statusNames = (mapBootstrap.statusNames && typeof mapBootstrap.statusNames === 'object') ? mapBootstrap.statusNames : {};
 const bootstrapGroupsData = Array.isArray(mapBootstrap.groupsData) ? mapBootstrap.groupsData : [];
 const bootstrapFlightStatusList = (mapBootstrap.flightStatusList && typeof mapBootstrap.flightStatusList === 'object') ? mapBootstrap.flightStatusList : {};
@@ -1308,7 +1309,39 @@ function syncRouteTypeFieldsVisibility(routeTypeRaw) {
     }
 }
 
-function openFlightEditModal(routeId, source) {
+async function loadDriversCatalog() {
+    try {
+        const response = await fetch('map_files/get_drivers.php', {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await response.json();
+        if (!response.ok || !data || !data.success || !Array.isArray(data.drivers)) {
+            return false;
+        }
+        currentDriversCatalog = data.drivers;
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function fillDriverSelect(driverSelect, selectedDriverId) {
+    if (!driverSelect) return;
+    const selected = String(selectedDriverId || '');
+    const options = [`<option value="">${UI.chooseDriver}</option>`];
+    if (Array.isArray(currentDriversCatalog)) {
+        currentDriversCatalog.forEach(driver => {
+            if (!driver || !driver.id) return;
+            const val = String(driver.id);
+            const isSelected = val === selected ? ' selected' : '';
+            options.push(`<option value="${val}"${isSelected}>${escapeHtml(driver.label || (UI.driverPrefix + val))}</option>`);
+        });
+    }
+    driverSelect.innerHTML = options.join('');
+}
+
+async function openFlightEditModal(routeId, source) {
     const modal = document.getElementById('flightEditModal');
     if (!modal) return;
 
@@ -1369,6 +1402,7 @@ function openFlightEditModal(routeId, source) {
     if (zayavkiInput) zayavkiInput.value = String(meta.zayavki_ids || '');
     const initialRouteType = normalizeRouteType(meta.route_type || '', meta.unload_type || 'OO');
     if (routeTypeInput) routeTypeInput.value = initialRouteType;
+    await Promise.allSettled([loadDriversCatalog(), loadWarehouses(true)]);
     if (sourceWarehouseInput) {
         sourceWarehouseInput.innerHTML = buildWarehouseOptions(meta.source_warehouse_id, 'Выберите склад отправления');
     }
@@ -1387,19 +1421,7 @@ function openFlightEditModal(routeId, source) {
     if (plannedDateRangeTitle) plannedDateRangeTitle.textContent = UI.modalPlanStart;
     if (actualDateRangeTitle) actualDateRangeTitle.textContent = UI.modalActualDates;
 
-    if (driverSelect) {
-        const currentDriverId = String(meta.driver_id || '');
-        const options = [`<option value="">${UI.chooseDriver}</option>`];
-        if (Array.isArray(driversForSelect)) {
-            driversForSelect.forEach(driver => {
-                if (!driver || !driver.id) return;
-                const val = String(driver.id);
-                const selected = val === currentDriverId ? ' selected' : '';
-                options.push(`<option value="${val}"${selected}>${escapeHtml(driver.label || (UI.driverPrefix + val))}</option>`);
-            });
-        }
-        driverSelect.innerHTML = options.join('');
-    }
+    fillDriverSelect(driverSelect, meta.driver_id || '');
 
     applyLifecycleButtons(currentEditingMeta.status);
     setFlightEditReadOnlyMode(currentEditingMeta.status === 'started');
@@ -1838,20 +1860,26 @@ function toggleWarehouseLayer(visible) {
     renderWarehousesLayer();
 }
 
-async function loadWarehouses() {
+async function loadWarehouses(keepExistingOnError = true) {
     try {
         const response = await fetch('map_files/get_warehouses.php');
         const data = await response.json();
         if (!response.ok || !data || !data.success || !Array.isArray(data.warehouses)) {
-            warehousesData = [];
+            if (!keepExistingOnError) {
+                warehousesData = [];
+            }
             renderWarehousesLayer();
-            return;
+            return false;
         }
         warehousesData = data.warehouses;
         renderWarehousesLayer();
+        return true;
     } catch (error) {
-        warehousesData = [];
+        if (!keepExistingOnError) {
+            warehousesData = [];
+        }
         renderWarehousesLayer();
+        return false;
     }
 }
 
