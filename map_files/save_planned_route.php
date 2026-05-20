@@ -354,16 +354,16 @@ function formatKgFromTons($tons): string
 function compactDriverLabel(string $label): string
 {
     $v = trim($label);
-    if ($v === '') return '  ';
-    if (preg_match('/([-ߨA-Z]\d{3}[-ߨA-Z]{2}\d{2,3})/u', $v, $mPlate)) {
+    if ($v === '') return 'Водитель не указан';
+    if (preg_match('/([А-ЯЁA-Z]\d{3}[А-ЯЁA-Z]{2}\d{2,3})/u', $v, $mPlate)) {
         $plate = trim($mPlate[1]);
         $surname = '';
         if (preg_match('/\(([^)]+)\)/u', $v, $mName)) {
             $surname = trim((string)explode(' ', trim($mName[1]))[0]);
         }
-        if ($surname === '' && preg_match('/([-ߨA-Z][-a-z]+)/u', $v, $mWord)) {
+        if ($surname === '' && preg_match('/([А-ЯЁA-Z][а-яёa-z]+)/u', $v, $mWord)) {
             $candidate = trim((string)$mWord[1]);
-            if ($candidate !== '' && stripos($candidate, '') !== 0) {
+            if ($candidate !== '') {
                 $surname = $candidate;
             }
         }
@@ -375,7 +375,7 @@ function compactDriverLabel(string $label): string
 function getManagerDisplayNameById(PDO $pdo, $managerId): string
 {
     $id = (int)$managerId;
-    if ($id <= 0) return '  ';
+    if ($id <= 0) return 'Менеджер не указан';
     try {
         $stmt = $pdo->query('SHOW COLUMNS FROM users');
         $columns = $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
@@ -383,23 +383,23 @@ function getManagerDisplayNameById(PDO $pdo, $managerId): string
         foreach ((array)$columns as $column) $map[(string)$column] = true;
 
         $parts = [];
-        if (isset($map[''])) $parts[] = "COALESCE(u.``, '')";
-        if (isset($map[''])) $parts[] = "COALESCE(u.``, '')";
+        if (isset($map['Фамилия'])) $parts[] = "COALESCE(u.`Фамилия`, '')";
+        if (isset($map['Имя'])) $parts[] = "COALESCE(u.`Имя`, '')";
         if (isset($map['full_name'])) $parts[] = "COALESCE(u.full_name, '')";
         if (isset($map['name'])) $parts[] = "COALESCE(u.name, '')";
         if (isset($map['username'])) $parts[] = "COALESCE(u.username, '')";
         if (isset($map['login'])) $parts[] = "COALESCE(u.login, '')";
-        if (empty($parts)) return ' #' . $id;
+        if (empty($parts)) return 'Менеджер #' . $id;
 
         $sql = 'SELECT ' . implode(", ' ', ", $parts) . ' AS manager_name FROM users u WHERE u.id = :id LIMIT 1';
         $q = $pdo->prepare($sql);
-        if (!$q || !$q->execute([':id' => $id])) return ' #' . $id;
+        if (!$q || !$q->execute([':id' => $id])) return 'Менеджер #' . $id;
         $row = $q->fetch(PDO::FETCH_ASSOC);
         $name = trim(preg_replace('/\s+/u', ' ', (string)($row['manager_name'] ?? '')));
-        return $name !== '' ? $name : ' #' . $id;
+        return $name !== '' ? $name : 'Менеджер #' . $id;
     } catch (Throwable $e) {
         mapError('Manager name load failed', ['manager_id' => $id, 'error' => $e->getMessage()]);
-        return ' #' . $id;
+        return 'Менеджер #' . $id;
     }
 }
 
@@ -419,6 +419,13 @@ function buildCompactMetaLine(array $flight): string
         $meta .= " • СКЛАД";
     }
     return $meta;
+}
+
+function buildUnloadLine(array $flight): string
+{
+    return strtoupper(trim((string)($flight['unload_type'] ?? 'OO'))) === 'SKLAD'
+        ? 'Выгрузка: СКЛАД'
+        : '';
 }
 
 function buildCompactFlightContext(PDO $pdo, array $flight, int $flightId): array
@@ -478,38 +485,58 @@ function buildPlannedDateRangeUpdateMessage(PDO $pdo, array $before, array $afte
     $driver = compactDriverLabel((string)($after['_driver_label'] ?? ''));
     $manager = getManagerDisplayNameById($pdo, $after['assigned_manager_id'] ?? 0);
     $meta = buildCompactMetaLine($after);
+    $unloadLine = buildUnloadLine($after);
     $rangeAfter = formatDateRangeShortRu($afterFrom, $afterTo);
 
     if (!$hadBefore) {
-        return "В плановый рейс добавлена предварительная дата начала вывоза\n" .
-            "#{$flightId} {$title}\n" .
-            "Начало вывоза: {$rangeAfter}\n" .
-            "{$meta}\n" .
-            "{$driver}\n" .
-            "Рейс закреплен: {$manager}\n" .
-            "> 💡 *Сообщаемые даты носят ознакомительный характер и могут быть изменены.*";
+        $lines = [
+            'В плановый рейс добавлена предварительная дата начала вывоза',
+            "#{$flightId} {$title}",
+            "Начало вывоза: {$rangeAfter}",
+        ];
+        if ($unloadLine !== '') {
+            $lines[] = $unloadLine;
+        }
+        $lines[] = $meta;
+        $lines[] = $driver;
+        $lines[] = "Рейс закреплен: {$manager}";
+        $lines[] = '> 💡 *Сообщаемые даты носят ознакомительный характер и могут быть изменены.*';
+        return implode("\n", $lines);
     }
 
     $rangeBefore = formatDateRangeShortRu($beforeFrom, $beforeTo);
-    return "В плановом маршруте изменены предварительные даты вывоза\n" .
-        "#{$flightId} {$title}\n" .
-        "Было: {$rangeBefore}\n" .
-        "Стало: {$rangeAfter}\n" .
-        "Рейс закреплен: {$manager}\n" .
-        "> 💡 *Обновленные даты также ознакомительные и могут быть изменены.*";
+    $lines = [
+        'В плановом маршруте изменены предварительные даты вывоза',
+        "#{$flightId} {$title}",
+        "Было: {$rangeBefore}",
+        "Стало: {$rangeAfter}",
+    ];
+    if ($unloadLine !== '') {
+        $lines[] = $unloadLine;
+    }
+    $lines[] = "Рейс закреплен: {$manager}";
+    $lines[] = '> 💡 *Обновленные даты также ознакомительные и могут быть изменены.*';
+    return implode("\n", $lines);
 }
 
 function buildPlannedToFoundMessage(PDO $pdo, array $after, int $flightId): string
 {
     [$title, $manager, $driver, $meta] = buildCompactFlightContext($pdo, $after, $flightId);
     $dateRange = formatDateRangeShortRu($after['planned_start_date_from'] ?? '', $after['planned_start_date_to'] ?? '');
-    return "**РЕЙС СФОРМИРОВАН**\n" .
-        "#{$flightId} {$title}\n" .
-        "Начало вывоза: {$dateRange}\n" .
-        "{$meta}\n" .
-        "{$driver}\n" .
-        "Рейс закреплен: {$manager}\n" .
-        "> 💡 *Просим подготовить товаросопроводительные документы на заявленные дату и водителя.*";
+    $lines = [
+        '**РЕЙС СФОРМИРОВАН**',
+        "#{$flightId} {$title}",
+        "Начало вывоза: {$dateRange}",
+    ];
+    $unloadLine = buildUnloadLine($after);
+    if ($unloadLine !== '') {
+        $lines[] = $unloadLine;
+    }
+    $lines[] = $meta;
+    $lines[] = $driver;
+    $lines[] = "Рейс закреплен: {$manager}";
+    $lines[] = '> 💡 *Просим подготовить товаросопроводительные документы на заявленные дату и водителя.*';
+    return implode("\n", $lines);
 }
 
 function buildFoundDiffMessage(PDO $pdo, array $before, array $after, int $flightId): string
@@ -548,7 +575,17 @@ function buildFoundDiffMessage(PDO $pdo, array $before, array $after, int $fligh
         return '';
     }
 
-    return "**⚠️ ИЗМЕНЕНИЕ В СФОРМИРОВАННОМ РЕЙСЕ ⚠️**\n#{$flightId} {$title}\n" . implode("\n", $changes) . "\nРейс закреплен: {$manager}";
+    $lines = [
+        "**⚠️ ИЗМЕНЕНИЕ В СФОРМИРОВАННОМ РЕЙСЕ ⚠️**",
+        "#{$flightId} {$title}",
+    ];
+    $unloadLine = buildUnloadLine($after);
+    if ($unloadLine !== '') {
+        $lines[] = $unloadLine;
+    }
+    $lines = array_merge($lines, $changes);
+    $lines[] = "Рейс закреплен: {$manager}";
+    return implode("\n", $lines);
 }
 
 
@@ -588,7 +625,17 @@ function buildStartedDiffMessage(PDO $pdo, array $before, array $after, int $fli
     if (empty($changes)) {
         return '';
     }
-    return "Изменён рейс #{$flightId} во время выполнения\n{$title} | {$manager}\n" . implode("\n", $changes) . "\nРейс находится в выполнении. Проверьте корректность изменений.";
+    $lines = [
+        "Изменён рейс #{$flightId} во время выполнения",
+        "{$title} | {$manager}",
+    ];
+    $unloadLine = buildUnloadLine($after);
+    if ($unloadLine !== '') {
+        $lines[] = $unloadLine;
+    }
+    $lines = array_merge($lines, $changes);
+    $lines[] = 'Рейс находится в выполнении. Проверьте корректность изменений.';
+    return implode("\n", $lines);
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -754,8 +801,10 @@ try {
         [$title, $manager] = buildCompactFlightContext($pdo, $flight, $routeId);
         $stmt = $pdo->prepare('DELETE FROM flights WHERE id = :id AND status = :status');
         $stmt->execute([':id' => $routeId, ':status' => STATUS_PLANNED]);
+        $unloadLine = buildUnloadLine($flight);
         $notifyResult = sendMaxNotification(
             "#{$routeId} {$title} - Удален из системы\n" .
+            ($unloadLine !== '' ? ($unloadLine . "\n") : '') .
             "Рейс закреплен: {$manager}"
         );
         jsonOut([
@@ -841,14 +890,17 @@ try {
             $afterStarted = loadFlightSnapshot($pdo, $routeId) ?: $flight;
             [$title, $manager, $driver, $meta] = buildCompactFlightContext($pdo, $afterStarted, $routeId);
             $notifyResult = sendMaxNotification(
-                "**✅ ВЫВОЗ НАЧАЛСЯ**\n" .
-                "#{$routeId} {$title}\n" .
-                "Водитель: {$driver}\n" .
-                "Старт: " . formatDateShortRu($afterStarted['actual_start_date'] ?? '') . "\n" .
-                "Заявки: " . (int)($afterStarted['_count'] ?? 0) . "\n" .
-                "Вес: " . formatKgFromTons((float)($afterStarted['_sum_tons'] ?? 0)) . "\n" .
-                "Рейс закреплен: {$manager}\n" .
-                "> 💡 *Включено слежение за состоянием трекера.*"
+                implode("\n", array_filter([
+                    '**✅ ВЫВОЗ НАЧАЛСЯ**',
+                    "#{$routeId} {$title}",
+                    buildUnloadLine($afterStarted),
+                    "Водитель: {$driver}",
+                    "Старт: " . formatDateShortRu($afterStarted['actual_start_date'] ?? ''),
+                    "Заявки: " . (int)($afterStarted['_count'] ?? 0),
+                    "Вес: " . formatKgFromTons((float)($afterStarted['_sum_tons'] ?? 0)),
+                    "Рейс закреплен: {$manager}",
+                    '> 💡 *Включено слежение за состоянием трекера.*'
+                ], static fn($line) => $line !== ''))
             );
             jsonOut([
                 'success' => true,
@@ -883,11 +935,14 @@ try {
             $driver = compactDriverLabel((string)($afterCompleted['_driver_label'] ?? ''));
             $title = buildRouteTitle($afterCompleted, $routeId);
             $notifyResult = sendMaxNotification(
-                "ТС ПРИБЫЛО НА РАЗГРУЗКУ\n" .
-                "───────────────────\n" .
-                "{$driver}\n" .
-                "#{$routeId} — {$title}\n" .
-                "> 💡 *Напоминаю: для оплаты подрядчику нужен полный пакет документов (диагностическая карта, путевой лист и т.д.). Прошу не затягивать с предоставлением.*"
+                implode("\n", array_filter([
+                    'ТС ПРИБЫЛО НА РАЗГРУЗКУ',
+                    '───────────────────',
+                    buildUnloadLine($afterCompleted),
+                    $driver,
+                    "#{$routeId} — {$title}",
+                    '> 💡 *Напоминаю: для оплаты подрядчику нужен полный пакет документов (диагностическая карта, путевой лист и т.д.). Прошу не затягивать с предоставлением.*'
+                ], static fn($line) => $line !== ''))
             );
             jsonOut([
                 'success' => true,
@@ -908,6 +963,7 @@ try {
                 $driver = compactDriverLabel((string)($after['_driver_label'] ?? ''));
                 $message = "**⚠️ ПРЕОСТАНОВКА ВЫПОЛНЯЕМОГО РЕЙСА ⚠️**\n" .
                     "#{$routeId} {$title}\n" .
+                    (buildUnloadLine($after) !== '' ? (buildUnloadLine($after) . "\n") : '') .
                     "Водитель: {$driver}\n" .
                     "Старт: " . formatDateShortRu($after['actual_start_date'] ?? '') . "\n" .
                     "Заявки: " . (int)($after['_count'] ?? 0) . "\n" .
@@ -931,6 +987,7 @@ try {
             $notifyResult = sendMaxNotification(
                 "**#{$routeId} {$title}**\n" .
                 "возвращён в «Планируемый»\n" .
+                (buildUnloadLine($after) !== '' ? (buildUnloadLine($after) . "\n") : '') .
                 "Рейс закреплен: {$manager}\n" .
                 "> 💡 *Подготовку документов приостановить до переформирования рейса.*"
             );
