@@ -16,6 +16,9 @@ let isUpdatingTrackers = false;
 let showTransport = true;
 let transportDisplayMode = 'active';
 let requestsCollection, trackersCollection;
+let warehousesCollection;
+let warehousesData = [];
+let warehousesVisible = true;
 const TXT = {
     notSpecified: '\u041d\u0435 \u0443\u043a\u0430\u0437\u0430\u043d',
     requests: '\u0417\u0430\u044f\u0432\u043a\u0438',
@@ -381,6 +384,24 @@ function normalizeUnloadType(value) {
     return String(value || '').toUpperCase() === 'SKLAD' ? 'SKLAD' : 'OO';
 }
 
+function normalizeRouteType(value, unloadTypeValue) {
+    const v = String(value || '').trim().toLowerCase();
+    const allowed = new Set([
+        'generator_to_utilizer',
+        'generator_to_warehouse',
+        'warehouse_to_warehouse',
+        'warehouse_to_utilizer'
+    ]);
+    if (allowed.has(v)) return v;
+    return normalizeUnloadType(unloadTypeValue) === 'SKLAD'
+        ? 'generator_to_warehouse'
+        : 'generator_to_utilizer';
+}
+
+function resolveUnloadTypeByRouteType(routeType) {
+    return normalizeRouteType(routeType, 'OO') === 'generator_to_utilizer' ? 'OO' : 'SKLAD';
+}
+
 function getUnloadTypeLabel(value) {
     return normalizeUnloadType(value) === 'SKLAD' ? UI.unloadTypeSklad : UI.unloadTypeOO;
 }
@@ -406,7 +427,8 @@ function updateFlightModalSummary() {
     const costVal = document.getElementById('edit_cost')?.value || '';
     const driverSelect = document.getElementById('edit_driver_id');
     const driverText = driverSelect?.selectedOptions?.[0]?.textContent || UI.driverMissing;
-    const unloadType = document.getElementById('edit_unload_type')?.checked ? 'SKLAD' : 'OO';
+    const routeTypeValue = document.getElementById('edit_route_type')?.value || currentEditingMeta.route_type || '';
+    const unloadType = resolveUnloadTypeByRouteType(routeTypeValue);
 
     let totalTons = 0;
     if (Array.isArray(groupsData)) {
@@ -949,7 +971,7 @@ function clearFlightValidationErrors() {
         wrap.style.display = 'none';
         wrap.innerHTML = '';
     }
-    ['edit_comment', 'edit_driver_id', 'edit_planned_start_date_from', 'edit_planned_start_date_to', 'edit_actual_start_date', 'edit_actual_end_date', 'edit_cost', 'edit_zayavki_ids', 'edit_unload_type']
+    ['edit_comment', 'edit_driver_id', 'edit_planned_start_date_from', 'edit_planned_start_date_to', 'edit_actual_start_date', 'edit_actual_end_date', 'edit_cost', 'edit_zayavki_ids', 'edit_unload_type', 'edit_route_type', 'edit_source_warehouse_id', 'edit_destination_warehouse_id']
         .forEach((id) => {
             const el = document.getElementById(id);
             if (el) el.classList.remove('field-error');
@@ -958,7 +980,7 @@ function clearFlightValidationErrors() {
 
 function showFlightValidationErrors(errorMap, headerText = UI.msgTransitionValidationHeader) {
     const wrap = document.getElementById('flightValidationErrors');
-    const orderedFields = ['comment', 'driver_id', 'planned_start_date_from', 'planned_start_date_to', 'actual_start_date', 'actual_end_date', 'cost', 'zayavki_ids'];
+    const orderedFields = ['comment', 'driver_id', 'planned_start_date_from', 'planned_start_date_to', 'actual_start_date', 'actual_end_date', 'cost', 'zayavki_ids', 'source_warehouse_id', 'destination_warehouse_id'];
     const fieldToInput = {
         comment: 'edit_comment',
         driver_id: 'edit_driver_id',
@@ -967,7 +989,9 @@ function showFlightValidationErrors(errorMap, headerText = UI.msgTransitionValid
         actual_start_date: 'edit_actual_start_date',
         actual_end_date: 'edit_actual_end_date',
         cost: 'edit_cost',
-        zayavki_ids: 'edit_zayavki_ids'
+        zayavki_ids: 'edit_zayavki_ids',
+        source_warehouse_id: 'edit_source_warehouse_id',
+        destination_warehouse_id: 'edit_destination_warehouse_id'
     };
     const fieldLabels = {
         comment: UI.msgTransitionValidationTitle,
@@ -977,7 +1001,9 @@ function showFlightValidationErrors(errorMap, headerText = UI.msgTransitionValid
         actual_start_date: UI.msgTransitionValidationDates,
         actual_end_date: UI.msgTransitionValidationDates,
         cost: UI.msgTransitionValidationCost,
-        zayavki_ids: UI.msgTransitionValidationRequests
+        zayavki_ids: UI.msgTransitionValidationRequests,
+        source_warehouse_id: 'склад отправления',
+        destination_warehouse_id: 'склад назначения'
     };
 
     clearFlightValidationErrors();
@@ -1027,6 +1053,33 @@ function validateRequiredForFoundTransition() {
     return errors;
 }
 
+function buildWarehouseOptions(selectedId, placeholderText) {
+    const options = [`<option value="">${escapeHtml(placeholderText || 'Выберите склад')}</option>`];
+    const selectedStr = String(selectedId || '').trim();
+    (Array.isArray(warehousesData) ? warehousesData : []).forEach((warehouse) => {
+        if (!warehouse || !warehouse.id) return;
+        const idStr = String(warehouse.id);
+        const selected = idStr === selectedStr ? ' selected' : '';
+        const title = String(warehouse.name || (`Склад #${idStr}`));
+        options.push(`<option value="${idStr}"${selected}>${escapeHtml(title)}</option>`);
+    });
+    return options.join('');
+}
+
+function syncRouteTypeFieldsVisibility(routeTypeRaw) {
+    const routeType = normalizeRouteType(routeTypeRaw, 'OO');
+    const sourceWrap = document.getElementById('edit_source_warehouse_wrap');
+    const destWrap = document.getElementById('edit_destination_warehouse_wrap');
+    const unloadTypeInput = document.getElementById('edit_unload_type');
+    const routeTypeInput = document.getElementById('edit_route_type');
+    const sourceWarehouseInput = document.getElementById('edit_source_warehouse_id');
+    const destinationWarehouseInput = document.getElementById('edit_destination_warehouse_id');
+
+    if (sourceWrap) sourceWrap.style.display = (routeType === 'warehouse_to_warehouse' || routeType === 'warehouse_to_utilizer') ? 'block' : 'none';
+    if (destWrap) destWrap.style.display = (routeType === 'generator_to_warehouse' || routeType === 'warehouse_to_warehouse') ? 'block' : 'none';
+    if (unloadTypeInput) unloadTypeInput.checked = resolveUnloadTypeByRouteType(routeType) === 'SKLAD';
+}
+
 function openFlightEditModal(routeId, source) {
     const modal = document.getElementById('flightEditModal');
     if (!modal) return;
@@ -1053,6 +1106,9 @@ function openFlightEditModal(routeId, source) {
     const commentInput = document.getElementById('edit_comment');
     const zayavkiInput = document.getElementById('edit_zayavki_ids');
     const unloadTypeInput = document.getElementById('edit_unload_type');
+    const routeTypeInput = document.getElementById('edit_route_type');
+    const sourceWarehouseInput = document.getElementById('edit_source_warehouse_id');
+    const destinationWarehouseInput = document.getElementById('edit_destination_warehouse_id');
     const transferFoundBtn = document.getElementById('flightEditTransferFoundBtn');
     const statusInput = document.getElementById('edit_current_status');
 
@@ -1084,7 +1140,16 @@ function openFlightEditModal(routeId, source) {
     if (costInput) costInput.value = (meta.cost !== null && meta.cost !== undefined) ? String(meta.cost) : '';
     if (commentInput) commentInput.value = String(meta.comment || routeTitle || '');
     if (zayavkiInput) zayavkiInput.value = String(meta.zayavki_ids || '');
-    if (unloadTypeInput) unloadTypeInput.checked = normalizeUnloadType(meta.unload_type || 'OO') === 'SKLAD';
+    const initialRouteType = normalizeRouteType(meta.route_type || '', meta.unload_type || 'OO');
+    if (routeTypeInput) routeTypeInput.value = initialRouteType;
+    if (unloadTypeInput) unloadTypeInput.checked = resolveUnloadTypeByRouteType(initialRouteType) === 'SKLAD';
+    if (sourceWarehouseInput) {
+        sourceWarehouseInput.innerHTML = buildWarehouseOptions(meta.source_warehouse_id, 'Выберите склад отправления');
+    }
+    if (destinationWarehouseInput) {
+        destinationWarehouseInput.innerHTML = buildWarehouseOptions(meta.destination_warehouse_id, 'Выберите склад назначения');
+    }
+    syncRouteTypeFieldsVisibility(initialRouteType);
     if (statusInput) statusInput.value = currentEditingMeta.status;
     if (transferFoundBtn) {
         transferFoundBtn.style.display = source === 'planned' ? 'inline-flex' : 'none';
@@ -1168,7 +1233,10 @@ function setFlightEditReadOnlyMode(isReadOnly) {
         'edit_actual_end_date',
         'edit_cost',
         'edit_zayavki_ids',
-        'edit_unload_type'
+        'edit_unload_type',
+        'edit_route_type',
+        'edit_source_warehouse_id',
+        'edit_destination_warehouse_id'
     ];
     fieldIds.forEach((id) => {
         const el = document.getElementById(id);
@@ -1341,6 +1409,7 @@ async function saveFlightEdit() {
         return;
     }
 
+    const routeType = normalizeRouteType(routeTypeInput ? routeTypeInput.value : (currentEditingMeta?.route_type || ''), unloadTypeInput && unloadTypeInput.checked ? 'SKLAD' : 'OO');
     const payload = {
         id: flightId,
         driver_id: driverId,
@@ -1351,7 +1420,10 @@ async function saveFlightEdit() {
         cost: costInput ? costInput.value : '',
         comment: commentInput ? commentInput.value : '',
         zayavki_ids: zayavkiInput ? zayavkiInput.value : '',
-        unload_type: unloadTypeInput && unloadTypeInput.checked ? 'SKLAD' : 'OO'
+        unload_type: resolveUnloadTypeByRouteType(routeType),
+        route_type: routeType,
+        source_warehouse_id: sourceWarehouseInput ? sourceWarehouseInput.value : '',
+        destination_warehouse_id: destinationWarehouseInput ? destinationWarehouseInput.value : ''
     };
 
     const status = String(statusInput ? statusInput.value : '');
@@ -1411,6 +1483,13 @@ async function transferPlannedToFound(routeId) {
     if (!confirm(text)) return;
     try {
         const meta = getRouteMetaById(routeId, 'planned') || {};
+        const routeTypeInput = document.getElementById('edit_route_type');
+        const sourceWarehouseInput = document.getElementById('edit_source_warehouse_id');
+        const destinationWarehouseInput = document.getElementById('edit_destination_warehouse_id');
+        const normalizedRouteType = normalizeRouteType(
+            routeTypeInput ? routeTypeInput.value : (meta.route_type || ''),
+            document.getElementById('edit_unload_type')?.checked ? 'SKLAD' : (meta.unload_type || 'OO')
+        );
         const result = await postRouteAction('transition', {
             id: Number(routeId),
             target_status: 'found',
@@ -1420,7 +1499,10 @@ async function transferPlannedToFound(routeId) {
             planned_start_date_to: document.getElementById('edit_planned_start_date_to')?.value || meta.planned_start_date_to || '',
             cost: document.getElementById('edit_cost')?.value || meta.cost || '',
             name: document.getElementById('edit_comment')?.value || resolveRouteTitle(meta) || '',
-            unload_type: document.getElementById('edit_unload_type')?.checked ? 'SKLAD' : (meta.unload_type || 'OO')
+            unload_type: resolveUnloadTypeByRouteType(normalizedRouteType),
+            route_type: normalizedRouteType,
+            source_warehouse_id: sourceWarehouseInput ? sourceWarehouseInput.value : (meta.source_warehouse_id || ''),
+            destination_warehouse_id: destinationWarehouseInput ? destinationWarehouseInput.value : (meta.destination_warehouse_id || '')
         });
         if (result && result.success) {
             window.location.reload();
@@ -1506,6 +1588,50 @@ function transferToCompleted(routeId) {
 
 function buildRouteManageMenu(routeId, source) {
     return `<button class="route-manage-btn" title="${UI.labelEditRoute}" aria-label="${UI.labelEditRoute}" onclick="event.stopPropagation(); openFlightEditModal(${routeId}, '${source}')"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75l11-11.03-3.75-3.75L3 17.25zm17.71-10.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.84 1.84 3.75 3.75 2.01-1.67z"/></svg></button>`;
+}
+
+function renderWarehousesLayer() {
+    if (!warehousesCollection || !map) return;
+    warehousesCollection.removeAll();
+    if (!warehousesVisible) return;
+    (Array.isArray(warehousesData) ? warehousesData : []).forEach((warehouse) => {
+        if (!warehouse) return;
+        const lat = Number(warehouse.latitude);
+        const lon = Number(warehouse.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+        const name = String(warehouse.name || `Склад #${warehouse.id || ''}`).trim();
+        const address = String(warehouse.address || '').trim();
+        const placemark = new ymaps.Placemark([lat, lon], {
+            hintContent: name,
+            balloonContent: `<div style="padding:8px;max-width:280px;"><div><strong>${escapeHtml(name)}</strong></div>${address ? `<div>${escapeHtml(address)}</div>` : ''}</div>`
+        }, {
+            preset: 'islands#blueShoppingIcon',
+            zIndex: 520
+        });
+        warehousesCollection.add(placemark);
+    });
+}
+
+function toggleWarehouseLayer(visible) {
+    warehousesVisible = !!visible;
+    renderWarehousesLayer();
+}
+
+async function loadWarehouses() {
+    try {
+        const response = await fetch('map_files/get_warehouses.php');
+        const data = await response.json();
+        if (!response.ok || !data || !data.success || !Array.isArray(data.warehouses)) {
+            warehousesData = [];
+            renderWarehousesLayer();
+            return;
+        }
+        warehousesData = data.warehouses;
+        renderWarehousesLayer();
+    } catch (error) {
+        warehousesData = [];
+        renderWarehousesLayer();
+    }
 }
 
 async function loadManagers() {
@@ -1937,10 +2063,12 @@ function init() {
     
     // === CREATE COLLECTIONS ===
     requestsCollection = new ymaps.GeoObjectCollection();
+    warehousesCollection = new ymaps.GeoObjectCollection();
     trackersCollection = new ymaps.GeoObjectCollection();
     
-    // Add in strict order: requests first, then transport
+    // Add in strict order: requests, warehouses, then transport
     map.geoObjects.add(requestsCollection);
+    map.geoObjects.add(warehousesCollection);
     map.geoObjects.add(trackersCollection);
     
     groupsData.forEach(group => group.points.forEach(p => weightById[p.zayavka_id] = Math.round(p.mass_netto * 1000)));
@@ -2071,12 +2199,19 @@ function init() {
         });
     }
     if (closeTopBtn) closeTopBtn.addEventListener('click', closeFlightEditModal);
+    const routeTypeInput = document.getElementById('edit_route_type');
+    if (routeTypeInput) {
+        routeTypeInput.addEventListener('change', () => {
+            syncRouteTypeFieldsVisibility(routeTypeInput.value);
+            updateFlightModalSummary();
+        });
+    }
 
     const startConfirmBtn = document.getElementById('startConfirmBtn');
     const startCancelBtn = document.getElementById('startCancelBtn');
     if (startConfirmBtn) startConfirmBtn.addEventListener('click', confirmTransferToStarted);
     if (startCancelBtn) startCancelBtn.addEventListener('click', closeStartConfirmModal);
-    ['edit_driver_id', 'edit_planned_start_date_from', 'edit_planned_start_date_to', 'edit_actual_start_date', 'edit_actual_end_date', 'edit_cost', 'edit_zayavki_ids', 'edit_unload_type'].forEach((id) => {
+    ['edit_driver_id', 'edit_planned_start_date_from', 'edit_planned_start_date_to', 'edit_actual_start_date', 'edit_actual_end_date', 'edit_cost', 'edit_zayavki_ids', 'edit_unload_type', 'edit_route_type', 'edit_source_warehouse_id', 'edit_destination_warehouse_id'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('input', () => {
@@ -2111,6 +2246,9 @@ function init() {
     
     updateMap();
     loadManagers();
+    const warehouseLayerCheckbox = document.getElementById('warehouse_layer_visible');
+    warehousesVisible = warehouseLayerCheckbox ? !!warehouseLayerCheckbox.checked : true;
+    loadWarehouses();
     
     if (placemarks.length > 0 || trackerPlacemarks.length > 0) {
         const bounds = map.geoObjects.getBounds();

@@ -22,6 +22,23 @@ function parseZayavkiIds(string $raw): array
     return array_values($ids);
 }
 
+function normalizeRouteType($routeTypeRaw, $unloadTypeRaw = 'OO'): string
+{
+    $routeType = strtolower(trim((string)$routeTypeRaw));
+    $allowed = [
+        'generator_to_utilizer',
+        'generator_to_warehouse',
+        'warehouse_to_warehouse',
+        'warehouse_to_utilizer',
+    ];
+    if (in_array($routeType, $allowed, true)) {
+        return $routeType;
+    }
+    return strtoupper(trim((string)$unloadTypeRaw)) === 'SKLAD'
+        ? 'generator_to_warehouse'
+        : 'generator_to_utilizer';
+}
+
 function getTotalKgByIds(PDO $pdo, array $ids): float
 {
     if (empty($ids)) {
@@ -56,6 +73,24 @@ try {
         $columnsMap[(string)$column] = true;
     }
 
+    $warehouseNameColumn = null;
+    try {
+        $wColsStmt = $pdo->query('SHOW COLUMNS FROM warehouses');
+        $wCols = $wColsStmt ? $wColsStmt->fetchAll(PDO::FETCH_COLUMN) : [];
+        $wMap = [];
+        foreach ((array)$wCols as $column) {
+            $wMap[(string)$column] = true;
+        }
+        foreach (['name', 'title', 'warehouse_name', 'label'] as $candidate) {
+            if (isset($wMap[$candidate])) {
+                $warehouseNameColumn = $candidate;
+                break;
+            }
+        }
+    } catch (Throwable $e) {
+        $warehouseNameColumn = null;
+    }
+
     $managerColumn = null;
     foreach (['assigned_manager_id', 'manager_id'] as $candidate) {
         if (isset($columnsMap[$candidate])) {
@@ -66,12 +101,18 @@ try {
 
     $managerSelect = $managerColumn ? "f.$managerColumn AS assigned_manager_id" : 'NULL AS assigned_manager_id';
 
+    $warehouseNameSelectSource = $warehouseNameColumn ? ('ws.`' . str_replace('`', '``', $warehouseNameColumn) . '`') : 'NULL';
+    $warehouseNameSelectDest = $warehouseNameColumn ? ('wd.`' . str_replace('`', '``', $warehouseNameColumn) . '`') : 'NULL';
+
     $sql = "
         SELECT f.id,
                f.status,
                f.comment AS name,
                f.cost,
                f.unload_type,
+               f.route_type,
+               f.source_warehouse_id,
+               f.destination_warehouse_id,
                f.zayavki_ids,
                f.zayavki_count,
                f.driver_id,
@@ -80,9 +121,13 @@ try {
                f.actual_start_date,
                f.actual_end_date,
                $managerSelect,
-               CONCAT(COALESCE(d.vehicle_make_plate, ''), CASE WHEN d.full_name IS NOT NULL AND d.full_name <> '' THEN CONCAT(' (', d.full_name, ')') ELSE '' END) AS driver_label
+               CONCAT(COALESCE(d.vehicle_make_plate, ''), CASE WHEN d.full_name IS NOT NULL AND d.full_name <> '' THEN CONCAT(' (', d.full_name, ')') ELSE '' END) AS driver_label,
+               {$warehouseNameSelectSource} AS source_warehouse_name,
+               {$warehouseNameSelectDest} AS destination_warehouse_name
         FROM flights f
         LEFT JOIN drivers d ON d.id = f.driver_id
+        LEFT JOIN warehouses ws ON ws.id = f.source_warehouse_id
+        LEFT JOIN warehouses wd ON wd.id = f.destination_warehouse_id
         WHERE f.status IN ('planned_route', 'found', 'started')
     ";
 
@@ -119,6 +164,7 @@ try {
         if ($unloadType !== 'SKLAD') {
             $unloadType = 'OO';
         }
+        $routeType = normalizeRouteType($row['route_type'] ?? '', $unloadType);
 
         $normalized = [
             'id' => $flightId,
@@ -127,6 +173,11 @@ try {
             'route_title' => $name,
             'cost' => $row['cost'] ?? null,
             'unload_type' => $unloadType,
+            'route_type' => $routeType,
+            'source_warehouse_id' => isset($row['source_warehouse_id']) ? (int)$row['source_warehouse_id'] : null,
+            'destination_warehouse_id' => isset($row['destination_warehouse_id']) ? (int)$row['destination_warehouse_id'] : null,
+            'source_warehouse_name' => trim((string)($row['source_warehouse_name'] ?? '')),
+            'destination_warehouse_name' => trim((string)($row['destination_warehouse_name'] ?? '')),
             'zayavki_ids' => (string)($row['zayavki_ids'] ?? ''),
             'zayavki_count' => isset($row['zayavki_count']) ? (int)$row['zayavki_count'] : count($zayIds),
             'driver_id' => isset($row['driver_id']) ? (int)$row['driver_id'] : null,

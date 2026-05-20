@@ -30,6 +30,7 @@
     <div class="layer-group">
         <div class="layer-group-title">Рейсы</div>
         <div class="checkbox-item"><input type="checkbox" id="no_flight_default" checked onchange="filterByCustomLayer('default', this.checked)"><label for="no_flight_default">Доступно к вывозу</label><div class="color-indicator" style="background: #000000"></div></div>
+        <div class="checkbox-item"><input type="checkbox" id="warehouse_layer_visible" checked onchange="toggleWarehouseLayer(this.checked)"><label for="warehouse_layer_visible">Склады</label><div class="color-indicator" style="background: #5c6bc0"></div></div>
         <?php if (isset($flightStatusList['planned_route'])): ?>
         <div class="checkbox-item"><input type="checkbox" id="flight_status_planned_route" checked onchange="filterByFlightStatus('planned_route', this.checked)"><label for="flight_status_planned_route">Планируемые маршруты</label><div class="color-indicator" style="background: #9c27b0"></div></div>
         <?php endif; ?>
@@ -133,6 +134,23 @@
             <div class="flight-cost-wrap">
                 <label class="flight-modal-label" for="edit_cost">Стоимость</label>
                 <input class="flight-modal-input" type="number" id="edit_cost" step="0.01" min="0">
+            </div>
+            <div class="flight-route-type-wrap">
+                <label class="flight-modal-label" for="edit_route_type">Тип рейса</label>
+                <select class="flight-modal-input" id="edit_route_type">
+                    <option value="generator_to_utilizer">Отходообразователь → Утилизатор</option>
+                    <option value="generator_to_warehouse">Отходообразователь → Склад</option>
+                    <option value="warehouse_to_warehouse">Склад → Склад</option>
+                    <option value="warehouse_to_utilizer">Склад → Утилизатор</option>
+                </select>
+            </div>
+            <div class="flight-warehouse-wrap" id="edit_source_warehouse_wrap" style="display:none;">
+                <label class="flight-modal-label" for="edit_source_warehouse_id">Склад отправления</label>
+                <select class="flight-modal-input" id="edit_source_warehouse_id"></select>
+            </div>
+            <div class="flight-warehouse-wrap" id="edit_destination_warehouse_wrap" style="display:none;">
+                <label class="flight-modal-label" for="edit_destination_warehouse_id">Склад назначения</label>
+                <select class="flight-modal-input" id="edit_destination_warehouse_id"></select>
             </div>
             <div class="flight-zayavki-wrap">
                 <label class="flight-modal-label" for="edit_zayavki_ids">Список заявок</label>

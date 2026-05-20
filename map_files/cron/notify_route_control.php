@@ -62,6 +62,43 @@ function managerName(PDO $pdo, $managerId): string
     return 'Менеджер #' . $id;
 }
 
+function normalizeRouteType($routeTypeRaw, $unloadTypeRaw = 'OO'): string
+{
+    $routeType = strtolower(trim((string)$routeTypeRaw));
+    $allowed = [
+        'generator_to_utilizer',
+        'generator_to_warehouse',
+        'warehouse_to_warehouse',
+        'warehouse_to_utilizer',
+    ];
+    if (in_array($routeType, $allowed, true)) {
+        return $routeType;
+    }
+    return strtoupper(trim((string)$unloadTypeRaw)) === 'SKLAD'
+        ? 'generator_to_warehouse'
+        : 'generator_to_utilizer';
+}
+
+function routeTypeLine(array $row): string
+{
+    $routeType = normalizeRouteType($row['route_type'] ?? '', $row['unload_type'] ?? 'OO');
+    $source = trim((string)($row['source_warehouse_name'] ?? ''));
+    $dest = trim((string)($row['destination_warehouse_name'] ?? ''));
+    if ($routeType === 'generator_to_warehouse') {
+        return $dest !== '' ? ('Вывоз на склад: ' . $dest) : 'Вывоз на склад';
+    }
+    if ($routeType === 'warehouse_to_warehouse') {
+        if ($source !== '' && $dest !== '') {
+            return 'Перемещение: ' . $source . ' → ' . $dest;
+        }
+        return 'Перемещение между складами';
+    }
+    if ($routeType === 'warehouse_to_utilizer') {
+        return $source !== '' ? ('Вывоз со склада: ' . $source) : 'Вывоз со склада';
+    }
+    return '';
+}
+
 try {
     if (!isset($pdo) || !($pdo instanceof PDO)) {
         throw new RuntimeException('Database connection is not initialized');
@@ -76,14 +113,39 @@ try {
         $mode = 'morning';
     }
 
+    $warehouseNameColumn = null;
+    try {
+        $wColsStmt = $pdo->query('SHOW COLUMNS FROM warehouses');
+        $wCols = $wColsStmt ? $wColsStmt->fetchAll(PDO::FETCH_COLUMN) : [];
+        $wMap = [];
+        foreach ((array)$wCols as $column) {
+            $wMap[(string)$column] = true;
+        }
+        foreach (['name', 'title', 'warehouse_name', 'label'] as $candidate) {
+            if (isset($wMap[$candidate])) {
+                $warehouseNameColumn = $candidate;
+                break;
+            }
+        }
+    } catch (Throwable $e) {
+        $warehouseNameColumn = null;
+    }
+    $sourceWarehouseNameSelect = $warehouseNameColumn ? ('ws.`' . str_replace('`', '``', $warehouseNameColumn) . '`') : 'NULL';
+    $destWarehouseNameSelect = $warehouseNameColumn ? ('wd.`' . str_replace('`', '``', $warehouseNameColumn) . '`') : 'NULL';
+
     $sql = "
         SELECT f.id, f.status, f.comment, f.cost, f.unload_type, f.zayavki_ids, f.assigned_manager_id,
+               f.route_type, f.source_warehouse_id, f.destination_warehouse_id,
                f.planned_start_date_from, f.planned_start_date_to,
                COALESCE(f.zayavki_count, 0) AS zayavki_count,
                d.vehicle_make_plate, d.full_name,
-               (SELECT COALESCE(SUM(COALESCE(mass_netto,0)),0) FROM feo WHERE FIND_IN_SET(zayavka_id, f.zayavki_ids) > 0) AS sum_tons
+               (SELECT COALESCE(SUM(COALESCE(mass_netto,0)),0) FROM feo WHERE FIND_IN_SET(zayavka_id, f.zayavki_ids) > 0) AS sum_tons,
+               {$sourceWarehouseNameSelect} AS source_warehouse_name,
+               {$destWarehouseNameSelect} AS destination_warehouse_name
         FROM flights f
         LEFT JOIN drivers d ON d.id = f.driver_id
+        LEFT JOIN warehouses ws ON ws.id = f.source_warehouse_id
+        LEFT JOIN warehouses wd ON wd.id = f.destination_warehouse_id
         WHERE DATE(f.planned_start_date_from) = CURDATE()
           AND f.status IN ('planned_route', 'found')
         ORDER BY f.status ASC, f.id DESC
@@ -118,6 +180,10 @@ try {
         $lines[] = "Статус: {$status}";
         if ($isSklad) {
             $lines[] = 'Выгрузка: СКЛАД';
+        }
+        $routeLine = routeTypeLine($row);
+        if ($routeLine !== '') {
+            $lines[] = $routeLine;
         }
         $lines[] = "{$count} заяв. • {$kg}";
         $lines[] = "Водитель: {$driver}";

@@ -9,6 +9,10 @@ const STATUS_PLANNED = 'planned_route';
 const STATUS_FOUND = 'found';
 const STATUS_STARTED = 'started';
 const STATUS_COMPLETED = 'completed';
+const ROUTE_TYPE_GENERATOR_TO_UTILIZER = 'generator_to_utilizer';
+const ROUTE_TYPE_GENERATOR_TO_WAREHOUSE = 'generator_to_warehouse';
+const ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE = 'warehouse_to_warehouse';
+const ROUTE_TYPE_WAREHOUSE_TO_UTILIZER = 'warehouse_to_utilizer';
 
 function jsonOut(array $payload): void
 {
@@ -114,7 +118,7 @@ function getRouteMetrics(PDO $pdo, array $idList): array
 function loadFlightSnapshot(PDO $pdo, $flightId): ?array
 {
     try {
-        $stmt = $pdo->prepare('SELECT id, status, driver_id, zayavki_ids, planned_start_date_from, planned_start_date_to, actual_start_date, actual_end_date, comment, cost, unload_type, assigned_manager_id FROM flights WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT id, status, driver_id, zayavki_ids, planned_start_date_from, planned_start_date_to, actual_start_date, actual_end_date, comment, cost, unload_type, route_type, source_warehouse_id, destination_warehouse_id, assigned_manager_id FROM flights WHERE id = ? LIMIT 1');
         if (!$stmt || !$stmt->execute([(int)$flightId])) {
             return null;
         }
@@ -260,8 +264,25 @@ function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTrans
     $plannedFromRaw = trim((string)($data['planned_start_date_from'] ?? ''));
     $plannedToRaw = trim((string)($data['planned_start_date_to'] ?? ''));
     $costRaw = $data['cost'] ?? null;
-    $unloadTypeRaw = strtoupper(trim((string)($data['unload_type'] ?? 'OO')));
-    $unloadType = $unloadTypeRaw === 'SKLAD' ? 'SKLAD' : 'OO';
+    $routeType = normalizeRouteType($data['route_type'] ?? '', $data['unload_type'] ?? 'OO');
+    $unloadType = resolveUnloadTypeByRouteType($routeType);
+    $sourceWarehouseId = normalizeWarehouseId($pdo, $data['source_warehouse_id'] ?? null);
+    $destinationWarehouseId = normalizeWarehouseId($pdo, $data['destination_warehouse_id'] ?? null);
+
+    if ($routeType === ROUTE_TYPE_GENERATOR_TO_WAREHOUSE && $destinationWarehouseId === null) {
+        return [false, 'Укажите склад назначения', [], ['destination_warehouse_id' => 'Укажите склад назначения']];
+    }
+    if ($routeType === ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE) {
+        if ($sourceWarehouseId === null) {
+            return [false, 'Укажите склад отправления', [], ['source_warehouse_id' => 'Укажите склад отправления']];
+        }
+        if ($destinationWarehouseId === null) {
+            return [false, 'Укажите склад назначения', [], ['destination_warehouse_id' => 'Укажите склад назначения']];
+        }
+    }
+    if ($routeType === ROUTE_TYPE_WAREHOUSE_TO_UTILIZER && $sourceWarehouseId === null) {
+        return [false, 'Укажите склад отправления', [], ['source_warehouse_id' => 'Укажите склад отправления']];
+    }
 
     $plannedFrom = null;
     $plannedTo = null;
@@ -312,6 +333,9 @@ function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTrans
         'planned_start_date_to' => $plannedTo,
         'cost' => $cost,
         'unload_type' => $unloadType,
+        'route_type' => $routeType,
+        'source_warehouse_id' => $sourceWarehouseId,
+        'destination_warehouse_id' => $destinationWarehouseId,
     ], []];
 }
 
@@ -403,6 +427,127 @@ function getManagerDisplayNameById(PDO $pdo, $managerId): string
     }
 }
 
+function getWarehousesMeta(PDO $pdo): array
+{
+    static $cache = null;
+    if (is_array($cache)) {
+        return $cache;
+    }
+    $cache = ['exists' => false, 'active_column' => null, 'name_column' => null];
+    try {
+        $stmt = $pdo->query('SHOW COLUMNS FROM warehouses');
+        $columns = $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+        if (!is_array($columns) || empty($columns)) {
+            return $cache;
+        }
+        $map = [];
+        foreach ($columns as $column) {
+            $map[(string)$column] = true;
+        }
+        $cache['exists'] = true;
+        foreach (['is_active', 'active', 'enabled', 'status'] as $candidate) {
+            if (isset($map[$candidate])) {
+                $cache['active_column'] = $candidate;
+                break;
+            }
+        }
+        foreach (['name', 'title', 'warehouse_name', 'label'] as $candidate) {
+            if (isset($map[$candidate])) {
+                $cache['name_column'] = $candidate;
+                break;
+            }
+        }
+    } catch (Throwable $e) {
+        mapError('getWarehousesMeta failed', ['error' => $e->getMessage()]);
+    }
+    return $cache;
+}
+
+function normalizeRouteType($routeTypeRaw, $unloadTypeRaw = 'OO'): string
+{
+    $routeType = strtolower(trim((string)$routeTypeRaw));
+    $allowed = [
+        ROUTE_TYPE_GENERATOR_TO_UTILIZER,
+        ROUTE_TYPE_GENERATOR_TO_WAREHOUSE,
+        ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE,
+        ROUTE_TYPE_WAREHOUSE_TO_UTILIZER,
+    ];
+    if (in_array($routeType, $allowed, true)) {
+        return $routeType;
+    }
+    $unload = strtoupper(trim((string)$unloadTypeRaw));
+    if ($unload === 'SKLAD') {
+        return ROUTE_TYPE_GENERATOR_TO_WAREHOUSE;
+    }
+    return ROUTE_TYPE_GENERATOR_TO_UTILIZER;
+}
+
+function resolveUnloadTypeByRouteType(string $routeType): string
+{
+    return $routeType === ROUTE_TYPE_GENERATOR_TO_UTILIZER ? 'OO' : 'SKLAD';
+}
+
+function normalizeWarehouseId(PDO $pdo, $idRaw): ?int
+{
+    $id = (int)$idRaw;
+    if ($id <= 0) {
+        return null;
+    }
+    $meta = getWarehousesMeta($pdo);
+    if (empty($meta['exists'])) {
+        return null;
+    }
+    try {
+        $sql = 'SELECT id FROM warehouses WHERE id = :id';
+        if (!empty($meta['active_column'])) {
+            $activeCol = (string)$meta['active_column'];
+            if ($activeCol === 'status') {
+                $sql .= " AND LOWER(TRIM(" . quoteIdent($activeCol) . ")) IN ('1', 'active', 'enabled')";
+            } else {
+                $sql .= ' AND ' . quoteIdent($activeCol) . ' = 1';
+            }
+        }
+        $sql .= ' LIMIT 1';
+        $stmt = $pdo->prepare($sql);
+        if (!$stmt || !$stmt->execute([':id' => $id])) {
+            return null;
+        }
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? ((int)($row['id'] ?? 0) ?: null) : null;
+    } catch (Throwable $e) {
+        mapError('normalizeWarehouseId failed', ['id' => $id, 'error' => $e->getMessage()]);
+        return null;
+    }
+}
+
+function getWarehouseNameById(PDO $pdo, $idRaw): string
+{
+    $id = (int)$idRaw;
+    if ($id <= 0) {
+        return '';
+    }
+    $meta = getWarehousesMeta($pdo);
+    if (empty($meta['exists'])) {
+        return '';
+    }
+    $nameColumn = (string)($meta['name_column'] ?? '');
+    if ($nameColumn === '') {
+        return '';
+    }
+    try {
+        $sql = 'SELECT ' . quoteIdent($nameColumn) . ' AS warehouse_name FROM warehouses WHERE id = :id LIMIT 1';
+        $stmt = $pdo->prepare($sql);
+        if (!$stmt || !$stmt->execute([':id' => $id])) {
+            return '';
+        }
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return trim((string)($row['warehouse_name'] ?? ''));
+    } catch (Throwable $e) {
+        mapError('getWarehouseNameById failed', ['id' => $id, 'error' => $e->getMessage()]);
+        return '';
+    }
+}
+
 
 function buildRouteTitle(array $flight, int $flightId): string
 {
@@ -426,6 +571,28 @@ function buildUnloadLine(array $flight): string
     return strtoupper(trim((string)($flight['unload_type'] ?? 'OO'))) === 'SKLAD'
         ? 'Выгрузка: СКЛАД'
         : '';
+}
+
+function buildRouteTypeLine(PDO $pdo, array $flight): string
+{
+    $routeType = normalizeRouteType($flight['route_type'] ?? '', $flight['unload_type'] ?? 'OO');
+    if ($routeType === ROUTE_TYPE_GENERATOR_TO_UTILIZER) {
+        return '';
+    }
+    if ($routeType === ROUTE_TYPE_GENERATOR_TO_WAREHOUSE) {
+        $name = getWarehouseNameById($pdo, $flight['destination_warehouse_id'] ?? 0);
+        return $name !== '' ? ('Вывоз на склад: ' . $name) : 'Вывоз на склад';
+    }
+    if ($routeType === ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE) {
+        $from = getWarehouseNameById($pdo, $flight['source_warehouse_id'] ?? 0);
+        $to = getWarehouseNameById($pdo, $flight['destination_warehouse_id'] ?? 0);
+        if ($from !== '' && $to !== '') {
+            return 'Перемещение: ' . $from . ' → ' . $to;
+        }
+        return 'Перемещение между складами';
+    }
+    $from = getWarehouseNameById($pdo, $flight['source_warehouse_id'] ?? 0);
+    return $from !== '' ? ('Вывоз со склада: ' . $from) : 'Вывоз со склада';
 }
 
 function buildCompactFlightContext(PDO $pdo, array $flight, int $flightId): array
@@ -486,6 +653,7 @@ function buildPlannedDateRangeUpdateMessage(PDO $pdo, array $before, array $afte
     $manager = getManagerDisplayNameById($pdo, $after['assigned_manager_id'] ?? 0);
     $meta = buildCompactMetaLine($after);
     $unloadLine = buildUnloadLine($after);
+    $routeTypeLine = buildRouteTypeLine($pdo, $after);
     $rangeAfter = formatDateRangeShortRu($afterFrom, $afterTo);
 
     if (!$hadBefore) {
@@ -496,6 +664,9 @@ function buildPlannedDateRangeUpdateMessage(PDO $pdo, array $before, array $afte
         ];
         if ($unloadLine !== '') {
             $lines[] = $unloadLine;
+        }
+        if ($routeTypeLine !== '') {
+            $lines[] = $routeTypeLine;
         }
         $lines[] = $meta;
         $lines[] = $driver;
@@ -514,6 +685,9 @@ function buildPlannedDateRangeUpdateMessage(PDO $pdo, array $before, array $afte
     if ($unloadLine !== '') {
         $lines[] = $unloadLine;
     }
+    if ($routeTypeLine !== '') {
+        $lines[] = $routeTypeLine;
+    }
     $lines[] = "Рейс закреплен: {$manager}";
     $lines[] = '> 💡 *Обновленные даты также ознакомительные и могут быть изменены.*';
     return implode("\n", $lines);
@@ -531,6 +705,10 @@ function buildPlannedToFoundMessage(PDO $pdo, array $after, int $flightId): stri
     $unloadLine = buildUnloadLine($after);
     if ($unloadLine !== '') {
         $lines[] = $unloadLine;
+    }
+    $routeTypeLine = buildRouteTypeLine($pdo, $after);
+    if ($routeTypeLine !== '') {
+        $lines[] = $routeTypeLine;
     }
     $lines[] = $meta;
     $lines[] = $driver;
@@ -583,6 +761,10 @@ function buildFoundDiffMessage(PDO $pdo, array $before, array $after, int $fligh
     if ($unloadLine !== '') {
         $lines[] = $unloadLine;
     }
+    $routeTypeLine = buildRouteTypeLine($pdo, $after);
+    if ($routeTypeLine !== '') {
+        $lines[] = $routeTypeLine;
+    }
     $lines = array_merge($lines, $changes);
     $lines[] = "Рейс закреплен: {$manager}";
     return implode("\n", $lines);
@@ -632,6 +814,10 @@ function buildStartedDiffMessage(PDO $pdo, array $before, array $after, int $fli
     $unloadLine = buildUnloadLine($after);
     if ($unloadLine !== '') {
         $lines[] = $unloadLine;
+    }
+    $routeTypeLine = buildRouteTypeLine($pdo, $after);
+    if ($routeTypeLine !== '') {
+        $lines[] = $routeTypeLine;
     }
     $lines = array_merge($lines, $changes);
     $lines[] = 'Рейс находится в выполнении. Проверьте корректность изменений.';
@@ -698,6 +884,9 @@ try {
                     actual_start_date = :actual_start_date,
                     actual_end_date = :actual_end_date,
                     unload_type = :unload_type,
+                    route_type = :route_type,
+                    source_warehouse_id = :source_warehouse_id,
+                    destination_warehouse_id = :destination_warehouse_id,
                     driver_id = :driver_id,
                     block_date = NOW()
                 WHERE id = :id
@@ -713,6 +902,9 @@ try {
                 ':actual_start_date' => $actualStartValue,
                 ':actual_end_date' => $actualEndValue,
                 ':unload_type' => $normalized['unload_type'],
+                ':route_type' => $normalized['route_type'],
+                ':source_warehouse_id' => $normalized['source_warehouse_id'],
+                ':destination_warehouse_id' => $normalized['destination_warehouse_id'],
                 ':driver_id' => $normalized['driver_id'],
                 ':id' => $routeId,
             ]);
@@ -768,14 +960,17 @@ try {
         $quotedManagerColumn = quoteIdent($managerColumn);
 
         $stmt = $pdo->prepare("
-            INSERT INTO flights (status, comment, cost, unload_type, zayavki_ids, zayavki_count, {$quotedManagerColumn}, planned_start_date_from, planned_start_date_to, driver_id, block_date)
-            VALUES (:status, :comment, :cost, :unload_type, :zayavki_ids, :count, :assigned_manager_id, :planned_from, :planned_to, :driver_id, NOW())
+            INSERT INTO flights (status, comment, cost, unload_type, route_type, source_warehouse_id, destination_warehouse_id, zayavki_ids, zayavki_count, {$quotedManagerColumn}, planned_start_date_from, planned_start_date_to, driver_id, block_date)
+            VALUES (:status, :comment, :cost, :unload_type, :route_type, :source_warehouse_id, :destination_warehouse_id, :zayavki_ids, :count, :assigned_manager_id, :planned_from, :planned_to, :driver_id, NOW())
         ");
         $stmt->execute([
             ':status' => STATUS_PLANNED,
             ':comment' => $name !== '' ? $name : 'Новый рейс',
             ':cost' => $normalized['cost'],
             ':unload_type' => $normalized['unload_type'],
+            ':route_type' => $normalized['route_type'],
+            ':source_warehouse_id' => $normalized['source_warehouse_id'],
+            ':destination_warehouse_id' => $normalized['destination_warehouse_id'],
             ':zayavki_ids' => $normalized['zayavki_ids_canonical'],
             ':count' => $normalized['zayavki_count'],
             ':assigned_manager_id' => $assignedManagerId,
@@ -802,9 +997,11 @@ try {
         $stmt = $pdo->prepare('DELETE FROM flights WHERE id = :id AND status = :status');
         $stmt->execute([':id' => $routeId, ':status' => STATUS_PLANNED]);
         $unloadLine = buildUnloadLine($flight);
+        $routeTypeLine = buildRouteTypeLine($pdo, $flight);
         $notifyResult = sendMaxNotification(
             "#{$routeId} {$title} - Удален из системы\n" .
             ($unloadLine !== '' ? ($unloadLine . "\n") : '') .
+            ($routeTypeLine !== '' ? ($routeTypeLine . "\n") : '') .
             "Рейс закреплен: {$manager}"
         );
         jsonOut([
@@ -835,6 +1032,9 @@ try {
                 if (!isset($payload['planned_start_date_to']) || trim((string)$payload['planned_start_date_to']) === '') $payload['planned_start_date_to'] = (string)($flight['planned_start_date_to'] ?? '');
                 if (!array_key_exists('cost', $payload) || $payload['cost'] === '' || $payload['cost'] === null) $payload['cost'] = $flight['cost'] ?? null;
                 if (!isset($payload['unload_type']) || trim((string)$payload['unload_type']) === '') $payload['unload_type'] = (string)($flight['unload_type'] ?? 'OO');
+                if (!isset($payload['route_type']) || trim((string)$payload['route_type']) === '') $payload['route_type'] = (string)($flight['route_type'] ?? '');
+                if (!array_key_exists('source_warehouse_id', $payload)) $payload['source_warehouse_id'] = $flight['source_warehouse_id'] ?? null;
+                if (!array_key_exists('destination_warehouse_id', $payload)) $payload['destination_warehouse_id'] = $flight['destination_warehouse_id'] ?? null;
                 if (!isset($payload['name']) || trim((string)$payload['name']) === '') $payload['name'] = trim((string)($flight['comment'] ?? $flight['name'] ?? ''));
             }
             $requireTitle = !$wasStarted;
@@ -852,6 +1052,9 @@ try {
                     planned_start_date_from = :planned_from,
                     planned_start_date_to = :planned_to,
                     unload_type = :unload_type,
+                    route_type = :route_type,
+                    source_warehouse_id = :source_warehouse_id,
+                    destination_warehouse_id = :destination_warehouse_id,
                     driver_id = :driver_id,
                     block_date = NOW()
                 WHERE id = :id
@@ -865,6 +1068,9 @@ try {
                 ':planned_from' => $normalized['planned_start_date_from'],
                 ':planned_to' => $normalized['planned_start_date_to'],
                 ':unload_type' => $normalized['unload_type'],
+                ':route_type' => $normalized['route_type'],
+                ':source_warehouse_id' => $normalized['source_warehouse_id'],
+                ':destination_warehouse_id' => $normalized['destination_warehouse_id'],
                 ':driver_id' => $normalized['driver_id'],
                 ':id' => $routeId,
             ]);
@@ -894,6 +1100,7 @@ try {
                     '**✅ ВЫВОЗ НАЧАЛСЯ**',
                     "#{$routeId} {$title}",
                     buildUnloadLine($afterStarted),
+                    buildRouteTypeLine($pdo, $afterStarted),
                     "Водитель: {$driver}",
                     "Старт: " . formatDateShortRu($afterStarted['actual_start_date'] ?? ''),
                     "Заявки: " . (int)($afterStarted['_count'] ?? 0),
@@ -939,6 +1146,7 @@ try {
                     'ТС ПРИБЫЛО НА РАЗГРУЗКУ',
                     '───────────────────',
                     buildUnloadLine($afterCompleted),
+                    buildRouteTypeLine($pdo, $afterCompleted),
                     $driver,
                     "#{$routeId} — {$title}",
                     '> 💡 *Напоминаю: для оплаты подрядчику нужен полный пакет документов (диагностическая карта, путевой лист и т.д.). Прошу не затягивать с предоставлением.*'
@@ -964,6 +1172,7 @@ try {
                 $message = "**⚠️ ПРЕОСТАНОВКА ВЫПОЛНЯЕМОГО РЕЙСА ⚠️**\n" .
                     "#{$routeId} {$title}\n" .
                     (buildUnloadLine($after) !== '' ? (buildUnloadLine($after) . "\n") : '') .
+                    (buildRouteTypeLine($pdo, $after) !== '' ? (buildRouteTypeLine($pdo, $after) . "\n") : '') .
                     "Водитель: {$driver}\n" .
                     "Старт: " . formatDateShortRu($after['actual_start_date'] ?? '') . "\n" .
                     "Заявки: " . (int)($after['_count'] ?? 0) . "\n" .
@@ -988,6 +1197,7 @@ try {
                 "**#{$routeId} {$title}**\n" .
                 "возвращён в «Планируемый»\n" .
                 (buildUnloadLine($after) !== '' ? (buildUnloadLine($after) . "\n") : '') .
+                (buildRouteTypeLine($pdo, $after) !== '' ? (buildRouteTypeLine($pdo, $after) . "\n") : '') .
                 "Рейс закреплен: {$manager}\n" .
                 "> 💡 *Подготовку документов приостановить до переформирования рейса.*"
             );
