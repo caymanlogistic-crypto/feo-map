@@ -150,11 +150,17 @@
             <div class="flight-warehouse-group" id="edit_warehouse_group" style="display:none;">
                 <div class="flight-warehouse-wrap" id="edit_source_warehouse_wrap" style="display:none;">
                     <label class="flight-modal-label" for="edit_source_warehouse_id">Склад отправления</label>
-                    <select class="flight-modal-input" id="edit_source_warehouse_id"></select>
+                    <div class="warehouse-input-row">
+                        <select class="flight-modal-input" id="edit_source_warehouse_id"></select>
+                        <button type="button" class="route-action-btn route-action-main warehouse-add-btn" id="add_source_warehouse_btn">+ Новый склад</button>
+                    </div>
                 </div>
                 <div class="flight-warehouse-wrap" id="edit_destination_warehouse_wrap" style="display:none;">
                     <label class="flight-modal-label" for="edit_destination_warehouse_id">Склад назначения</label>
-                    <select class="flight-modal-input" id="edit_destination_warehouse_id"></select>
+                    <div class="warehouse-input-row">
+                        <select class="flight-modal-input" id="edit_destination_warehouse_id"></select>
+                        <button type="button" class="route-action-btn route-action-main warehouse-add-btn" id="add_destination_warehouse_btn">+ Новый склад</button>
+                    </div>
                 </div>
             </div>
             <div class="flight-zayavki-wrap">
@@ -212,6 +218,34 @@
 
         <div class="flight-modal-footer">
             <button class="route-action-btn route-action-main" id="flightEditCancelBtn">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<div class="flight-modal-backdrop" id="warehouseCreateModal" style="display:none;">
+    <div class="flight-modal flight-modal-confirm warehouse-mini-modal">
+        <div class="flight-modal-header">
+            <div class="flight-modal-title">Новый склад</div>
+            <button class="route-action-btn route-icon-btn" id="warehouseCreateCloseTopBtn">&times;</button>
+        </div>
+        <div class="flight-validation-errors" id="warehouseCreateErrors" style="display:none;"></div>
+        <label class="flight-modal-label" for="new_warehouse_name">Название склада *</label>
+        <input class="flight-modal-input" type="text" id="new_warehouse_name">
+        <label class="flight-modal-label" for="new_warehouse_address">Полный адрес *</label>
+        <textarea class="flight-modal-input" id="new_warehouse_address" rows="2"></textarea>
+        <div class="warehouse-mini-grid">
+            <div>
+                <label class="flight-modal-label" for="new_warehouse_latitude">Широта</label>
+                <input class="flight-modal-input" type="number" step="any" id="new_warehouse_latitude">
+            </div>
+            <div>
+                <label class="flight-modal-label" for="new_warehouse_longitude">Долгота</label>
+                <input class="flight-modal-input" type="number" step="any" id="new_warehouse_longitude">
+            </div>
+        </div>
+        <div class="flight-modal-actions">
+            <button class="route-action-btn route-transfer-start-btn route-action-main" id="warehouseCreateSaveBtn">Сохранить</button>
+            <button class="route-action-btn route-action-main" id="warehouseCreateCancelBtn">Отмена</button>
         </div>
     </div>
 </div>

@@ -19,6 +19,7 @@ let requestsCollection, trackersCollection;
 let warehousesCollection;
 let warehousesData = [];
 let warehousesVisible = true;
+let warehouseCreateTargetFieldId = '';
 const TXT = {
     notSpecified: '\u041d\u0435 \u0443\u043a\u0430\u0437\u0430\u043d',
     requests: '\u0417\u0430\u044f\u0432\u043a\u0438',
@@ -1083,6 +1084,133 @@ function buildWarehouseOptions(selectedId, placeholderText) {
         options.push(`<option value="${idStr}"${selected}>${escapeHtml(title)}</option>`);
     });
     return options.join('');
+}
+
+function openWarehouseCreateModal(targetFieldId) {
+    warehouseCreateTargetFieldId = String(targetFieldId || '').trim();
+    const modal = document.getElementById('warehouseCreateModal');
+    if (!modal) return;
+    const errors = document.getElementById('warehouseCreateErrors');
+    const nameInput = document.getElementById('new_warehouse_name');
+    const addressInput = document.getElementById('new_warehouse_address');
+    const latInput = document.getElementById('new_warehouse_latitude');
+    const lonInput = document.getElementById('new_warehouse_longitude');
+    if (errors) {
+        errors.style.display = 'none';
+        errors.innerHTML = '';
+    }
+    if (nameInput) nameInput.value = '';
+    if (addressInput) addressInput.value = '';
+    if (latInput) latInput.value = '';
+    if (lonInput) lonInput.value = '';
+    modal.style.display = 'flex';
+    if (nameInput) setTimeout(() => nameInput.focus(), 0);
+}
+
+function closeWarehouseCreateModal() {
+    const modal = document.getElementById('warehouseCreateModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function saveWarehouseFromModal() {
+    const errors = document.getElementById('warehouseCreateErrors');
+    const nameInput = document.getElementById('new_warehouse_name');
+    const addressInput = document.getElementById('new_warehouse_address');
+    const latInput = document.getElementById('new_warehouse_latitude');
+    const lonInput = document.getElementById('new_warehouse_longitude');
+    const saveBtn = document.getElementById('warehouseCreateSaveBtn');
+
+    const name = String(nameInput?.value || '').trim();
+    const fullAddress = String(addressInput?.value || '').trim();
+    const latitudeRaw = String(latInput?.value || '').trim();
+    const longitudeRaw = String(lonInput?.value || '').trim();
+
+    if (errors) {
+        errors.style.display = 'none';
+        errors.innerHTML = '';
+    }
+
+    if (!name || !fullAddress) {
+        if (errors) {
+            errors.style.display = 'block';
+            errors.textContent = 'Заполните обязательные поля: название и полный адрес склада.';
+        }
+        return;
+    }
+
+    const payload = {
+        name,
+        full_address: fullAddress,
+        latitude: latitudeRaw === '' ? null : Number(latitudeRaw),
+        longitude: longitudeRaw === '' ? null : Number(longitudeRaw)
+    };
+
+    if (payload.latitude !== null && !Number.isFinite(payload.latitude)) {
+        if (errors) {
+            errors.style.display = 'block';
+            errors.textContent = 'Некорректная широта.';
+        }
+        return;
+    }
+    if (payload.longitude !== null && !Number.isFinite(payload.longitude)) {
+        if (errors) {
+            errors.style.display = 'block';
+            errors.textContent = 'Некорректная долгота.';
+        }
+        return;
+    }
+
+    const originalText = saveBtn ? saveBtn.textContent : '';
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = UI.msgSaving;
+    }
+
+    try {
+        const response = await fetch('map_files/save_warehouse.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok || !data || !data.success || !data.warehouse || !data.warehouse.id) {
+            if (errors) {
+                errors.style.display = 'block';
+                errors.textContent = (data && data.message) ? data.message : 'Не удалось сохранить склад.';
+            }
+            return;
+        }
+
+        const newWarehouseId = String(data.warehouse.id);
+        await loadWarehouses();
+        const sourceSelect = document.getElementById('edit_source_warehouse_id');
+        const destinationSelect = document.getElementById('edit_destination_warehouse_id');
+        const currentSource = sourceSelect ? sourceSelect.value : '';
+        const currentDestination = destinationSelect ? destinationSelect.value : '';
+        if (sourceSelect) {
+            sourceSelect.innerHTML = buildWarehouseOptions(currentSource, 'Выберите склад отправления');
+        }
+        if (destinationSelect) {
+            destinationSelect.innerHTML = buildWarehouseOptions(currentDestination, 'Выберите склад назначения');
+        }
+        const targetSelect = document.getElementById(warehouseCreateTargetFieldId);
+        if (targetSelect) {
+            targetSelect.value = newWarehouseId;
+            targetSelect.dispatchEvent(new Event('input', { bubbles: true }));
+            targetSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        closeWarehouseCreateModal();
+    } catch (e) {
+        if (errors) {
+            errors.style.display = 'block';
+            errors.textContent = 'Ошибка сети при сохранении склада.';
+        }
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = originalText;
+        }
+    }
 }
 
 function syncRouteTypeFieldsVisibility(routeTypeRaw) {
@@ -2160,6 +2288,22 @@ function init() {
     if (createRouteModal) {
         createRouteModal.addEventListener('click', function(event) {
             if (event.target === createRouteModal) closeCreateRouteModal();
+        });
+    }
+    const addSourceWarehouseBtn = document.getElementById('add_source_warehouse_btn');
+    const addDestinationWarehouseBtn = document.getElementById('add_destination_warehouse_btn');
+    if (addSourceWarehouseBtn) addSourceWarehouseBtn.addEventListener('click', () => openWarehouseCreateModal('edit_source_warehouse_id'));
+    if (addDestinationWarehouseBtn) addDestinationWarehouseBtn.addEventListener('click', () => openWarehouseCreateModal('edit_destination_warehouse_id'));
+    const warehouseCreateModal = document.getElementById('warehouseCreateModal');
+    const warehouseCreateSaveBtn = document.getElementById('warehouseCreateSaveBtn');
+    const warehouseCreateCancelBtn = document.getElementById('warehouseCreateCancelBtn');
+    const warehouseCreateCloseTopBtn = document.getElementById('warehouseCreateCloseTopBtn');
+    if (warehouseCreateSaveBtn) warehouseCreateSaveBtn.addEventListener('click', saveWarehouseFromModal);
+    if (warehouseCreateCancelBtn) warehouseCreateCancelBtn.addEventListener('click', closeWarehouseCreateModal);
+    if (warehouseCreateCloseTopBtn) warehouseCreateCloseTopBtn.addEventListener('click', closeWarehouseCreateModal);
+    if (warehouseCreateModal) {
+        warehouseCreateModal.addEventListener('click', function(event) {
+            if (event.target === warehouseCreateModal) closeWarehouseCreateModal();
         });
     }
 

@@ -58,17 +58,18 @@ try {
         }
     }
 
-    if (!isset($map['latitude']) || !isset($map['longitude'])) {
-        out(['success' => true, 'warehouses' => []]);
-    }
+    $hasLat = isset($map['latitude']);
+    $hasLon = isset($map['longitude']);
 
-    $sql = 'SELECT id, ' . quoteIdent($nameColumn) . ' AS name, latitude, longitude';
+    $sql = 'SELECT id, ' . quoteIdent($nameColumn) . ' AS name';
+    $sql .= $hasLat ? ', latitude' : ', NULL AS latitude';
+    $sql .= $hasLon ? ', longitude' : ', NULL AS longitude';
     if ($addressColumn !== null) {
         $sql .= ', ' . quoteIdent($addressColumn) . ' AS address';
     } else {
         $sql .= ', NULL AS address';
     }
-    $sql .= ' FROM warehouses WHERE latitude IS NOT NULL AND longitude IS NOT NULL';
+    $sql .= ' FROM warehouses WHERE 1=1';
 
     if ($activeColumn !== null) {
         if ($activeColumn === 'status') {
@@ -87,9 +88,20 @@ try {
     foreach ((array)$rows as $row) {
         $id = (int)($row['id'] ?? 0);
         if ($id <= 0) continue;
-        $lat = isset($row['latitude']) ? (float)$row['latitude'] : null;
-        $lon = isset($row['longitude']) ? (float)$row['longitude'] : null;
-        if (!is_finite($lat) || !is_finite($lon)) continue;
+        $lat = null;
+        if ($row['latitude'] !== null && $row['latitude'] !== '') {
+            $latParsed = (float)$row['latitude'];
+            if (is_finite($latParsed)) {
+                $lat = $latParsed;
+            }
+        }
+        $lon = null;
+        if ($row['longitude'] !== null && $row['longitude'] !== '') {
+            $lonParsed = (float)$row['longitude'];
+            if (is_finite($lonParsed)) {
+                $lon = $lonParsed;
+            }
+        }
 
         $result[] = [
             'id' => $id,
