@@ -173,14 +173,10 @@ try {
         $driver = compactDriver($driverRaw);
         $count = (int)($row['zayavki_count'] ?? 0);
         $kg = fmtKg((float)($row['sum_tons'] ?? 0));
-        $isSklad = strtoupper(trim((string)($row['unload_type'] ?? 'OO'))) === 'SKLAD';
         $period = fmtDateShort($row['planned_start_date_from'] ?? '') . '–' . fmtDateShort($row['planned_start_date_to'] ?? '');
 
         $lines[] = "#{$id} {$title} | {$manager}";
         $lines[] = "Статус: {$status}";
-        if ($isSklad) {
-            $lines[] = 'Выгрузка: СКЛАД';
-        }
         $routeLine = routeTypeLine($row);
         if ($routeLine !== '') {
             $lines[] = $routeLine;

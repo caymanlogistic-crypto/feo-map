@@ -156,12 +156,6 @@
                 <label class="flight-modal-label" for="edit_zayavki_ids">Список заявок</label>
                 <textarea class="flight-modal-input" id="edit_zayavki_ids" rows="3" placeholder="101,104,105"></textarea>
             </div>
-            <div class="flight-checkbox-wrap">
-                <label class="flight-modal-checkbox">
-                    <input type="checkbox" id="edit_unload_type">
-                    <span id="edit_unload_type_label">Вывоз на временный склад</span>
-                </label>
-            </div>
         </div>
 
         <div class="flight-change-preview" id="flightChangePreview" style="display:none;"></div>

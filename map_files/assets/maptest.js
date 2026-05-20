@@ -111,10 +111,7 @@ UI.msgSaveValidationTitle = '\u0414\u043b\u044f \u0441\u043e\u0445\u0440\u0430\u
 UI.msgChooseManagerForRoute = '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430 \u0434\u043b\u044f \u043f\u043b\u0430\u043d\u0438\u0440\u0443\u0435\u043c\u043e\u0433\u043e \u0440\u0435\u0439\u0441\u0430.';
 UI.msgChooseManagerOption = '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430';
 UI.msgCreateRouteTitleRequired = '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u0430 \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u0431\u044b\u0442\u044c \u043f\u0443\u0441\u0442\u044b\u043c';
-UI.labelUnloadType = '\u0422\u0438\u043f \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0438';
-UI.unloadTypeOO = '\u041e\u041e';
-UI.unloadTypeSklad = '\u0421\u041a\u041b\u0410\u0414';
-UI.skladCompactSuffix = '\u0421\u041a\u041b\u0410\u0414';
+UI.labelRouteType = '\u0422\u0438\u043f \u0440\u0435\u0439\u0441\u0430';
 
 // === TRACKER DATA FROM PHP BOOTSTRAP ===
 const mapBootstrap = (typeof window !== 'undefined' && window.MAP_BOOTSTRAP && typeof window.MAP_BOOTSTRAP === 'object')
@@ -402,12 +399,20 @@ function resolveUnloadTypeByRouteType(routeType) {
     return normalizeRouteType(routeType, 'OO') === 'generator_to_utilizer' ? 'OO' : 'SKLAD';
 }
 
-function getUnloadTypeLabel(value) {
-    return normalizeUnloadType(value) === 'SKLAD' ? UI.unloadTypeSklad : UI.unloadTypeOO;
+function getRouteTypeLabel(routeTypeRaw, unloadTypeRaw = 'OO') {
+    const routeType = normalizeRouteType(routeTypeRaw, unloadTypeRaw);
+    if (routeType === 'generator_to_warehouse') return 'Отходообразователь → Склад';
+    if (routeType === 'warehouse_to_warehouse') return 'Склад → Склад';
+    if (routeType === 'warehouse_to_utilizer') return 'Склад → Утилизатор';
+    return 'Отходообразователь → Утилизатор';
 }
 
-function getUnloadTypeCompactSuffix(value) {
-    return normalizeUnloadType(value) === 'SKLAD' ? `${UI.bullet}${UI.skladCompactSuffix}` : '';
+function getRouteTypeCompactSuffix(routeTypeRaw, unloadTypeRaw = 'OO') {
+    const routeType = normalizeRouteType(routeTypeRaw, unloadTypeRaw);
+    if (routeType === 'generator_to_warehouse') return `${UI.bullet}<strong>О \u2192 С</strong>`;
+    if (routeType === 'warehouse_to_warehouse') return `${UI.bullet}<strong>С \u2192 С</strong>`;
+    if (routeType === 'warehouse_to_utilizer') return `${UI.bullet}<strong>С \u2192 У</strong>`;
+    return '';
 }
 
 function updateFlightModalSummary() {
@@ -428,7 +433,6 @@ function updateFlightModalSummary() {
     const driverSelect = document.getElementById('edit_driver_id');
     const driverText = driverSelect?.selectedOptions?.[0]?.textContent || UI.driverMissing;
     const routeTypeValue = document.getElementById('edit_route_type')?.value || currentEditingMeta.route_type || '';
-    const unloadType = resolveUnloadTypeByRouteType(routeTypeValue);
 
     let totalTons = 0;
     if (Array.isArray(groupsData)) {
@@ -454,7 +458,7 @@ function updateFlightModalSummary() {
         <div><strong>${TXT.requestsCount}:</strong> ${uniqueIds.length}</div>
         <div><strong>${TXT.totalWeight}:</strong> ${totalKg.toLocaleString('ru-RU')} ${UI.kg}</div>
         <div><strong>${UI.modalCost}:</strong> ${formatRouteCost(costVal)} \u20BD</div>
-        <div><strong>${UI.labelUnloadType}:</strong> ${getUnloadTypeLabel(unloadType)}</div>
+        <div><strong>${UI.labelRouteType}:</strong> ${escapeHtml(getRouteTypeLabel(routeTypeValue, currentEditingMeta.unload_type || 'OO'))}</div>
         <div><strong>${UI.labelDriver}:</strong> ${escapeHtml(formatDriverCompactLabel(driverText))}</div>
         <div><strong>${TXT.routeStatus}:</strong> <span class="${statusClass}">${escapeHtml(statusLabel)}</span></div>
         <div><strong>\u041f\u0435\u0440\u0438\u043e\u0434:</strong> ${escapeHtml(periodText)}</div>
@@ -470,7 +474,7 @@ function buildFoundChangePreview(meta) {
     const zayavkiVal = document.getElementById('edit_zayavki_ids')?.value || '';
     const driverSelect = document.getElementById('edit_driver_id');
     const currentDriverText = driverSelect?.selectedOptions?.[0]?.textContent || UI.driverMissing;
-    const currentUnloadType = document.getElementById('edit_unload_type')?.checked ? 'SKLAD' : 'OO';
+    const currentRouteType = normalizeRouteType(document.getElementById('edit_route_type')?.value || '', meta.unload_type || 'OO');
     const previousDriver = meta.driver_label || UI.driverMissing;
     const previousDates = isStarted
         ? `${meta.actual_start_date || TXT.notSpecified} ${UI.emDash} ${meta.actual_end_date || TXT.notSpecified}`
@@ -482,7 +486,7 @@ function buildFoundChangePreview(meta) {
     const currentIdsArr = zayavkiVal.split(',').map(v => v.trim()).filter(Boolean);
     const previousIds = previousIdsArr.join(',');
     const currentIds = currentIdsArr.join(',');
-    const previousUnloadType = normalizeUnloadType(meta.unload_type || 'OO');
+    const previousRouteType = normalizeRouteType(meta.route_type || '', meta.unload_type || 'OO');
 
     const changes = [];
     if (formatDriverCompactLabel(previousDriver) !== formatDriverCompactLabel(currentDriverText)) {
@@ -508,8 +512,8 @@ function buildFoundChangePreview(meta) {
             changes.push(`<div><strong>\u0414\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043d\u044b\u0435 \u0437\u0430\u044f\u0432\u043a\u0438:</strong> ${escapeHtml(added.join(','))}</div>`);
         }
     }
-    if (previousUnloadType !== currentUnloadType) {
-        changes.push(`<div><strong>${UI.labelUnloadType}:</strong> ${getUnloadTypeLabel(previousUnloadType)} ${UI.emDash}&gt; ${getUnloadTypeLabel(currentUnloadType)}</div>`);
+    if (previousRouteType !== currentRouteType) {
+        changes.push(`<div><strong>${UI.labelRouteType}:</strong> ${escapeHtml(getRouteTypeLabel(previousRouteType, meta.unload_type || 'OO'))} ${UI.emDash}&gt; ${escapeHtml(getRouteTypeLabel(currentRouteType, resolveUnloadTypeByRouteType(currentRouteType)))}</div>`);
     }
     if (changes.length === 0) return '';
     return `<div><strong>\u0411\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0432 MAX:</strong></div>${changes.join('')}`;
@@ -971,7 +975,7 @@ function clearFlightValidationErrors() {
         wrap.style.display = 'none';
         wrap.innerHTML = '';
     }
-    ['edit_comment', 'edit_driver_id', 'edit_planned_start_date_from', 'edit_planned_start_date_to', 'edit_actual_start_date', 'edit_actual_end_date', 'edit_cost', 'edit_zayavki_ids', 'edit_unload_type', 'edit_route_type', 'edit_source_warehouse_id', 'edit_destination_warehouse_id']
+    ['edit_comment', 'edit_driver_id', 'edit_planned_start_date_from', 'edit_planned_start_date_to', 'edit_actual_start_date', 'edit_actual_end_date', 'edit_cost', 'edit_zayavki_ids', 'edit_route_type', 'edit_source_warehouse_id', 'edit_destination_warehouse_id']
         .forEach((id) => {
             const el = document.getElementById(id);
             if (el) el.classList.remove('field-error');
@@ -1070,14 +1074,12 @@ function syncRouteTypeFieldsVisibility(routeTypeRaw) {
     const routeType = normalizeRouteType(routeTypeRaw, 'OO');
     const sourceWrap = document.getElementById('edit_source_warehouse_wrap');
     const destWrap = document.getElementById('edit_destination_warehouse_wrap');
-    const unloadTypeInput = document.getElementById('edit_unload_type');
     const routeTypeInput = document.getElementById('edit_route_type');
     const sourceWarehouseInput = document.getElementById('edit_source_warehouse_id');
     const destinationWarehouseInput = document.getElementById('edit_destination_warehouse_id');
 
     if (sourceWrap) sourceWrap.style.display = (routeType === 'warehouse_to_warehouse' || routeType === 'warehouse_to_utilizer') ? 'block' : 'none';
     if (destWrap) destWrap.style.display = (routeType === 'generator_to_warehouse' || routeType === 'warehouse_to_warehouse') ? 'block' : 'none';
-    if (unloadTypeInput) unloadTypeInput.checked = resolveUnloadTypeByRouteType(routeType) === 'SKLAD';
 }
 
 function openFlightEditModal(routeId, source) {
@@ -1105,7 +1107,6 @@ function openFlightEditModal(routeId, source) {
     const costInput = document.getElementById('edit_cost');
     const commentInput = document.getElementById('edit_comment');
     const zayavkiInput = document.getElementById('edit_zayavki_ids');
-    const unloadTypeInput = document.getElementById('edit_unload_type');
     const routeTypeInput = document.getElementById('edit_route_type');
     const sourceWarehouseInput = document.getElementById('edit_source_warehouse_id');
     const destinationWarehouseInput = document.getElementById('edit_destination_warehouse_id');
@@ -1142,7 +1143,6 @@ function openFlightEditModal(routeId, source) {
     if (zayavkiInput) zayavkiInput.value = String(meta.zayavki_ids || '');
     const initialRouteType = normalizeRouteType(meta.route_type || '', meta.unload_type || 'OO');
     if (routeTypeInput) routeTypeInput.value = initialRouteType;
-    if (unloadTypeInput) unloadTypeInput.checked = resolveUnloadTypeByRouteType(initialRouteType) === 'SKLAD';
     if (sourceWarehouseInput) {
         sourceWarehouseInput.innerHTML = buildWarehouseOptions(meta.source_warehouse_id, 'Выберите склад отправления');
     }
@@ -1233,7 +1233,6 @@ function setFlightEditReadOnlyMode(isReadOnly) {
         'edit_actual_end_date',
         'edit_cost',
         'edit_zayavki_ids',
-        'edit_unload_type',
         'edit_route_type',
         'edit_source_warehouse_id',
         'edit_destination_warehouse_id'
@@ -1281,7 +1280,6 @@ function applySafeModalText() {
         edit_actual_end_date: '\u041f\u043e',
         edit_driver_id: UI.modalDriver,
         edit_cost: UI.modalCost,
-        edit_unload_type: '\u0412\u044b\u0432\u043e\u0437 \u043d\u0430 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u0439 \u0441\u043a\u043b\u0430\u0434',
         start_actual_start_date: UI.modalStartDate
     };
     Object.keys(labels).forEach((id) => {
@@ -1297,8 +1295,6 @@ function applySafeModalText() {
     if (startTitle) startTitle.textContent = UI.modalStartTitle;
     const transitionDateLabel = document.getElementById('transitionConfirmDateLabel');
     if (transitionDateLabel) transitionDateLabel.textContent = UI.modalStartDate;
-    const unloadLabel = document.getElementById('edit_unload_type_label');
-    if (unloadLabel) unloadLabel.textContent = '\u0412\u044b\u0432\u043e\u0437 \u043d\u0430 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u0439 \u0441\u043a\u043b\u0430\u0434';
 
     const saveBtn = document.getElementById('flightEditSaveBtn');
     const cancelBtn = document.getElementById('flightEditCancelBtn');
@@ -1385,7 +1381,6 @@ async function saveFlightEdit() {
     const costInput = document.getElementById('edit_cost');
     const commentInput = document.getElementById('edit_comment');
     const zayavkiInput = document.getElementById('edit_zayavki_ids');
-    const unloadTypeInput = document.getElementById('edit_unload_type');
     const actualFromInput = document.getElementById('edit_actual_start_date');
     const actualToInput = document.getElementById('edit_actual_end_date');
     const statusInput = document.getElementById('edit_current_status');
@@ -1409,7 +1404,7 @@ async function saveFlightEdit() {
         return;
     }
 
-    const routeType = normalizeRouteType(routeTypeInput ? routeTypeInput.value : (currentEditingMeta?.route_type || ''), unloadTypeInput && unloadTypeInput.checked ? 'SKLAD' : 'OO');
+    const routeType = normalizeRouteType(routeTypeInput ? routeTypeInput.value : (currentEditingMeta?.route_type || ''), currentEditingMeta?.unload_type || 'OO');
     const payload = {
         id: flightId,
         driver_id: driverId,
@@ -1488,7 +1483,7 @@ async function transferPlannedToFound(routeId) {
         const destinationWarehouseInput = document.getElementById('edit_destination_warehouse_id');
         const normalizedRouteType = normalizeRouteType(
             routeTypeInput ? routeTypeInput.value : (meta.route_type || ''),
-            document.getElementById('edit_unload_type')?.checked ? 'SKLAD' : (meta.unload_type || 'OO')
+            meta.unload_type || 'OO'
         );
         const result = await postRouteAction('transition', {
             id: Number(routeId),
@@ -1772,7 +1767,7 @@ function loadPlannedRoutes() {
                 const driverLine = buildRouteCardDriverLine(routeForDate, driverLabel);
                 const routeCost = (r.cost !== null && r.cost !== undefined && r.cost !== '') ? r.cost : (routeMeta.cost ?? null);
                 const costPart = routeCost ? (UI.bullet + parseFloat(routeCost).toLocaleString('ru-RU') + ' \u20BD') : '';
-                const unloadPart = getUnloadTypeCompactSuffix(r.unload_type || routeMeta.unload_type);
+                const unloadPart = getRouteTypeCompactSuffix(r.route_type || routeMeta.route_type, r.unload_type || routeMeta.unload_type);
                 return `
                     <div class="route-item route-item-planned" onclick="selectRoute('${r.zayavki_ids}', '${routeCost || ''}', this)" data-route-id="${r.id}" data-route-editable="1">
                         <div class="route-head"><div class="route-name">#${r.id} ${resolveRouteTitle(r) || (UI.routePrefix + r.id)}</div>${buildRouteManageMenu(r.id, 'planned')}</div>
@@ -1800,7 +1795,7 @@ function loadPlannedRoutes() {
                     const totalKg = Number(r.total_kg || 0);
                     const routeCost = (r.cost !== null && r.cost !== undefined && r.cost !== '') ? r.cost : null;
                     const costPart = routeCost ? (UI.bullet + parseFloat(routeCost).toLocaleString('ru-RU') + ' \u20BD') : '';
-                    const unloadPart = getUnloadTypeCompactSuffix(r.unload_type);
+                    const unloadPart = getRouteTypeCompactSuffix(r.route_type, r.unload_type);
                     const driverLabel = formatDriverCompactLabel(r.driver_label || UI.driverMissing);
                     const routeForDate = { ...r, status: 'found' };
                     const driverLine = buildRouteCardDriverLine(routeForDate, driverLabel);
@@ -1826,7 +1821,7 @@ function loadPlannedRoutes() {
                     const totalKg = Number(r.total_kg || 0);
                     const routeCost = (r.cost !== null && r.cost !== undefined && r.cost !== '') ? r.cost : null;
                     const costPart = routeCost ? (UI.bullet + parseFloat(routeCost).toLocaleString('ru-RU') + ' \u20BD') : '';
-                    const unloadPart = getUnloadTypeCompactSuffix(r.unload_type);
+                    const unloadPart = getRouteTypeCompactSuffix(r.route_type, r.unload_type);
                     const driverLabel = formatDriverCompactLabel(r.driver_label || UI.driverMissing);
                     const routeForDate = { ...r, status: 'started' };
                     const driverLine = buildRouteCardDriverLine(routeForDate, driverLabel);
@@ -2211,7 +2206,7 @@ function init() {
     const startCancelBtn = document.getElementById('startCancelBtn');
     if (startConfirmBtn) startConfirmBtn.addEventListener('click', confirmTransferToStarted);
     if (startCancelBtn) startCancelBtn.addEventListener('click', closeStartConfirmModal);
-    ['edit_driver_id', 'edit_planned_start_date_from', 'edit_planned_start_date_to', 'edit_actual_start_date', 'edit_actual_end_date', 'edit_cost', 'edit_zayavki_ids', 'edit_unload_type', 'edit_route_type', 'edit_source_warehouse_id', 'edit_destination_warehouse_id'].forEach((id) => {
+    ['edit_driver_id', 'edit_planned_start_date_from', 'edit_planned_start_date_to', 'edit_actual_start_date', 'edit_actual_end_date', 'edit_cost', 'edit_zayavki_ids', 'edit_route_type', 'edit_source_warehouse_id', 'edit_destination_warehouse_id'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('input', () => {

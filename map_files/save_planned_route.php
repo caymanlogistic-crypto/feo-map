@@ -339,11 +339,6 @@ function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTrans
     ], []];
 }
 
-function formatUnloadTypeRu(?string $type): string
-{
-    return strtoupper(trim((string)$type)) === 'SKLAD' ? 'СКЛАД' : 'ОО';
-}
-
 function formatDateShortRu($value): string
 {
     $v = trim((string)$value);
@@ -559,18 +554,12 @@ function buildCompactMetaLine(array $flight): string
 {
     $count = (int)($flight['_count'] ?? 0);
     $kg = formatKgFromTons((float)($flight['_sum_tons'] ?? 0));
-    $meta = "{$count} заяв. • {$kg}";
-    if (strtoupper(trim((string)($flight['unload_type'] ?? 'OO'))) === 'SKLAD') {
-        $meta .= " • СКЛАД";
-    }
-    return $meta;
+    return "{$count} заяв. • {$kg}";
 }
 
 function buildUnloadLine(array $flight): string
 {
-    return strtoupper(trim((string)($flight['unload_type'] ?? 'OO'))) === 'SKLAD'
-        ? 'Выгрузка: СКЛАД'
-        : '';
+    return '';
 }
 
 function buildRouteTypeLine(PDO $pdo, array $flight): string
@@ -742,9 +731,6 @@ function buildFoundDiffMessage(PDO $pdo, array $before, array $after, int $fligh
         $changes[] = 'Вес: ' . formatKgFromTons((float)$before['_sum_tons']) . ' → ' . formatKgFromTons((float)$after['_sum_tons']);
     }
 
-    if ((string)($before['unload_type'] ?? 'OO') !== (string)($after['unload_type'] ?? 'OO')) {
-        $changes[] = 'Тип выгрузки: ' . formatUnloadTypeRu($before['unload_type'] ?? 'OO') . ' → ' . formatUnloadTypeRu($after['unload_type'] ?? 'OO');
-    }
     if (trim((string)($before['comment'] ?? '')) !== trim((string)($after['comment'] ?? ''))) {
         $changes[] = 'Название: ' . buildRouteTitle($before, $flightId) . ' → ' . buildRouteTitle($after, $flightId);
     }
@@ -799,9 +785,6 @@ function buildStartedDiffMessage(PDO $pdo, array $before, array $after, int $fli
     }
     if (trim((string)($before['comment'] ?? '')) !== trim((string)($after['comment'] ?? ''))) {
         $changes[] = 'Название: ' . buildRouteTitle($before, $flightId) . ' → ' . buildRouteTitle($after, $flightId);
-    }
-    if ((string)($before['unload_type'] ?? 'OO') !== (string)($after['unload_type'] ?? 'OO')) {
-        $changes[] = 'Тип выгрузки: ' . formatUnloadTypeRu($before['unload_type'] ?? 'OO') . ' → ' . formatUnloadTypeRu($after['unload_type'] ?? 'OO');
     }
 
     if (empty($changes)) {
