@@ -233,6 +233,10 @@
         <input class="flight-modal-input" type="text" id="new_warehouse_name">
         <label class="flight-modal-label" for="new_warehouse_address">Полный адрес *</label>
         <textarea class="flight-modal-input" id="new_warehouse_address" rows="2"></textarea>
+        <div class="warehouse-geocode-row">
+            <button class="route-action-btn route-edit-btn route-action-main" id="warehouseGeocodeBtn">Определить координаты</button>
+            <div class="warehouse-geocode-note" id="warehouseGeocodeNote" style="display:none;"></div>
+        </div>
         <div class="warehouse-mini-grid">
             <div>
                 <label class="flight-modal-label" for="new_warehouse_latitude">Широта</label>

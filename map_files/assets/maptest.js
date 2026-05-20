@@ -20,6 +20,7 @@ let warehousesCollection;
 let warehousesData = [];
 let warehousesVisible = true;
 let warehouseCreateTargetFieldId = '';
+let warehouseAddressGeocoded = false;
 const TXT = {
     notSpecified: '\u041d\u0435 \u0443\u043a\u0430\u0437\u0430\u043d',
     requests: '\u0417\u0430\u044f\u0432\u043a\u0438',
@@ -1095,14 +1096,20 @@ function openWarehouseCreateModal(targetFieldId) {
     const addressInput = document.getElementById('new_warehouse_address');
     const latInput = document.getElementById('new_warehouse_latitude');
     const lonInput = document.getElementById('new_warehouse_longitude');
+    const note = document.getElementById('warehouseGeocodeNote');
     if (errors) {
         errors.style.display = 'none';
         errors.innerHTML = '';
+    }
+    if (note) {
+        note.style.display = 'none';
+        note.textContent = '';
     }
     if (nameInput) nameInput.value = '';
     if (addressInput) addressInput.value = '';
     if (latInput) latInput.value = '';
     if (lonInput) lonInput.value = '';
+    warehouseAddressGeocoded = false;
     modal.style.display = 'flex';
     if (nameInput) setTimeout(() => nameInput.focus(), 0);
 }
@@ -1209,6 +1216,74 @@ async function saveWarehouseFromModal() {
         if (saveBtn) {
             saveBtn.disabled = false;
             saveBtn.textContent = originalText;
+        }
+    }
+}
+
+async function geocodeWarehouseAddress() {
+    const errors = document.getElementById('warehouseCreateErrors');
+    const note = document.getElementById('warehouseGeocodeNote');
+    const addressInput = document.getElementById('new_warehouse_address');
+    const latInput = document.getElementById('new_warehouse_latitude');
+    const lonInput = document.getElementById('new_warehouse_longitude');
+    const geocodeBtn = document.getElementById('warehouseGeocodeBtn');
+    const address = String(addressInput?.value || '').trim();
+
+    if (errors) {
+        errors.style.display = 'none';
+        errors.innerHTML = '';
+    }
+    if (note) {
+        note.style.display = 'none';
+        note.textContent = '';
+    }
+
+    if (!address) {
+        if (errors) {
+            errors.style.display = 'block';
+            errors.textContent = 'Введите полный адрес для определения координат.';
+        }
+        if (addressInput) addressInput.focus();
+        return;
+    }
+
+    const prevText = geocodeBtn ? geocodeBtn.textContent : '';
+    if (geocodeBtn) {
+        geocodeBtn.disabled = true;
+        geocodeBtn.textContent = 'Определение...';
+    }
+
+    try {
+        const response = await fetch('map_files/geocode_address.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address })
+        });
+        const data = await response.json();
+        if (!response.ok || !data || !data.success) {
+            if (errors) {
+                errors.style.display = 'block';
+                errors.textContent = (data && data.error) ? data.error : 'Не удалось определить координаты.';
+            }
+            return;
+        }
+        if (addressInput) addressInput.value = String(data.address || address);
+        if (latInput) latInput.value = String(data.latitude ?? '');
+        if (lonInput) lonInput.value = String(data.longitude ?? '');
+        warehouseAddressGeocoded = true;
+        if (note) {
+            note.style.display = 'block';
+            note.textContent = 'Координаты определены.';
+        }
+    } catch (e) {
+        if (errors) {
+            errors.style.display = 'block';
+            errors.textContent = 'Ошибка сети при определении координат.';
+        }
+    } finally {
+        if (geocodeBtn) {
+            geocodeBtn.disabled = false;
+            geocodeBtn.textContent = prevText;
         }
     }
 }
@@ -2298,9 +2373,21 @@ function init() {
     const warehouseCreateSaveBtn = document.getElementById('warehouseCreateSaveBtn');
     const warehouseCreateCancelBtn = document.getElementById('warehouseCreateCancelBtn');
     const warehouseCreateCloseTopBtn = document.getElementById('warehouseCreateCloseTopBtn');
+    const warehouseGeocodeBtn = document.getElementById('warehouseGeocodeBtn');
+    const warehouseAddressInput = document.getElementById('new_warehouse_address');
+    const warehouseGeocodeNote = document.getElementById('warehouseGeocodeNote');
     if (warehouseCreateSaveBtn) warehouseCreateSaveBtn.addEventListener('click', saveWarehouseFromModal);
     if (warehouseCreateCancelBtn) warehouseCreateCancelBtn.addEventListener('click', closeWarehouseCreateModal);
     if (warehouseCreateCloseTopBtn) warehouseCreateCloseTopBtn.addEventListener('click', closeWarehouseCreateModal);
+    if (warehouseGeocodeBtn) warehouseGeocodeBtn.addEventListener('click', geocodeWarehouseAddress);
+    if (warehouseAddressInput) {
+        warehouseAddressInput.addEventListener('input', () => {
+            if (warehouseAddressGeocoded && warehouseGeocodeNote) {
+                warehouseGeocodeNote.style.display = 'block';
+                warehouseGeocodeNote.textContent = 'Адрес изменён, координаты лучше определить заново.';
+            }
+        });
+    }
     if (warehouseCreateModal) {
         warehouseCreateModal.addEventListener('click', function(event) {
             if (event.target === warehouseCreateModal) closeWarehouseCreateModal();
