@@ -157,11 +157,6 @@
 
         <div class="workflow-section workflow-card workflow-card-lifecycle" id="workflowLifecycleSection">
 
-            <div class="workflow-action workflow-action-info" id="workflowStartedInfoWrap">
-                <div class="workflow-subtitle">Рейс выполняется</div>
-                <div class="workflow-desc">Контроль перевозки активен. Изменение параметров рейса недоступно.</div>
-            </div>
-
             <div class="workflow-action workflow-action-primary workflow-action-found" id="workflowToFoundWrap">
                 <div class="workflow-subtitle">Сформировать рейс</div>
                 <div class="workflow-desc">После перевода рейс считается согласованным. Будут зафиксированы водитель, даты, стоимость и заявки. В MAX отправится уведомление, начнётся подготовка транспортных документов.</div>
@@ -180,15 +175,15 @@
                 <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditBackToPlannedBtn">Вернуть в планируемые</button>
             </div>
 
+            <div class="workflow-action workflow-action-primary workflow-action-completed" id="workflowToCompletedWrap">
+                <div class="workflow-subtitle">Завершение рейса</div>
+                <div class="workflow-desc">После завершения рейс будет переведен в архив перевозок.</div>
+                <button class="route-action-btn route-transfer-start-btn route-action-main" id="flightEditToCompletedBtn">Перевести в Груз сдан</button>
+            </div>
             <div class="workflow-action workflow-action-secondary workflow-action-danger-soft" id="workflowBackToFoundWrap">
                 <div class="workflow-subtitle">Приостановить выполнение</div>
                 <div class="workflow-desc">Рейс будет возвращён из выполнения в статус «Рейс сформирован». В MAX будет отправлено уведомление.</div>
                 <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditBackToFoundBtn">Вернуть в сформированные</button>
-            </div>
-            <div class="workflow-action workflow-action-primary workflow-action-completed" id="workflowToCompletedWrap">
-                <div class="workflow-subtitle">Завершение рейса</div>
-                <div class="workflow-desc">После завершения рейс будет переведен в архив перевозок.</div>
-                <button class="route-action-btn route-transfer-start-btn route-action-main" id="flightEditToCompletedBtn">Завершить рейс</button>
             </div>
         </div>
 

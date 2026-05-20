@@ -74,6 +74,21 @@ function mapGetDirectMaxConfig(): array
     ];
 }
 
+function normalizeUtf8Message(string $text): string
+{
+    $message = preg_replace('/^\xEF\xBB\xBF/u', '', $text ?? '');
+    if (!is_string($message)) {
+        $message = (string)$text;
+    }
+    if (function_exists('mb_check_encoding') && !mb_check_encoding($message, 'UTF-8')) {
+        $converted = @mb_convert_encoding($message, 'UTF-8', 'Windows-1251');
+        if (is_string($converted) && $converted !== '') {
+            $message = $converted;
+        }
+    }
+    return preg_replace('/^\xEF\xBB\xBF/u', '', $message);
+}
+
 function sendMaxNotify(string $message, string $format = 'markdown'): array
 {
     $api = mapGetDirectMaxConfig();
@@ -86,7 +101,7 @@ function sendMaxNotify(string $message, string $format = 'markdown'): array
         return ['success' => false, 'error' => 'MAX notify API config is not configured'];
     }
 
-    $payload = ['text' => $message];
+    $payload = ['text' => normalizeUtf8Message($message)];
     $normalizedFormat = strtolower(trim($format));
     if ($normalizedFormat === 'markdown' || $normalizedFormat === 'html') {
         $payload['format'] = $normalizedFormat;
@@ -108,7 +123,6 @@ function sendMaxNotify(string $message, string $format = 'markdown'): array
     $resp = curl_exec($ch);
     $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curlErr = (string)curl_error($ch);
-    curl_close($ch);
 
     $ok = ($resp !== false && $httpCode >= 200 && $httpCode < 300);
     if (!$ok) {
