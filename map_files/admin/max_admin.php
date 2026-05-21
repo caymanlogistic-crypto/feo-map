@@ -229,7 +229,7 @@ if (isAuthed() && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $demo = demoContext();
             $rendered = mapAdminRenderTemplate($templateText, $demo);
             $res = sendMaxNotify($rendered, 'markdown', [
-                'event_key' => 'test_message',
+                'event_key' => '',
                 'context' => ['message' => $rendered],
             ]);
             if (empty($res['success'])) {
@@ -302,7 +302,7 @@ th{background:#f8fafc}.mono{font-family:Consolas,monospace;white-space:pre-wrap}
 </div>
 
 <div class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Шаблоны событий</h3><form method="post"><input type="hidden" name="action" value="seed_templates"><button class="btn" type="submit">Обновить default шаблоны из production</button></form></div>
-<?php foreach($templates as $t): $eventKey = (string)($t['event_key'] ?? ''); $desc = trim((string)($t['description'] ?? '')); if ($desc === '' && isset($catalog[$eventKey]['description'])) { $desc = $catalog[$eventKey]['description']; } ?>
+<?php foreach($templates as $t): $eventKey = (string)($t['event_key'] ?? ''); $desc = trim((string)($t['description'] ?? '')); if ($desc === '' && isset($catalog[$eventKey]['description'])) { $desc = $catalog[$eventKey]['description']; } $previewText = mapAdminRenderTemplate((string)($t['template_text'] ?? ''), demoContext()); ?>
 <form method="post" class="card" style="margin:8px 0;padding:10px;background:#f8fafc">
 <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
 <div class="hint"><?= h($desc !== '' ? $desc : ('Отправляется при событии: ' . $eventKey)) ?></div>
@@ -311,8 +311,11 @@ th{background:#f8fafc}.mono{font-family:Consolas,monospace;white-space:pre-wrap}
 <div style="height:6px"></div>
 <textarea name="template_text"><?= h($t['template_text']) ?></textarea>
 <div class="small">Плейсхолдеры: {route_id}, {route_title}, {driver}, {planned_range}, {actual_start_short}, {meta_line}, {manager}, {route_type_line}, {requests_count}, {weight}, {message}</div>
+<div class="small">Форматирование MAX (markdown): <code>**жирный текст**</code>, переносы строк, markdown-цитаты через <code>&gt; текст</code>.</div>
 <div style="height:6px"></div>
 <input type="text" name="description" value="<?= h($desc) ?>">
+<div style="height:6px"></div>
+<div class="hint"><strong>Preview (demo-data):</strong><br><span class="mono"><?= nl2br(h($previewText)) ?></span></div>
 <div style="height:6px"></div>
 <div class="row">
 <button class="btn" type="submit" name="action" value="save_template">Сохранить шаблон</button>
