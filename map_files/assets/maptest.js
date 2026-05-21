@@ -153,6 +153,23 @@ let currentManagers = [];
 UI.chooseDriver = uiText('driver.select.placeholder', UI.chooseDriver);
 UI.msgPickAtLeastOneRequest = uiText('validation.pick_one_request', UI.msgPickAtLeastOneRequest);
 UI.msgDeleteRouteConfirm = uiText('confirm.delete_route', UI.msgDeleteRouteConfirm);
+UI.msgSelectRouteToEdit = uiText('route.edit.select_required', 'Выберите рейс для редактирования.');
+UI.msgDriverMustPickFromList = uiText('driver.validation.must_select_from_list', 'Выберите водителя из списка.');
+UI.msgDriverNameInvalid = uiText('driver.validation.full_name', 'Введите ФИО полностью: Фамилия Имя Отчество');
+UI.msgDriverPlateInvalid = uiText('driver.validation.plate', 'Введите госномер в формате А123АА45 или А123АА456');
+UI.msgDriverNotFound = uiText('driver.search.not_found', 'Ничего не найдено');
+UI.msgWarehouseRequired = uiText('warehouse.validation.required', 'Заполните обязательные поля: название и полный адрес склада.');
+UI.msgWarehouseLatInvalid = uiText('warehouse.validation.latitude', 'Некорректная широта.');
+UI.msgWarehouseLonInvalid = uiText('warehouse.validation.longitude', 'Некорректная долгота.');
+UI.msgWarehouseSaveFailed = uiText('warehouse.save.failed', 'Не удалось сохранить склад.');
+UI.msgWarehouseSaveNetwork = uiText('warehouse.save.network_error', 'Ошибка сети при сохранении склада.');
+UI.msgWarehouseGeocodeAddressRequired = uiText('warehouse.geocode.address_required', 'Введите полный адрес для определения координат.');
+UI.msgWarehouseGeocodeLoading = uiText('warehouse.geocode.loading', 'Определение...');
+UI.msgWarehouseGeocodeSuccess = uiText('warehouse.geocode.success', 'Координаты определены.');
+UI.msgWarehouseGeocodeNetwork = uiText('warehouse.geocode.network_error', 'Ошибка сети при определении координат.');
+UI.msgWarehouseGeocodeChanged = uiText('warehouse.geocode.changed_after_edit', 'Адрес изменён, координаты лучше определить заново.');
+UI.msgCopied = uiText('common.copied', 'Текст скопирован.');
+UI.msgCopyFailed = uiText('common.copy_failed', 'Не удалось скопировать текст.');
 const MANAGER_STORAGE_KEY = 'map_selected_manager_id';
 let recentActivatedTrackersMap = {};
 const foundRoutesById = {};
@@ -820,7 +837,7 @@ function clearSelection() {
 function openSelectedRouteEditor() {
     const activeRouteEl = document.querySelector('.route-item.active[data-route-editable="1"]');
     if (!activeRouteEl) {
-        alert('Выберите рейс для редактирования.');
+        alert(UI.msgSelectRouteToEdit);
         return;
     }
     const routeId = Number(activeRouteEl.dataset.routeId || 0);
@@ -1171,7 +1188,7 @@ async function saveWarehouseFromModal() {
     if (!name || !fullAddress) {
         if (errors) {
             errors.style.display = 'block';
-            errors.textContent = 'Заполните обязательные поля: название и полный адрес склада.';
+            errors.textContent = UI.msgWarehouseRequired;
         }
         return;
     }
@@ -1186,14 +1203,14 @@ async function saveWarehouseFromModal() {
     if (payload.latitude !== null && !Number.isFinite(payload.latitude)) {
         if (errors) {
             errors.style.display = 'block';
-            errors.textContent = 'Некорректная широта.';
+            errors.textContent = UI.msgWarehouseLatInvalid;
         }
         return;
     }
     if (payload.longitude !== null && !Number.isFinite(payload.longitude)) {
         if (errors) {
             errors.style.display = 'block';
-            errors.textContent = 'Некорректная долгота.';
+            errors.textContent = UI.msgWarehouseLonInvalid;
         }
         return;
     }
@@ -1214,7 +1231,7 @@ async function saveWarehouseFromModal() {
         if (!response.ok || !data || !data.success || !data.warehouse || !data.warehouse.id) {
             if (errors) {
                 errors.style.display = 'block';
-                errors.textContent = (data && data.message) ? data.message : 'Не удалось сохранить склад.';
+                errors.textContent = (data && data.message) ? data.message : UI.msgWarehouseSaveFailed;
             }
             return;
         }
@@ -1241,7 +1258,7 @@ async function saveWarehouseFromModal() {
     } catch (e) {
         if (errors) {
             errors.style.display = 'block';
-            errors.textContent = 'Ошибка сети при сохранении склада.';
+            errors.textContent = UI.msgWarehouseSaveNetwork;
         }
     } finally {
         if (saveBtn) {
@@ -1272,7 +1289,7 @@ async function geocodeWarehouseAddress() {
     if (!address) {
         if (errors) {
             errors.style.display = 'block';
-            errors.textContent = 'Введите полный адрес для определения координат.';
+            errors.textContent = UI.msgWarehouseGeocodeAddressRequired;
         }
         if (addressInput) addressInput.focus();
         return;
@@ -1281,7 +1298,7 @@ async function geocodeWarehouseAddress() {
     const prevText = geocodeBtn ? geocodeBtn.textContent : '';
     if (geocodeBtn) {
         geocodeBtn.disabled = true;
-        geocodeBtn.textContent = 'Определение...';
+        geocodeBtn.textContent = UI.msgWarehouseGeocodeLoading;
     }
 
     try {
@@ -1304,12 +1321,12 @@ async function geocodeWarehouseAddress() {
         warehouseAddressGeocoded = true;
         if (note) {
             note.style.display = 'block';
-            note.textContent = 'Координаты определены.';
+            note.textContent = UI.msgWarehouseGeocodeSuccess;
         }
     } catch (e) {
         if (errors) {
             errors.style.display = 'block';
-            errors.textContent = 'Ошибка сети при определении координат.';
+            errors.textContent = UI.msgWarehouseGeocodeNetwork;
         }
     } finally {
         if (geocodeBtn) {
@@ -1445,7 +1462,7 @@ function renderDriverMenu(query) {
     });
     driverMenuItems = matched;
     if (!matched.length) {
-        menu.innerHTML = '<div class="driver-combobox-item">Ничего не найдено</div>';
+        menu.innerHTML = `<div class="driver-combobox-item">${escapeHtml(UI.msgDriverNotFound)}</div>`;
         return;
     }
     menu.innerHTML = matched.map((driver, idx) =>
@@ -1502,7 +1519,7 @@ function validateDriverComboboxSelection() {
     if (selectedId) return true;
     if (error) {
         error.style.display = 'block';
-        error.textContent = 'Выберите водителя из списка.';
+        error.textContent = UI.msgDriverMustPickFromList;
     }
     return false;
 }
@@ -1621,8 +1638,8 @@ async function saveDriverFromModal() {
     const nameOk = isValidDriverFullName(fullName);
     const plateOk = isValidDriverPlate(vehicleMakePlate);
     const trackerOk = true;
-    setInlineFieldError('new_driver_full_name_error', nameOk ? '' : 'Введите ФИО полностью: Фамилия Имя Отчество');
-    setInlineFieldError('new_driver_vehicle_number_error', plateOk ? '' : 'Введите госномер в формате А123АА45 или А123АА456');
+    setInlineFieldError('new_driver_full_name_error', nameOk ? '' : UI.msgDriverNameInvalid);
+    setInlineFieldError('new_driver_vehicle_number_error', plateOk ? '' : UI.msgDriverPlateInvalid);
     setInlineFieldError('new_driver_tracker_id_error', '');
     if (!nameOk || !plateOk || !trackerOk) {
         setDriverCreateError('');
@@ -2928,7 +2945,7 @@ function init() {
         warehouseAddressInput.addEventListener('input', () => {
             if (warehouseAddressGeocoded && warehouseGeocodeNote) {
                 warehouseGeocodeNote.style.display = 'block';
-                warehouseGeocodeNote.textContent = 'Адрес изменён, координаты лучше определить заново.';
+                warehouseGeocodeNote.textContent = UI.msgWarehouseGeocodeChanged;
             }
         });
     }
@@ -2956,9 +2973,9 @@ function init() {
             if (!value) return;
             try {
                 await navigator.clipboard.writeText(value);
-                setDriverCreateResult('Текст скопирован.', false);
+                setDriverCreateResult(UI.msgCopied, false);
             } catch (e) {
-                setDriverCreateError('Не удалось скопировать текст.');
+                setDriverCreateError(UI.msgCopyFailed);
             }
         });
     }
@@ -2977,7 +2994,7 @@ function init() {
                 'new_driver_full_name_error',
                 isValidDriverFullName(value) || !value
                     ? ''
-                    : 'Введите ФИО полностью: Фамилия Имя Отчество'
+                    : UI.msgDriverNameInvalid
             );
         });
     }
@@ -2993,7 +3010,7 @@ function init() {
                 'new_driver_vehicle_number_error',
                 isValidDriverPlate(value) || !value
                     ? ''
-                    : 'Введите госномер в формате А123АА45 или А123АА456'
+                    : UI.msgDriverPlateInvalid
             );
         });
     }

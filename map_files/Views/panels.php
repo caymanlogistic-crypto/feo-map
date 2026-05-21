@@ -106,11 +106,11 @@ $t = static function (string $key, string $fallback): string {
 
         <div class="flight-modal-grid">
             <div>
-                <label class="flight-modal-label" for="edit_comment">Комментарий / заголовок</label>
+                <label class="flight-modal-label" for="edit_comment"><?= $t('route.field.comment', 'Комментарий / заголовок') ?></label>
                 <input class="flight-modal-input" type="text" id="edit_comment">
             </div>
             <div>
-                <label class="flight-modal-label" for="edit_driver_id">Водитель / машина</label>
+                <label class="flight-modal-label" for="edit_driver_id"><?= $t('route.field.driver', 'Водитель / машина') ?></label>
                 <div class="driver-input-row">
                     <div class="driver-combobox" id="edit_driver_combobox">
                         <input class="flight-modal-input driver-combobox-input" type="text" id="edit_driver_input" placeholder="Выберите водителя" autocomplete="off">
@@ -123,7 +123,7 @@ $t = static function (string $key, string $fallback): string {
                 <div class="field-inline-error" id="edit_driver_error" style="display:none;"></div>
             </div>
             <div class="flight-date-range" id="plannedDateRangeWrap">
-                <label class="flight-modal-label" id="plannedDateRangeTitle" for="edit_planned_start_date_from">Вывоз запланирован на даты</label>
+                <label class="flight-modal-label" id="plannedDateRangeTitle" for="edit_planned_start_date_from"><?= $t('route.field.planned_dates', 'Вывоз запланирован на даты') ?></label>
                 <div class="flight-date-range-row">
                     <div class="flight-date-col">
                         <label class="flight-modal-label flight-sub-label" for="edit_planned_start_date_from">С</label>
@@ -136,7 +136,7 @@ $t = static function (string $key, string $fallback): string {
                 </div>
             </div>
             <div class="flight-date-range" id="actualDateRangeWrap" style="display:none;">
-                <label class="flight-modal-label" id="actualDateRangeTitle" for="edit_actual_start_date">Фактические даты перевозки</label>
+                <label class="flight-modal-label" id="actualDateRangeTitle" for="edit_actual_start_date"><?= $t('route.field.actual_dates', 'Фактические даты перевозки') ?></label>
                 <div class="flight-date-range-row">
                     <div class="flight-date-col">
                         <label class="flight-modal-label flight-sub-label" for="edit_actual_start_date">С</label>
@@ -195,43 +195,43 @@ $t = static function (string $key, string $fallback): string {
         <div class="workflow-section workflow-card workflow-card-lifecycle" id="workflowLifecycleSection">
 
             <div class="workflow-action workflow-action-primary workflow-action-found" id="workflowToFoundWrap">
-                <div class="workflow-subtitle">Сформировать рейс</div>
-                <div class="workflow-desc">После перевода рейс считается согласованным. Будут зафиксированы водитель, даты, стоимость и заявки. В MAX отправится уведомление, начнётся подготовка транспортных документов.</div>
-                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditTransferFoundBtn">Сформировать рейс</button>
+                <div class="workflow-subtitle"><?= $t('route.action.to_found.title', 'Сформировать рейс') ?></div>
+                <div class="workflow-desc"><?= $t('route.action.to_found.desc', 'После перевода рейс считается согласованным. Будут зафиксированы водитель, даты, стоимость и заявки. В MAX отправится уведомление, начнётся подготовка транспортных документов.') ?></div>
+                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditTransferFoundBtn"><?= $t('route.action.to_found.button', 'Сформировать рейс') ?></button>
             </div>
 
             <div class="workflow-action workflow-action-primary workflow-action-started" id="workflowToStartedWrap">
-                <div class="workflow-subtitle">Начало выполнения</div>
-                <div class="workflow-desc">Рейс перейдёт в статус «Вывоз начался». Подключается контроль выполнения перевозки и логика трекера. В MAX будет отправлено уведомление.</div>
-                <button class="route-action-btn route-transfer-start-btn route-action-main" id="flightEditTransferStartedBtn">Подтвердить начало вывоза</button>
+                <div class="workflow-subtitle"><?= $t('route.action.to_started.title', 'Начало выполнения') ?></div>
+                <div class="workflow-desc"><?= $t('route.action.to_started.desc', 'Рейс перейдёт в статус «Вывоз начался». Подключается контроль выполнения перевозки и логика трекера. В MAX будет отправлено уведомление.') ?></div>
+                <button class="route-action-btn route-transfer-start-btn route-action-main" id="flightEditTransferStartedBtn"><?= $t('route.action.to_started.button', 'Подтвердить начало вывоза') ?></button>
             </div>
 
             <div class="workflow-action workflow-action-secondary workflow-action-return" id="workflowBackToPlannedWrap">
-                <div class="workflow-subtitle">Возврат в планирование</div>
-                <div class="workflow-desc">Рейс будет возвращён в планирование. Подготовку документов нужно проверить или приостановить. В MAX будет отправлено уведомление.</div>
-                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditBackToPlannedBtn">Вернуть в планируемые</button>
+                <div class="workflow-subtitle"><?= $t('route.action.back_to_planned.title', 'Возврат в планирование') ?></div>
+                <div class="workflow-desc"><?= $t('route.action.back_to_planned.desc', 'Рейс будет возвращён в планирование. Подготовку документов нужно проверить или приостановить. В MAX будет отправлено уведомление.') ?></div>
+                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditBackToPlannedBtn"><?= $t('route.action.back_to_planned.button', 'Вернуть в планируемые') ?></button>
             </div>
 
             <div class="workflow-action workflow-action-primary workflow-action-completed" id="workflowToCompletedWrap">
-                <div class="workflow-subtitle">Завершение рейса</div>
-                <div class="workflow-desc">После завершения рейс будет переведен в архив перевозок.</div>
-                <button class="route-action-btn route-transfer-start-btn route-action-main" id="flightEditToCompletedBtn">Перевести в Груз сдан</button>
+                <div class="workflow-subtitle"><?= $t('route.action.to_completed.title', 'Завершение рейса') ?></div>
+                <div class="workflow-desc"><?= $t('route.action.to_completed.desc', 'После завершения рейс будет переведен в архив перевозок.') ?></div>
+                <button class="route-action-btn route-transfer-start-btn route-action-main" id="flightEditToCompletedBtn"><?= $t('route.action.to_completed.button', 'Перевести в Груз сдан') ?></button>
             </div>
             <div class="workflow-action workflow-action-secondary workflow-action-danger-soft" id="workflowBackToFoundWrap">
-                <div class="workflow-subtitle">Приостановить выполнение</div>
-                <div class="workflow-desc">Рейс будет возвращён из выполнения в статус «Рейс сформирован». В MAX будет отправлено уведомление.</div>
-                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditBackToFoundBtn">Вернуть в сформированные</button>
+                <div class="workflow-subtitle"><?= $t('route.action.back_to_found.title', 'Приостановить выполнение') ?></div>
+                <div class="workflow-desc"><?= $t('route.action.back_to_found.desc', 'Рейс будет возвращён из выполнения в статус «Рейс сформирован». В MAX будет отправлено уведомление.') ?></div>
+                <button class="route-action-btn route-transfer-btn route-action-main" id="flightEditBackToFoundBtn"><?= $t('route.action.back_to_found.button', 'Вернуть в сформированные') ?></button>
             </div>
         </div>
 
         <div class="danger-zone workflow-card workflow-card-danger" id="workflowDeleteWrap">
-            <div class="workflow-title">Удаление маршрута</div>
-            <div class="workflow-desc">Маршрут будет удалён из списка планируемых рейсов.</div>
-            <button class="route-action-btn route-manage-danger route-action-main" id="flightEditDeleteBtn">Удалить маршрут</button>
+            <div class="workflow-title"><?= $t('route.action.delete.title', 'Удаление маршрута') ?></div>
+            <div class="workflow-desc"><?= $t('route.action.delete.desc', 'Маршрут будет удалён из списка планируемых рейсов.') ?></div>
+            <button class="route-action-btn route-manage-danger route-action-main" id="flightEditDeleteBtn"><?= $t('route.action.delete.button', 'Удалить маршрут') ?></button>
         </div>
 
         <div class="flight-modal-footer">
-            <button class="route-action-btn route-action-main" id="flightEditCancelBtn">Закрыть</button>
+            <button class="route-action-btn route-action-main" id="flightEditCancelBtn"><?= $t('button.close', 'Закрыть') ?></button>
         </div>
     </div>
 </div>
@@ -239,7 +239,7 @@ $t = static function (string $key, string $fallback): string {
 <div class="flight-modal-backdrop" id="warehouseCreateModal" style="display:none;">
     <div class="flight-modal flight-modal-confirm warehouse-mini-modal">
         <div class="flight-modal-header">
-            <div class="flight-modal-title">Новый склад</div>
+            <div class="flight-modal-title"><?= $t('warehouse.new.title', 'Новый склад') ?></div>
             <button class="route-action-btn route-icon-btn" id="warehouseCreateCloseTopBtn">&times;</button>
         </div>
         <div class="flight-validation-errors" id="warehouseCreateErrors" style="display:none;"></div>
@@ -262,8 +262,8 @@ $t = static function (string $key, string $fallback): string {
             </div>
         </div>
         <div class="flight-modal-actions">
-            <button class="route-action-btn route-transfer-start-btn route-action-main" id="warehouseCreateSaveBtn">Сохранить</button>
-            <button class="route-action-btn route-action-main" id="warehouseCreateCancelBtn">Отмена</button>
+            <button class="route-action-btn route-transfer-start-btn route-action-main" id="warehouseCreateSaveBtn"><?= $t('button.save', 'Сохранить') ?></button>
+            <button class="route-action-btn route-action-main" id="warehouseCreateCancelBtn"><?= $t('button.cancel', 'Отмена') ?></button>
         </div>
     </div>
 </div>
@@ -271,21 +271,21 @@ $t = static function (string $key, string $fallback): string {
 <div class="flight-modal-backdrop" id="driverCreateModal" style="display:none;">
     <div class="flight-modal flight-modal-confirm driver-mini-modal">
         <div class="flight-modal-header">
-            <div class="flight-modal-title">Новый водитель</div>
+            <div class="flight-modal-title"><?= $t('driver.new.title', 'Новый водитель') ?></div>
             <button class="route-action-btn route-icon-btn" id="driverCreateCloseTopBtn">&times;</button>
         </div>
-        <label class="flight-modal-label" for="new_driver_full_name">ФИО *</label>
-        <input class="flight-modal-input" type="text" id="new_driver_full_name" placeholder="Иванов Иван Иванович">
-        <div class="field-inline-hint">Формат: Иванов Иван Иванович</div>
+        <label class="flight-modal-label" for="new_driver_full_name"><?= $t('driver.field.full_name.label', 'ФИО *') ?></label>
+        <input class="flight-modal-input" type="text" id="new_driver_full_name" placeholder="<?= $t('driver.field.full_name.placeholder', 'Иванов Иван Иванович') ?>">
+        <div class="field-inline-hint"><?= $t('driver.field.full_name.hint', 'Формат: Иванов Иван Иванович') ?></div>
         <div class="field-inline-error" id="new_driver_full_name_error" style="display:none;"></div>
-        <label class="flight-modal-label" for="new_driver_vehicle_number">Госномер *</label>
-        <input class="flight-modal-input" type="text" id="new_driver_vehicle_number" placeholder="А123АА45" maxlength="9">
-        <div class="field-inline-hint">Формат: А123АА45 или А123АА456</div>
+        <label class="flight-modal-label" for="new_driver_vehicle_number"><?= $t('driver.field.plate.label', 'Госномер *') ?></label>
+        <input class="flight-modal-input" type="text" id="new_driver_vehicle_number" placeholder="<?= $t('driver.field.plate.placeholder', 'А123АА45') ?>" maxlength="9">
+        <div class="field-inline-hint"><?= $t('driver.field.plate.hint', 'Формат: А123АА45 или А123АА456') ?></div>
         <div class="field-inline-error" id="new_driver_vehicle_number_error" style="display:none;"></div>
-        <label class="flight-modal-label" for="new_driver_gps_type">Тип GPS подключения *</label>
+        <label class="flight-modal-label" for="new_driver_gps_type"><?= $t('driver.field.gps_type.label', 'Тип GPS подключения *') ?></label>
         <select class="flight-modal-input" id="new_driver_gps_type">
-            <option value="new_tracker">Новый трекер</option>
-            <option value="retranslation">Ретрансляция</option>
+            <option value="new_tracker"><?= $t('driver.gps.new_tracker', 'Новый трекер') ?></option>
+            <option value="retranslation"><?= $t('driver.gps.retranslation', 'Ретрансляция') ?></option>
         </select>
         <div class="driver-gps-note" id="new_driver_gps_note">Система автоматически выберет первый свободный трекер SLITEX, у которого имя состоит только из цифр, и переименует его.</div>
         <div id="new_driver_retranslation_wrap" style="display:none;">
@@ -319,15 +319,15 @@ $t = static function (string $key, string $fallback): string {
 
 <div class="flight-modal-backdrop" id="startConfirmModal" style="display:none;">
     <div class="flight-modal flight-modal-confirm">
-        <div class="flight-modal-title" id="transitionConfirmTitle">Подтверждение действия</div>
+        <div class="flight-modal-title" id="transitionConfirmTitle"><?= $t('route.transition.confirm.title', 'Подтверждение действия') ?></div>
         <input type="hidden" id="start_flight_id" value="">
         <input type="hidden" id="start_target_status" value="">
-        <label class="flight-modal-label" id="transitionConfirmDateLabel" for="start_actual_start_date">Дата начала вывоза</label>
+        <label class="flight-modal-label" id="transitionConfirmDateLabel" for="start_actual_start_date"><?= $t('route.transition.confirm.start_date', 'Дата начала вывоза') ?></label>
         <input class="flight-modal-input" type="date" id="start_actual_start_date">
         <div class="flight-change-preview" id="transitionConfirmPreview"></div>
         <div class="flight-modal-actions">
-            <button class="route-action-btn route-transfer-start-btn route-action-main" id="startConfirmBtn">Подтвердить</button>
-            <button class="route-action-btn route-action-main" id="startCancelBtn">Отмена</button>
+            <button class="route-action-btn route-transfer-start-btn route-action-main" id="startConfirmBtn"><?= $t('button.confirm', 'Подтвердить') ?></button>
+            <button class="route-action-btn route-action-main" id="startCancelBtn"><?= $t('button.cancel', 'Отмена') ?></button>
         </div>
     </div>
 </div>
