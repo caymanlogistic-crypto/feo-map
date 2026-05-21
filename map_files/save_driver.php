@@ -271,6 +271,67 @@ function buildRetranText(string $trackerId): string
         . "\nВам должны скинуть ID, его необходимо переслать в общую группу.";
 }
 
+function firstNonEmptyValue(array $sources, array $keys): string
+{
+    foreach ($sources as $source) {
+        if (!is_array($source)) {
+            continue;
+        }
+        foreach ($keys as $key) {
+            if (!array_key_exists($key, $source)) {
+                continue;
+            }
+            $value = trim((string)$source[$key]);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+    }
+    return '';
+}
+
+function resolveFeoParams(array $selectedTracker, ?array $renameResponse): array
+{
+    $sources = [];
+    if (isset($selectedTracker['device']) && is_array($selectedTracker['device'])) {
+        $sources[] = $selectedTracker['device'];
+    }
+    $sources[] = $selectedTracker;
+    if (is_array($renameResponse)) {
+        if (isset($renameResponse['data']) && is_array($renameResponse['data'])) {
+            $sources[] = $renameResponse['data'];
+        }
+        if (isset($renameResponse['device']) && is_array($renameResponse['device'])) {
+            $sources[] = $renameResponse['device'];
+        }
+        $sources[] = $renameResponse;
+    }
+
+    $outId = firstNonEmptyValue($sources, ['outID', 'outId', 'out_id']);
+    $outIp = firstNonEmptyValue($sources, ['outIP', 'outIp', 'out_ip']);
+    $outPort = firstNonEmptyValue($sources, ['outPort', 'out_port']);
+    $outProtocol = firstNonEmptyValue($sources, ['outProtocol', 'out_protocol']);
+
+    $parts = [];
+    if ($outId !== '') {
+        $parts[] = $outId;
+    }
+    if ($outIp !== '' || $outPort !== '') {
+        $parts[] = trim($outIp . (($outIp !== '' || $outPort !== '') ? ':' : '') . $outPort, ':');
+    }
+    if ($outProtocol !== '') {
+        $parts[] = $outProtocol;
+    }
+
+    return [
+        'outID' => $outId,
+        'outIP' => $outIp,
+        'outPort' => $outPort,
+        'outProtocol' => $outProtocol,
+        'line' => !empty($parts) ? implode(' ', $parts) : 'н/д',
+    ];
+}
+
 function sessionThrottleKey(string $suffix): string
 {
     return 'save_driver_throttle_' . $suffix;
@@ -322,6 +383,7 @@ try {
                 $freeTrackers[] = [
                     'uniqueid' => $uniqueid,
                     'name' => $name,
+                    'device' => $device,
                 ];
             }
         }
@@ -467,6 +529,7 @@ try {
             $freeTrackers[] = [
                 'uniqueid' => $uniqueid,
                 'name' => $name,
+                'device' => $device,
             ];
         }
     }
@@ -487,6 +550,8 @@ try {
     if (!$renameResp['success']) {
         driverOut(['success' => false, 'message' => 'Не удалось переименовать трекер: ' . $renameResp['error']]);
     }
+    $renameResponse = json_decode((string)$renameResp['body'], true);
+    $feoParams = resolveFeoParams($selected, is_array($renameResponse) ? $renameResponse : null);
 
     $driver = insertDriver($pdo, $columns, $fullName, $plate, $gpsType, $selected['uniqueid']);
     $driver['id'] = (int)($driver['id'] ?? 0);
@@ -496,7 +561,7 @@ try {
         'Настройки для нового водителя:',
         $driverCompact,
         'Для водителя: ' . $selected['uniqueid'],
-        'Для ФЭО: outID outIP:outPort outProtocol',
+        'Для ФЭО: ' . $feoParams['line'],
     ]);
 
     $notify = sendMaxNotify($maxMessage, 'markdown', [
@@ -504,7 +569,11 @@ try {
         'context' => [
             'driver' => $driverCompact,
             'tracker_uniqueid' => $selected['uniqueid'],
-            'feo_params' => 'outID outIP:outPort outProtocol',
+            'feo_params' => $feoParams['line'],
+            'outID' => $feoParams['outID'],
+            'outIP' => $feoParams['outIP'],
+            'outPort' => $feoParams['outPort'],
+            'outProtocol' => $feoParams['outProtocol'],
         ],
     ]);
 

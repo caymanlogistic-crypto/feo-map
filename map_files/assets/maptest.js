@@ -290,6 +290,7 @@ async function loadRecentActivatedTrackers() {
         } else {
             recentActivatedTrackersMap = {};
         }
+        closeDriverCreateModal();
     } catch (e) {
         console.warn('Activation data unavailable', e);
         recentActivatedTrackersMap = {};
@@ -1661,6 +1662,7 @@ async function saveDriverFromModal() {
         } else {
             setDriverCreateResult('Водитель создан и выбран в форме.\nСкопируйте текст для администратора ретрансляции или отправьте его в MAX.', false);
         }
+        closeDriverCreateModal();
     } catch (error) {
         setDriverCreateError('Ошибка сети при создании водителя.');
     } finally {
@@ -1761,7 +1763,7 @@ async function checkFreeTrackersForDriver(event) {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.textContent = prev || 'Проверить свободные трекеры';
+            btn.textContent = prev || 'Послать запрос';
         }
     }
 }

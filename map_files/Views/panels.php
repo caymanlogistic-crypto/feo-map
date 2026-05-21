@@ -291,8 +291,8 @@
             <div class="field-inline-error" id="new_driver_tracker_id_error" style="display:none;"></div>
         </div>
         <div class="driver-check-wrap" id="new_driver_check_wrap">
-            <div class="field-inline-hint">Система может проверить свободные SLITEX-трекеры без изменения данных.</div>
-            <button type="button" class="route-action-btn route-edit-btn route-action-main" id="driverCheckFreeBtn">Проверить свободные трекеры</button>
+            <div class="field-inline-hint">Получить номер трекера и зарегистрировать его в системе. После нажатия «Сохранить» данным автомобиля будет присвоен трекер и он будет занесён в систему слежения.</div>
+            <button type="button" class="route-action-btn route-edit-btn route-action-main" id="driverCheckFreeBtn">Послать запрос</button>
             <div class="driver-check-result" id="driverCheckResult" style="display:none;"></div>
             <div class="field-inline-hint">При создании водителя с типом «Новый трекер» выполняется реальная настройка одного свободного трекера.</div>
         </div>
