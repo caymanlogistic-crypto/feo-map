@@ -154,6 +154,23 @@
 .warehouse-geocode-row .route-action-btn { height: 30px; padding: 0 10px; font-size: 11px; }
 .warehouse-geocode-note { font-size: 11px; color: #5f6772; line-height: 1.3; }
 .driver-gps-note { margin-top: 8px; font-size: 11px; color: #5f6772; line-height: 1.35; background: #f6f8fb; border: 1px solid #dce3ee; border-radius: 6px; padding: 7px 8px; white-space: pre-line; }
+.driver-gps-radio-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.driver-gps-radio-item {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 32px; padding: 0 10px;
+  border: 1px solid #d0d7de; border-radius: 6px;
+  background: #f8fafc; color: #344054; font-size: 12px; font-weight: 600;
+  cursor: pointer; user-select: none;
+}
+.driver-gps-radio-item input[type="radio"] {
+  position: absolute; opacity: 0; pointer-events: none;
+}
+.driver-gps-radio-item:has(input[type="radio"]:checked) {
+  border-color: #0f9d90;
+  background: #e9f7f5;
+  color: #0f645c;
+  box-shadow: inset 0 0 0 1px rgba(15, 157, 144, 0.22);
+}
 .driver-copy-wrap { margin-top: 8px; }
 .driver-copy-actions { margin-top: 6px; }
 .driver-check-wrap { margin-top: 8px; padding: 8px; border: 1px solid #dce3ee; border-radius: 6px; background: #f8fbff; }

@@ -1571,22 +1571,10 @@ function syncDriverCreateGpsType() {
     const selected = document.querySelector('input[name="new_driver_gps_type"]:checked');
     const type = String(selected?.value || '');
     const note = document.getElementById('new_driver_gps_note');
-    const checkWrap = document.getElementById('new_driver_check_wrap');
-    if (checkWrap) checkWrap.style.display = 'block';
     if (note) {
         note.textContent = type === 'retranslation'
             ? 'Для варианта «Ретрансляция» используется тот же алгоритм регистрации трекера. Различается только текст MAX-уведомления.'
             : 'Для варианта «Новый мобильный трекер» система подберет свободный трекер SLITEX и зарегистрирует его после сохранения водителя.';
-    }
-    return;
-    if (note) {
-        note.textContent = type === 'retranslation'
-            ? 'Ретрансляция используется, если машина уже ездит с существующим трекером.\nВведите ID этого трекера. Его должен сообщить администратор или владелец машины.'
-            : 'Используется, если водителю выдаётся новый свободный SLITEX-трекер.\nСистема найдёт свободный трекер, у которого имя состоит только из цифр, и переименует его в формат ГОСНОМЕР(Фамилия).';
-    }
-    const copyWrap = document.getElementById('new_driver_copy_wrap');
-    if (copyWrap && type !== 'retranslation') {
-        copyWrap.style.display = 'none';
     }
 }
 
@@ -1596,12 +1584,10 @@ function openDriverCreateModal() {
     const nameInput = document.getElementById('new_driver_full_name');
     const plateInput = document.getElementById('new_driver_vehicle_number');
     const gpsTypeInputs = Array.from(document.querySelectorAll('input[name="new_driver_gps_type"]'));
-    const copyText = document.getElementById('new_driver_copy_text');
     const checkResult = document.getElementById('driverCheckResult');
     if (nameInput) nameInput.value = '';
     if (plateInput) plateInput.value = '';
     gpsTypeInputs.forEach((el) => { el.checked = false; });
-    if (copyText) copyText.value = '';
     if (checkResult) {
         checkResult.style.display = 'none';
         checkResult.textContent = '';
@@ -1712,98 +1698,8 @@ async function saveDriverFromModal() {
     }
 }
 
-async function sendRetranslationToMax() {
-    return;
-    const fullName = String(document.getElementById('new_driver_full_name')?.value || '');
-    const plate = String(document.getElementById('new_driver_vehicle_number')?.value || '');
-    const trackerId = '';
-    const btn = document.getElementById('driverSendMaxBtn');
-    const prev = btn ? btn.textContent : '';
-    if (btn) {
-        btn.disabled = true;
-        btn.textContent = 'Отправка...';
-    }
-    try {
-        const response = await fetch('map_files/save_driver.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                action: 'noop_send_retranslation_max',
-                full_name: fullName,
-                vehicle_make_plate: plate
-            })
-        });
-        const data = await response.json();
-        if (!response.ok || !data || !data.success) {
-            setDriverCreateError(data?.message || 'Не удалось отправить сообщение в MAX.');
-            return;
-        }
-        setDriverCreateResult(data.notify_success ? 'Сообщение в MAX отправлено.' : `MAX: ${data.notify_error || 'ошибка отправки'}`, !data.notify_success);
-    } catch (e) {
-        setDriverCreateError('Ошибка сети при отправке в MAX.');
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.textContent = prev || 'Отправить в MAX';
-        }
-    }
-}
-
 function setDriverTrackerCheckMessage(message, isError = false) {
-    const resultEl = document.getElementById('driverCheckResult');
-    if (!resultEl) return;
-    resultEl.style.display = 'block';
-    resultEl.textContent = String(message || '');
-    resultEl.classList.toggle('is-error', !!isError);
-}
-
-async function checkFreeTrackersForDriver(event) {
-    if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
-    const resultEl = document.getElementById('driverCheckResult');
-    const btn = document.getElementById('driverCheckFreeBtn');
-    const prev = btn ? btn.textContent : '';
-    if (btn) {
-        btn.disabled = true;
-        btn.textContent = 'Проверяем...';
-    }
-    if (resultEl) {
-        resultEl.style.display = 'none';
-        resultEl.textContent = '';
-        resultEl.classList.remove('is-error');
-    }
-    try {
-        const response = await fetch('map_files/save_driver.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({ action: 'check_free_trackers' })
-        });
-        const data = await response.json();
-        if (!response.ok || !data || !data.success) {
-            setDriverTrackerCheckMessage(data?.message || 'Не удалось проверить свободные трекеры.', true);
-            return;
-        }
-        const msg = [
-            `Свободных трекеров: ${Number(data.free_count || 0)}`,
-            `Первый свободный: ${data.first_uniqueid || '-'}`,
-        ].join('\n');
-        setDriverTrackerCheckMessage(msg, false);
-    } catch (e) {
-        setDriverTrackerCheckMessage('Ошибка сети при проверке свободных трекеров.', true);
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.textContent = prev || 'Послать запрос';
-        }
-    }
+    return;
 }
 
 async function openFlightEditModal(routeId, source) {
@@ -2953,27 +2849,12 @@ function init() {
     const driverCreateSaveBtn = document.getElementById('driverCreateSaveBtn');
     const driverCreateCancelBtn = document.getElementById('driverCreateCancelBtn');
     const driverCreateCloseTopBtn = document.getElementById('driverCreateCloseTopBtn');
-    const driverCopyTextBtn = document.getElementById('driverCopyTextBtn');
-    const driverCheckFreeBtn = document.getElementById('driverCheckFreeBtn');
     const driverGpsTypeInputs = document.querySelectorAll('input[name="new_driver_gps_type"]');
     const newDriverFullName = document.getElementById('new_driver_full_name');
     const newDriverPlate = document.getElementById('new_driver_vehicle_number');
     if (driverCreateSaveBtn) driverCreateSaveBtn.addEventListener('click', saveDriverFromModal);
     if (driverCreateCancelBtn) driverCreateCancelBtn.addEventListener('click', closeDriverCreateModal);
     if (driverCreateCloseTopBtn) driverCreateCloseTopBtn.addEventListener('click', closeDriverCreateModal);
-    if (driverCopyTextBtn) {
-        driverCopyTextBtn.addEventListener('click', async () => {
-            const value = String(document.getElementById('new_driver_copy_text')?.value || '');
-            if (!value) return;
-            try {
-                await navigator.clipboard.writeText(value);
-                setDriverCreateResult(UI.msgCopied, false);
-            } catch (e) {
-                setDriverCreateError(UI.msgCopyFailed);
-            }
-        });
-    }
-    if (driverCheckFreeBtn) driverCheckFreeBtn.addEventListener('click', checkFreeTrackersForDriver);
     if (driverGpsTypeInputs.length) {
         driverGpsTypeInputs.forEach((input) => input.addEventListener('change', syncDriverCreateGpsType));
     }

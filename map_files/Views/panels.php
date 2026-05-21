@@ -295,20 +295,6 @@ $t = static function (string $key, string $fallback): string {
             </label>
         </div>
         <div class="field-inline-error" id="new_driver_gps_type_error" style="display:none;"></div>
-        <div class="driver-check-wrap" id="new_driver_check_wrap">
-            <div class="field-inline-hint">Получить номер трекера и зарегистрировать его в системе. После нажатия «Сохранить» данным автомобиля будет присвоен трекер и он будет занесён в систему слежения.</div>
-            <button type="button" class="route-action-btn route-edit-btn route-action-main" id="driverCheckFreeBtn">Послать запрос</button>
-            <div class="driver-check-result" id="driverCheckResult" style="display:none;"></div>
-            <div class="field-inline-hint">При создании водителя с типом «Новый трекер» выполняется реальная настройка одного свободного трекера.</div>
-        </div>
-        <div class="driver-copy-wrap" id="new_driver_copy_wrap" style="display:none;">
-            <label class="flight-modal-label" for="new_driver_copy_text">Текст для отправки администратору</label>
-            <textarea class="flight-modal-input" id="new_driver_copy_text" rows="4" readonly></textarea>
-            <div class="flight-modal-actions driver-copy-actions">
-                <button class="route-action-btn route-edit-btn route-action-main" id="driverCopyTextBtn">Скопировать текст</button>
-                <button class="route-action-btn route-transfer-btn route-action-main" id="driverSendMaxBtn">Отправить в MAX</button>
-            </div>
-        </div>
         <div class="driver-create-result" id="driverCreateResult" style="display:none;"></div>
         <div class="flight-modal-actions">
             <button class="route-action-btn route-transfer-start-btn route-action-main" id="driverCreateSaveBtn">Создать водителя</button>

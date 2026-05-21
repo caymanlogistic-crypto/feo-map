@@ -310,6 +310,17 @@ function resolveFeoParams(array $selectedTracker, ?array $renameResponse): array
         if (isset($trackerOrResponse['admin_configs'][0]) && is_array($trackerOrResponse['admin_configs'][0])) {
             $target[] = $trackerOrResponse['admin_configs'][0];
         }
+        if (isset($trackerOrResponse['admin_configs']) && is_array($trackerOrResponse['admin_configs'])) {
+            foreach ($trackerOrResponse['admin_configs'] as $cfgRow) {
+                if (!is_array($cfgRow)) {
+                    continue;
+                }
+                $target[] = $cfgRow;
+                if (isset($cfgRow['key']) && isset($cfgRow['value'])) {
+                    $target[] = [(string)$cfgRow['key'] => (string)$cfgRow['value']];
+                }
+            }
+        }
         if (isset($trackerOrResponse['adminConfigs'][0]) && is_array($trackerOrResponse['adminConfigs'][0])) {
             $target[] = $trackerOrResponse['adminConfigs'][0];
         }
@@ -420,7 +431,7 @@ try {
         ]);
     }
 
-    if ($action === 'send_retranslation_max') {
+    if (false && $action === 'send_retranslation_max') {
         $fullName = normalizeDriverFullName((string)($input['full_name'] ?? ''));
         $plate = normalizeDriverPlate((string)($input['vehicle_make_plate'] ?? ''));
         $trackerId = trim((string)($input['tracker_id'] ?? ''));
