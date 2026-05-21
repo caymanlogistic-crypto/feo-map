@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 error_reporting(0);
 ini_set('display_errors', 0);
 
@@ -471,39 +471,12 @@ try {
         }
     }
 
-    if ($action === 'check_free_trackers') {
-        $first = $freeTrackers[0]['uniqueid'] ?? null;
-        driverOut([
-            'success' => true,
-            'free_count' => count($freeTrackers),
-            'first_uniqueid' => $first,
-            'free_trackers' => array_slice($freeTrackers, 0, 10),
-            'message' => count($freeTrackers) > 0 ? 'Свободные трекеры найдены.' : 'Свободных трекеров нет.',
-        ]);
-    }
-
     if (empty($freeTrackers)) {
         driverOut(['success' => false, 'message' => 'Свободных трекеров нет.']);
     }
 
     $selected = $freeTrackers[0];
     $renamePayload = ['name' => $driverCompact];
-
-    $allowRename = !empty($input['allow_patch_rename']) && (string)$input['allow_patch_rename'] === '1';
-    if (!$allowRename) {
-        driverOut([
-            'success' => false,
-            'dry_run' => true,
-            'message' => 'Свободный трекер найден: ' . ($selected['uniqueid'] ?? '-') . '. Переименование не выполнено, потому что режим реального изменения SLITEX отключён. Для ручного production-теста включите allow_patch_rename=1.',
-            'selected_tracker' => $selected,
-            'rename_request' => [
-                'method' => 'PATCH',
-                'url' => $cfg['base_url'] . '/api/external/devices/' . rawurlencode($selected['uniqueid']) . '/name',
-                'payload' => $renamePayload,
-            ],
-            'free_trackers_count' => count($freeTrackers),
-        ]);
-    }
 
     $renameResp = slitexRequest(
         'PATCH',

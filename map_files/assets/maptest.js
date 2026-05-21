@@ -1,4 +1,4 @@
-﻿
+
 let map, placemarks = [], groupsData = [], flightStatusFilters = {}, customLayerFilters = {};
 let selectedOrder = [];
 let weightById = {};
@@ -1532,7 +1532,7 @@ function syncDriverCreateGpsType() {
     if (note) {
         note.textContent = type === 'retranslation'
             ? 'Ретрансляция используется, если машина уже ездит с существующим трекером.\nВведите ID этого трекера. Его должен сообщить администратор или владелец машины.'
-            : 'Используется, если водителю выдаётся новый свободный SLITEX-трекер.\nСистема найдёт свободный трекер, у которого имя состоит только из цифр, и переименует его в формат ГОСНОМЕР(Фамилия).\nРеальное переименование выполняется только при подтверждённом режиме allow_patch_rename=1.';
+            : 'Используется, если водителю выдаётся новый свободный SLITEX-трекер.\nСистема найдёт свободный трекер, у которого имя состоит только из цифр, и переименует его в формат ГОСНОМЕР(Фамилия).';
     }
     const copyWrap = document.getElementById('new_driver_copy_wrap');
     if (copyWrap && type !== 'retranslation') {

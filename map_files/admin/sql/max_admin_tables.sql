@@ -1,4 +1,4 @@
-﻿CREATE TABLE IF NOT EXISTS max_settings (
+CREATE TABLE IF NOT EXISTS max_settings (
     id INT AUTO_INCREMENT PRIMARY KEY,
     setting_key VARCHAR(100) NOT NULL UNIQUE,
     setting_value TEXT NULL,

@@ -294,7 +294,7 @@
             <div class="field-inline-hint">Система может проверить свободные SLITEX-трекеры без изменения данных.</div>
             <button type="button" class="route-action-btn route-edit-btn route-action-main" id="driverCheckFreeBtn">Проверить свободные трекеры</button>
             <div class="driver-check-result" id="driverCheckResult" style="display:none;"></div>
-            <div class="field-inline-hint">Переименование трекера выполняется только при allow_patch_rename=1.</div>
+            <div class="field-inline-hint">При создании водителя с типом «Новый трекер» выполняется реальная настройка одного свободного трекера.</div>
         </div>
         <div class="driver-copy-wrap" id="new_driver_copy_wrap" style="display:none;">
             <label class="flight-modal-label" for="new_driver_copy_text">Текст для отправки администратору</label>
