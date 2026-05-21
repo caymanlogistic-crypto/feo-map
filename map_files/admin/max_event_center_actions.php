@@ -373,6 +373,16 @@ function ecLoadPendingQueue(PDO $pdo): array
     return $list;
 }
 
+function ecDescribeTable(PDO $pdo, string $table): array
+{
+    try {
+        $stmt = $pdo->query("SHOW COLUMNS FROM `" . str_replace('`', '``', $table) . "`");
+        return $stmt ? ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []) : [];
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
 function ecSaveEvent(PDO $pdo, array $input): void
 {
     $cols = ecColumns($pdo, 'max_event_templates');
@@ -443,6 +453,16 @@ try {
                     ['key' => 'slitex', 'title' => 'SLITEX'],
                     ['key' => 'system', 'title' => 'Системные'],
                 ],
+            ],
+        ]);
+    }
+
+    if ($action === 'debug_queue_schema') {
+        maxAdminJsonOut([
+            'success' => true,
+            'data' => [
+                'columns' => ecDescribeTable($pdo, 'max_pending_queue'),
+                'rows' => ecLoadPendingQueue($pdo),
             ],
         ]);
     }
