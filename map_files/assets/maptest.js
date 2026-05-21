@@ -290,11 +290,27 @@ async function loadRecentActivatedTrackers() {
         } else {
             recentActivatedTrackersMap = {};
         }
-        closeDriverCreateModal();
     } catch (e) {
         console.warn('Activation data unavailable', e);
         recentActivatedTrackersMap = {};
     }
+}
+
+function isUserEditing() {
+    const visibleModalIds = ['flightEditModal', 'driverCreateModal', 'warehouseCreateModal', 'startConfirmModal'];
+    for (const id of visibleModalIds) {
+        const el = document.getElementById(id);
+        if (el && el.style && el.style.display !== 'none') {
+            return true;
+        }
+    }
+    const active = document.activeElement;
+    if (active && active.closest) {
+        if (active.closest('#flightEditModal, #driverCreateModal, #warehouseCreateModal, #startConfirmModal')) {
+            return true;
+        }
+    }
+    return false;
 }
 
 function escapeHtml(str) {
