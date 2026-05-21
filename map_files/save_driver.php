@@ -293,24 +293,46 @@ function firstNonEmptyValue(array $sources, array $keys): string
 function resolveFeoParams(array $selectedTracker, ?array $renameResponse): array
 {
     $sources = [];
+    $appendTrackerSources = static function (array $trackerOrResponse, array &$target): void {
+        $target[] = $trackerOrResponse;
+        if (isset($trackerOrResponse['device']) && is_array($trackerOrResponse['device'])) {
+            $target[] = $trackerOrResponse['device'];
+        }
+        if (isset($trackerOrResponse['data']) && is_array($trackerOrResponse['data'])) {
+            $target[] = $trackerOrResponse['data'];
+        }
+        if (isset($trackerOrResponse['admin_fields']) && is_array($trackerOrResponse['admin_fields'])) {
+            $target[] = $trackerOrResponse['admin_fields'];
+        }
+        if (isset($trackerOrResponse['adminFields']) && is_array($trackerOrResponse['adminFields'])) {
+            $target[] = $trackerOrResponse['adminFields'];
+        }
+        if (isset($trackerOrResponse['admin_configs'][0]) && is_array($trackerOrResponse['admin_configs'][0])) {
+            $target[] = $trackerOrResponse['admin_configs'][0];
+        }
+        if (isset($trackerOrResponse['adminConfigs'][0]) && is_array($trackerOrResponse['adminConfigs'][0])) {
+            $target[] = $trackerOrResponse['adminConfigs'][0];
+        }
+    };
+
     if (isset($selectedTracker['device']) && is_array($selectedTracker['device'])) {
-        $sources[] = $selectedTracker['device'];
+        $appendTrackerSources($selectedTracker['device'], $sources);
     }
-    $sources[] = $selectedTracker;
+    $appendTrackerSources($selectedTracker, $sources);
     if (is_array($renameResponse)) {
         if (isset($renameResponse['data']) && is_array($renameResponse['data'])) {
-            $sources[] = $renameResponse['data'];
+            $appendTrackerSources($renameResponse['data'], $sources);
         }
         if (isset($renameResponse['device']) && is_array($renameResponse['device'])) {
-            $sources[] = $renameResponse['device'];
+            $appendTrackerSources($renameResponse['device'], $sources);
         }
-        $sources[] = $renameResponse;
+        $appendTrackerSources($renameResponse, $sources);
     }
 
-    $outId = firstNonEmptyValue($sources, ['outID', 'outId', 'out_id']);
-    $outIp = firstNonEmptyValue($sources, ['outIP', 'outIp', 'out_ip']);
-    $outPort = firstNonEmptyValue($sources, ['outPort', 'out_port']);
-    $outProtocol = firstNonEmptyValue($sources, ['outProtocol', 'out_protocol']);
+    $outId = firstNonEmptyValue($sources, ['outID', 'outId', 'out_id', 'outid']);
+    $outIp = firstNonEmptyValue($sources, ['outIP', 'outIp', 'out_ip', 'outip']);
+    $outPort = firstNonEmptyValue($sources, ['outPort', 'out_port', 'outport']);
+    $outProtocol = firstNonEmptyValue($sources, ['outProtocol', 'out_protocol', 'outprotocol']);
 
     $parts = [];
     if ($outId !== '') {
