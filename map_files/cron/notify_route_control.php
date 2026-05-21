@@ -194,7 +194,10 @@ try {
     }
 
     $text = implode("\n", $lines);
-    $notify = sendMaxNotify($text);
+    $notify = sendMaxNotify($text, 'markdown', [
+        'event_key' => 'route_control_cron',
+        'context' => ['message' => $text],
+    ]);
     out([
         'success' => true,
         'mode' => $mode,

@@ -61,9 +61,16 @@ function formatDateRu($value): string
     return date('d.m.Y H:i', $ts);
 }
 
-function sendMaxNotification($text): array
+function sendMaxNotification($text, string $eventKey = '', array $context = []): array
 {
-    return sendMaxNotify((string)$text, 'markdown');
+    $payloadContext = ['message' => (string)$text];
+    foreach ($context as $k => $v) {
+        $payloadContext[$k] = $v;
+    }
+    return sendMaxNotify((string)$text, 'markdown', [
+        'event_key' => $eventKey,
+        'context' => $payloadContext,
+    ]);
 }
 
 function getDriverLabelById(PDO $pdo, $driverId): string
@@ -897,17 +904,17 @@ try {
             if ($after && (string)($before['status'] ?? '') === STATUS_PLANNED) {
                 $text = buildPlannedDateRangeUpdateMessage($pdo, $before, $after, $routeId);
                 if ($text !== '') {
-                    $notifyResult = sendMaxNotification($text);
+                    $notifyResult = sendMaxNotification($text, 'planned_date_update');
                 }
             } elseif ($after && (string)($before['status'] ?? '') === STATUS_FOUND) {
                 $text = buildFoundDiffMessage($pdo, $before, $after, $routeId);
                 if ($text !== '') {
-                    $notifyResult = sendMaxNotification($text);
+                    $notifyResult = sendMaxNotification($text, 'route_diff_found');
                 }
             } elseif ($after && (string)($before['status'] ?? '') === STATUS_STARTED) {
                 $text = buildStartedDiffMessage($pdo, $before, $after, $routeId);
                 if ($text !== '') {
-                    $notifyResult = sendMaxNotification($text);
+                    $notifyResult = sendMaxNotification($text, 'route_diff_started');
                 }
             }
 
@@ -986,7 +993,7 @@ try {
             ($unloadLine !== '' ? ($unloadLine . "\n") : '') .
             ($routeTypeLine !== '' ? ($routeTypeLine . "\n") : '') .
             "Рейс закреплен: {$manager}"
-        );
+        , 'route_deleted');
         jsonOut([
             'success' => true,
             'message' => 'Маршрут удален',
@@ -1091,7 +1098,7 @@ try {
                     "Рейс закреплен: {$manager}",
                     '> 💡 *Включено слежение за состоянием трекера.*'
                 ], static fn($line) => $line !== ''))
-            );
+            , 'found_to_started');
             jsonOut([
                 'success' => true,
                 'message' => 'Рейс переведен в ВЫВОЗНАЧАЛСЯ',
@@ -1134,7 +1141,7 @@ try {
                     "#{$routeId} — {$title}",
                     '> 💡 *Напоминаю: для оплаты подрядчику нужен полный пакет документов (диагностическая карта, путевой лист и т.д.). Прошу не затягивать с предоставлением.*'
                 ], static fn($line) => $line !== ''))
-            );
+            , 'route_completed');
             jsonOut([
                 'success' => true,
                 'message' => 'Рейс переведен в ГРУЗСДАН',
@@ -1165,7 +1172,7 @@ try {
             } else {
                 $message = buildPlannedToFoundMessage($pdo, $after, $routeId);
             }
-            $notifyResult = sendMaxNotification($message);
+            $notifyResult = sendMaxNotification($message, $wasStarted ? 'started_to_found_rollback' : 'planned_to_found');
             jsonOut([
                 'success' => true,
                 'message' => 'Рейс сформирован',
@@ -1183,7 +1190,7 @@ try {
                 (buildRouteTypeLine($pdo, $after) !== '' ? (buildRouteTypeLine($pdo, $after) . "\n") : '') .
                 "Рейс закреплен: {$manager}\n" .
                 "> 💡 *Подготовку документов приостановить до переформирования рейса.*"
-            );
+            , 'found_to_planned_rollback');
             jsonOut([
                 'success' => true,
                 'message' => 'Рейс возвращен в ПЛАНИРУЕМЫЙ',

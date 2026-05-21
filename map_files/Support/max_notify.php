@@ -89,9 +89,189 @@ function normalizeUtf8Message(string $text): string
     return preg_replace('/^\xEF\xBB\xBF/u', '', $message);
 }
 
-function sendMaxNotify(string $message, string $format = 'markdown'): array
+function mapAdminTablesReady(PDO $pdo): bool
 {
+    static $checked = null;
+    if ($checked !== null) {
+        return $checked;
+    }
+    try {
+        $required = ['max_settings', 'max_groups', 'max_message_templates', 'max_send_log'];
+        foreach ($required as $table) {
+            $stmt = $pdo->query("SHOW TABLES LIKE '" . str_replace("'", "''", $table) . "'");
+            if (!$stmt || !$stmt->fetchColumn()) {
+                $checked = false;
+                return false;
+            }
+        }
+        $checked = true;
+        return true;
+    } catch (Throwable $e) {
+        mapError('MAX admin tables check failed', ['error' => $e->getMessage()]);
+        $checked = false;
+        return false;
+    }
+}
+
+function mapAdminLoadSettings(PDO $pdo): array
+{
+    try {
+        $stmt = $pdo->query('SELECT setting_key, setting_value FROM max_settings');
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        $settings = [];
+        foreach ((array)$rows as $row) {
+            $k = trim((string)($row['setting_key'] ?? ''));
+            if ($k !== '') {
+                $settings[$k] = (string)($row['setting_value'] ?? '');
+            }
+        }
+        return $settings;
+    } catch (Throwable $e) {
+        mapError('MAX admin settings load failed', ['error' => $e->getMessage()]);
+        return [];
+    }
+}
+
+function mapAdminRenderTemplate(string $template, array $context): string
+{
+    if ($template === '') {
+        return '';
+    }
+    return (string)preg_replace_callback('/\{([a-zA-Z0-9_]+)\}/', static function ($m) use ($context) {
+        $key = $m[1] ?? '';
+        if ($key === '' || !array_key_exists($key, $context)) {
+            return '-';
+        }
+        $value = $context[$key];
+        if (is_array($value)) {
+            return implode(', ', array_map('strval', $value));
+        }
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+        return trim((string)$value) === '' ? '-' : (string)$value;
+    }, $template);
+}
+
+function mapAdminResolveOverride(PDO $pdo, string $eventKey, string $fallbackMessage): array
+{
+    if (!mapAdminTablesReady($pdo)) {
+        return ['enabled' => true, 'message' => $fallbackMessage, 'chat_id' => null];
+    }
+
+    $settings = mapAdminLoadSettings($pdo);
+    if (isset($settings['max_enabled']) && (string)$settings['max_enabled'] === '0') {
+        return ['enabled' => false, 'message' => $fallbackMessage, 'chat_id' => null];
+    }
+
+    $templateMessage = '';
+    if ($eventKey !== '') {
+        try {
+            $stmtTpl = $pdo->prepare('SELECT template_text, is_enabled FROM max_message_templates WHERE event_key = :event_key LIMIT 1');
+            if ($stmtTpl && $stmtTpl->execute([':event_key' => $eventKey])) {
+                $rowTpl = $stmtTpl->fetch(PDO::FETCH_ASSOC);
+                if (is_array($rowTpl)) {
+                    if ((int)($rowTpl['is_enabled'] ?? 0) !== 1) {
+                        return ['enabled' => false, 'message' => $fallbackMessage, 'chat_id' => null];
+                    }
+                    $templateMessage = trim((string)($rowTpl['template_text'] ?? ''));
+                }
+            }
+        } catch (Throwable $e) {
+            mapError('MAX template resolve failed', ['event_key' => $eventKey, 'error' => $e->getMessage()]);
+        }
+    }
+
+    $chatId = null;
+    try {
+        $defaultGroupId = isset($settings['default_group_id']) ? (int)$settings['default_group_id'] : 0;
+        if ($defaultGroupId > 0) {
+            $stmtGroup = $pdo->prepare('SELECT group_id FROM max_groups WHERE id = :id AND is_active = 1 LIMIT 1');
+            if ($stmtGroup && $stmtGroup->execute([':id' => $defaultGroupId])) {
+                $chatId = trim((string)$stmtGroup->fetchColumn());
+            }
+        }
+        if ($chatId === null || $chatId === '') {
+            $stmtDefault = $pdo->query('SELECT group_id FROM max_groups WHERE is_active = 1 AND is_default = 1 ORDER BY id DESC LIMIT 1');
+            $chatId = trim((string)($stmtDefault ? $stmtDefault->fetchColumn() : ''));
+        }
+    } catch (Throwable $e) {
+        mapError('MAX group resolve failed', ['error' => $e->getMessage()]);
+        $chatId = null;
+    }
+
+    return [
+        'enabled' => true,
+        'message' => $templateMessage !== '' ? $templateMessage : $fallbackMessage,
+        'chat_id' => ($chatId !== '' ? $chatId : null),
+    ];
+}
+
+function mapAdminWriteLog(PDO $pdo, array $log): void
+{
+    if (!mapAdminTablesReady($pdo)) {
+        return;
+    }
+    try {
+        $stmt = $pdo->prepare('INSERT INTO max_send_log (event_key, group_id, message_text, success, response_text, error_text) VALUES (:event_key, :group_id, :message_text, :success, :response_text, :error_text)');
+        if ($stmt) {
+            $stmt->execute([
+                ':event_key' => (string)($log['event_key'] ?? ''),
+                ':group_id' => (string)($log['group_id'] ?? ''),
+                ':message_text' => (string)($log['message_text'] ?? ''),
+                ':success' => !empty($log['success']) ? 1 : 0,
+                ':response_text' => (string)($log['response_text'] ?? ''),
+                ':error_text' => (string)($log['error_text'] ?? ''),
+            ]);
+        }
+    } catch (Throwable $e) {
+        mapError('MAX send log failed', ['error' => $e->getMessage()]);
+    }
+}
+
+function sendMaxNotify(string $message, string $format = 'markdown', array $meta = []): array
+{
+    $eventKey = trim((string)($meta['event_key'] ?? ''));
+    $context = is_array($meta['context'] ?? null) ? $meta['context'] : [];
+    if (!array_key_exists('message', $context)) {
+        $context['message'] = $message;
+    }
+
+    $override = [
+        'enabled' => true,
+        'message' => $message,
+        'chat_id' => null,
+    ];
+    if (isset($GLOBALS['pdo']) && $GLOBALS['pdo'] instanceof PDO) {
+        $override = mapAdminResolveOverride($GLOBALS['pdo'], $eventKey, $message);
+    }
+
+    if (!$override['enabled']) {
+        if (isset($GLOBALS['pdo']) && $GLOBALS['pdo'] instanceof PDO) {
+            mapAdminWriteLog($GLOBALS['pdo'], [
+                'event_key' => $eventKey,
+                'group_id' => '',
+                'message_text' => (string)$message,
+                'success' => 1,
+                'response_text' => 'Skipped: disabled by admin settings',
+                'error_text' => '',
+            ]);
+        }
+        return ['success' => true, 'error' => null, 'skipped' => true];
+    }
+
+    $messageToSend = (string)$override['message'];
+    if ($messageToSend !== $message) {
+        $messageToSend = mapAdminRenderTemplate($messageToSend, $context);
+        if (trim($messageToSend) === '' || $messageToSend === '-') {
+            $messageToSend = $message;
+        }
+    }
+
     $api = mapGetDirectMaxConfig();
+    if (!empty($override['chat_id'])) {
+        $api['chat_id'] = (string)$override['chat_id'];
+    }
     if ($api['base_url'] === '' || $api['token'] === '' || $api['chat_id'] === '') {
         mapError('MAX notify: API config is not configured', [
             'has_base_url' => $api['base_url'] !== '',
@@ -101,7 +281,7 @@ function sendMaxNotify(string $message, string $format = 'markdown'): array
         return ['success' => false, 'error' => 'MAX notify API config is not configured'];
     }
 
-    $payload = ['text' => normalizeUtf8Message($message)];
+    $payload = ['text' => normalizeUtf8Message($messageToSend)];
     $normalizedFormat = strtolower(trim($format));
     if ($normalizedFormat === 'markdown' || $normalizedFormat === 'html') {
         $payload['format'] = $normalizedFormat;
@@ -137,7 +317,7 @@ function sendMaxNotify(string $message, string $format = 'markdown'): array
         if ($notifyKey !== '') {
             $fallbackQuery = http_build_query([
                 'key' => $notifyKey,
-                'text' => normalizeUtf8Message($message),
+                'text' => normalizeUtf8Message($messageToSend),
                 'format' => $normalizedFormat === 'html' ? 'html' : 'markdown',
             ], '', '&', PHP_QUERY_RFC3986);
             $fallbackUrl = 'http://spugovxsim.temp.swtest.ru/fregat/feo/notify_max.php?' . $fallbackQuery;
@@ -145,12 +325,43 @@ function sendMaxNotify(string $message, string $format = 'markdown'): array
             if (is_string($fallbackResp) && $fallbackResp !== '') {
                 $decoded = json_decode($fallbackResp, true);
                 if (is_array($decoded) && !empty($decoded['success'])) {
+                    if (isset($GLOBALS['pdo']) && $GLOBALS['pdo'] instanceof PDO) {
+                        mapAdminWriteLog($GLOBALS['pdo'], [
+                            'event_key' => $eventKey,
+                            'group_id' => (string)$api['chat_id'],
+                            'message_text' => normalizeUtf8Message($messageToSend),
+                            'success' => 1,
+                            'response_text' => (string)$fallbackResp,
+                            'error_text' => '',
+                        ]);
+                    }
                     return ['success' => true, 'error' => null];
                 }
             }
         }
 
+        if (isset($GLOBALS['pdo']) && $GLOBALS['pdo'] instanceof PDO) {
+            mapAdminWriteLog($GLOBALS['pdo'], [
+                'event_key' => $eventKey,
+                'group_id' => (string)$api['chat_id'],
+                'message_text' => normalizeUtf8Message($messageToSend),
+                'success' => 0,
+                'response_text' => (string)$resp,
+                'error_text' => $curlErr !== '' ? $curlErr : 'MAX notify request failed',
+            ]);
+        }
+
         return ['success' => false, 'error' => 'MAX notify request failed'];
+    }
+    if (isset($GLOBALS['pdo']) && $GLOBALS['pdo'] instanceof PDO) {
+        mapAdminWriteLog($GLOBALS['pdo'], [
+            'event_key' => $eventKey,
+            'group_id' => (string)$api['chat_id'],
+            'message_text' => normalizeUtf8Message($messageToSend),
+            'success' => 1,
+            'response_text' => (string)$resp,
+            'error_text' => '',
+        ]);
     }
     return ['success' => true, 'error' => null];
 }
