@@ -450,8 +450,7 @@ try {
 
     $fullNameRaw = (string)($input['full_name'] ?? '');
     $vehicleNumberRaw = (string)($input['vehicle_make_plate'] ?? $input['vehicle_number'] ?? '');
-    $gpsType = trim((string)($input['gps_connection_type'] ?? 'new_tracker'));
-    $trackerIdInput = trim((string)($input['tracker_id'] ?? ''));
+    $gpsType = trim((string)($input['gps_connection_type'] ?? ''));
 
     $fullName = normalizeDriverFullName($fullNameRaw);
     $plate = normalizeDriverPlate($vehicleNumberRaw);
@@ -462,8 +461,13 @@ try {
     if (!isValidDriverPlate($plate)) {
         driverOut(['success' => false, 'message' => 'Госномер должен быть в формате А123АА45 или А123АА456.']);
     }
-    if (!in_array($gpsType, ['new_tracker', 'retranslation'], true)) {
-        $gpsType = 'new_tracker';
+    if ($gpsType === 'new_tracker') {
+        $gpsType = 'new_mobile_tracker';
+    } elseif ($gpsType === '') {
+        $gpsType = 'new_mobile_tracker';
+    }
+    if (!in_array($gpsType, ['new_mobile_tracker', 'retranslation'], true)) {
+        $gpsType = 'new_mobile_tracker';
     }
 
     $throttleKey = sha1($fullName . '|' . $plate . '|' . $gpsType);
@@ -494,7 +498,7 @@ try {
     $surname = explode(' ', $fullName)[0] ?? '';
     $driverCompact = $plate . '(' . $surname . ')';
 
-    if ($gpsType === 'retranslation') {
+    if (false && $gpsType === 'retranslation') {
         $driver = insertDriver($pdo, $columns, $fullName, $plate, $gpsType, null);
         $driver['id'] = (int)($driver['id'] ?? 0);
         $driver['label'] = driverLabel($driver);
@@ -557,7 +561,7 @@ try {
     }
 
     if (empty($freeTrackers)) {
-        driverOut(['success' => false, 'message' => 'Свободных трекеров нет.']);
+        driverOut(['success' => false, 'message' => 'Свободных трекеров нет. Создание водителя невозможно.']);
     }
 
     $selected = $freeTrackers[0];
@@ -587,7 +591,7 @@ try {
     ]);
 
     $notify = sendMaxNotify($maxMessage, 'markdown', [
-        'event_key' => 'driver_new_tracker_configured',
+        'event_key' => ($gpsType === 'retranslation' ? 'driver_retranslation_requested' : 'driver_new_tracker_configured'),
         'context' => [
             'driver' => $driverCompact,
             'tracker_uniqueid' => $selected['uniqueid'],
@@ -604,7 +608,7 @@ try {
         'existing' => false,
         'message' => 'Трекер настроен.',
         'driver' => $driver,
-        'gps_connection_type' => 'new_tracker',
+        'gps_connection_type' => $gpsType,
         'tracker_uniqueid' => $selected['uniqueid'],
         'tracker_name' => $driverCompact,
         'free_trackers_remaining' => max(0, count($freeTrackers) - 1),

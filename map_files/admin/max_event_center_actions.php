@@ -114,7 +114,7 @@ function ecDefaultCatalog(): array
             'category' => 'drivers',
             'title' => 'Ретрансляция для водителя',
             'when' => 'Отправляется вручную при запросе ретрансляции',
-            'placeholders' => '{driver}, {tracker_id}, {wialon}',
+            'placeholders' => '{feo_params}',
             'template' => "Ретрансляция для нового водителя:\n{driver}\nID трекера: {tracker_id}\nWialon: {wialon}\nОжидается ID для ретрансляции, если он отличается от ID трекера.",
         ],
         'route_control_cron' => [
@@ -228,6 +228,10 @@ function ecSeedEvents(PDO $pdo): array
     $created = 0;
     $updated = 0;
     foreach ($catalog as $eventKey => $cfg) {
+        if ($eventKey === 'driver_retranslation_requested') {
+            $cfg['template'] = "Настройки для нового водителя:\nОжидается id треккера для ретрансляции.\nДля ФЭО можно вносить не дожидаясь id:\n{feo_params}";
+            $cfg['placeholders'] = '{feo_params}';
+        }
         $stmt = $pdo->prepare('SELECT * FROM max_event_templates WHERE event_key = :event_key LIMIT 1');
         $stmt->execute([':event_key' => $eventKey]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);

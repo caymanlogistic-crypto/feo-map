@@ -282,19 +282,19 @@ $t = static function (string $key, string $fallback): string {
         <input class="flight-modal-input" type="text" id="new_driver_vehicle_number" placeholder="<?= $t('driver.field.plate.placeholder', 'А123АА45') ?>" maxlength="9">
         <div class="field-inline-hint"><?= $t('driver.field.plate.hint', 'Формат: А123АА45 или А123АА456') ?></div>
         <div class="field-inline-error" id="new_driver_vehicle_number_error" style="display:none;"></div>
-        <label class="flight-modal-label" for="new_driver_gps_type"><?= $t('driver.field.gps_type.label', 'Тип GPS подключения *') ?></label>
-        <select class="flight-modal-input" id="new_driver_gps_type">
-            <option value="new_tracker"><?= $t('driver.gps.new_tracker', 'Новый трекер') ?></option>
-            <option value="retranslation"><?= $t('driver.gps.retranslation', 'Ретрансляция') ?></option>
-        </select>
-        <div class="driver-gps-note" id="new_driver_gps_note">Система автоматически выберет первый свободный трекер SLITEX, у которого имя состоит только из цифр, и переименует его.</div>
-        <div id="new_driver_retranslation_wrap" style="display:none;">
-            <label class="flight-modal-label" for="new_driver_tracker_id">ID текущего трекера</label>
-            <input class="flight-modal-input" type="text" id="new_driver_tracker_id" placeholder="425252">
-            <div class="field-inline-hint">ID трекера берётся из текущего оборудования машины. Его должен сообщить администратор/владелец машины.</div>
-            <div class="field-inline-hint">Можно оставить пустым. ID трекера может быть добавлен позже, когда его сообщит администратор машины.</div>
-            <div class="field-inline-error" id="new_driver_tracker_id_error" style="display:none;"></div>
+        <label class="flight-modal-label"><?= $t('driver.field.gps_type.label', 'Тип GPS подключения *') ?></label>
+        <div class="driver-gps-note" id="new_driver_gps_note"><?= $t('driver.gps.helper', 'Выберите тип подключения GPS. Для обоих вариантов система подбирает свободный трекер SLITEX и регистрирует его после нажатия «Создать водителя».') ?></div>
+        <div class="driver-gps-radio-group">
+            <label class="driver-gps-radio-item">
+                <input type="radio" name="new_driver_gps_type" value="new_mobile_tracker">
+                <span><?= $t('driver.gps.new_mobile_tracker', 'Новый мобильный трекер') ?></span>
+            </label>
+            <label class="driver-gps-radio-item">
+                <input type="radio" name="new_driver_gps_type" value="retranslation">
+                <span><?= $t('driver.gps.retranslation', 'Ретрансляция') ?></span>
+            </label>
         </div>
+        <div class="field-inline-error" id="new_driver_gps_type_error" style="display:none;"></div>
         <div class="driver-check-wrap" id="new_driver_check_wrap">
             <div class="field-inline-hint">Получить номер трекера и зарегистрировать его в системе. После нажатия «Сохранить» данным автомобиля будет присвоен трекер и он будет занесён в систему слежения.</div>
             <button type="button" class="route-action-btn route-edit-btn route-action-main" id="driverCheckFreeBtn">Послать запрос</button>

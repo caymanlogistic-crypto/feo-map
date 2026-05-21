@@ -170,6 +170,7 @@ UI.msgWarehouseGeocodeNetwork = uiText('warehouse.geocode.network_error', 'Ош�
 UI.msgWarehouseGeocodeChanged = uiText('warehouse.geocode.changed_after_edit', 'Адрес изменён, координаты лучше определить заново.');
 UI.msgCopied = uiText('common.copied', 'Текст скопирован.');
 UI.msgCopyFailed = uiText('common.copy_failed', 'Не удалось скопировать текст.');
+UI.msgDriverGpsTypeRequired = uiText('driver.validation.gps_type', 'Выберите тип GPS подключения.');
 const MANAGER_STORAGE_KEY = 'map_selected_manager_id';
 let recentActivatedTrackersMap = {};
 const foundRoutesById = {};
@@ -1567,12 +1568,17 @@ function setDriverCreateResult(message, isError) {
 }
 
 function syncDriverCreateGpsType() {
-    const type = String(document.getElementById('new_driver_gps_type')?.value || 'new_tracker');
-    const wrap = document.getElementById('new_driver_retranslation_wrap');
+    const selected = document.querySelector('input[name="new_driver_gps_type"]:checked');
+    const type = String(selected?.value || '');
     const note = document.getElementById('new_driver_gps_note');
     const checkWrap = document.getElementById('new_driver_check_wrap');
-    if (wrap) wrap.style.display = type === 'retranslation' ? 'block' : 'none';
-    if (checkWrap) checkWrap.style.display = type === 'new_tracker' ? 'block' : 'none';
+    if (checkWrap) checkWrap.style.display = 'block';
+    if (note) {
+        note.textContent = type === 'retranslation'
+            ? 'Для варианта «Ретрансляция» используется тот же алгоритм регистрации трекера. Различается только текст MAX-уведомления.'
+            : 'Для варианта «Новый мобильный трекер» система подберет свободный трекер SLITEX и зарегистрирует его после сохранения водителя.';
+    }
+    return;
     if (note) {
         note.textContent = type === 'retranslation'
             ? 'Ретрансляция используется, если машина уже ездит с существующим трекером.\nВведите ID этого трекера. Его должен сообщить администратор или владелец машины.'
@@ -1589,14 +1595,12 @@ function openDriverCreateModal() {
     if (!modal) return;
     const nameInput = document.getElementById('new_driver_full_name');
     const plateInput = document.getElementById('new_driver_vehicle_number');
-    const gpsTypeInput = document.getElementById('new_driver_gps_type');
-    const trackerInput = document.getElementById('new_driver_tracker_id');
+    const gpsTypeInputs = Array.from(document.querySelectorAll('input[name="new_driver_gps_type"]'));
     const copyText = document.getElementById('new_driver_copy_text');
     const checkResult = document.getElementById('driverCheckResult');
     if (nameInput) nameInput.value = '';
     if (plateInput) plateInput.value = '';
-    if (gpsTypeInput) gpsTypeInput.value = 'new_tracker';
-    if (trackerInput) trackerInput.value = '';
+    gpsTypeInputs.forEach((el) => { el.checked = false; });
     if (copyText) copyText.value = '';
     if (checkResult) {
         checkResult.style.display = 'none';
@@ -1606,7 +1610,7 @@ function openDriverCreateModal() {
     setDriverCreateResult('', false);
     setInlineFieldError('new_driver_full_name_error', '');
     setInlineFieldError('new_driver_vehicle_number_error', '');
-    setInlineFieldError('new_driver_tracker_id_error', '');
+    setInlineFieldError('new_driver_gps_type_error', '');
     syncDriverCreateGpsType();
     modal.style.display = 'flex';
 }
@@ -1623,25 +1627,21 @@ async function saveDriverFromModal() {
     const prevText = saveBtn ? saveBtn.textContent : '';
     const fullNameInput = document.getElementById('new_driver_full_name');
     const plateInput = document.getElementById('new_driver_vehicle_number');
-    const gpsTypeInput = document.getElementById('new_driver_gps_type');
-    const trackerInput = document.getElementById('new_driver_tracker_id');
-    const copyWrap = document.getElementById('new_driver_copy_wrap');
-    const copyText = document.getElementById('new_driver_copy_text');
+    const gpsTypeSelected = document.querySelector('input[name="new_driver_gps_type"]:checked');
 
     const fullName = String(normalizeDriverNameFinal(fullNameInput?.value || '')).trim();
     const vehicleMakePlate = normalizeDriverPlateInput(plateInput?.value || '');
-    const gpsType = String(gpsTypeInput?.value || 'new_tracker');
-    const trackerId = String(trackerInput?.value || '').trim();
+    const gpsType = String(gpsTypeSelected?.value || '');
 
     if (fullNameInput) fullNameInput.value = fullName;
     if (plateInput) plateInput.value = vehicleMakePlate;
     const nameOk = isValidDriverFullName(fullName);
     const plateOk = isValidDriverPlate(vehicleMakePlate);
-    const trackerOk = true;
+    const gpsTypeOk = !!gpsType;
     setInlineFieldError('new_driver_full_name_error', nameOk ? '' : UI.msgDriverNameInvalid);
     setInlineFieldError('new_driver_vehicle_number_error', plateOk ? '' : UI.msgDriverPlateInvalid);
-    setInlineFieldError('new_driver_tracker_id_error', '');
-    if (!nameOk || !plateOk || !trackerOk) {
+    setInlineFieldError('new_driver_gps_type_error', gpsTypeOk ? '' : UI.msgDriverGpsTypeRequired);
+    if (!nameOk || !plateOk || !gpsTypeOk) {
         setDriverCreateError('');
         return;
     }
@@ -1664,8 +1664,7 @@ async function saveDriverFromModal() {
                 action: 'create_driver',
                 full_name: fullName,
                 vehicle_make_plate: vehicleMakePlate,
-                gps_connection_type: gpsType,
-                tracker_id: trackerId
+                gps_connection_type: gpsType
             })
         });
         const data = await response.json();
@@ -1685,16 +1684,9 @@ async function saveDriverFromModal() {
         if (driverSelect) driverSelect.value = String(driver.id);
         updateFlightModalSummary();
 
-        if (gpsType === 'retranslation' && copyText) {
-            copyText.value = String(data.copy_text || '');
-            if (copyWrap) copyWrap.style.display = data.copy_text ? 'block' : 'none';
-        } else if (copyWrap) {
-            copyWrap.style.display = 'none';
-        }
-
         if (data.existing) {
             setDriverCreateResult('Такой водитель уже существует и выбран в форме.', false);
-        } else if (gpsType === 'new_tracker') {
+        } else if (gpsType === 'new_mobile_tracker') {
             const info = [
                 'Трекер настроен.',
                 `Водитель: ${data.tracker_name || vehicleMakePlate}`,
@@ -1704,6 +1696,9 @@ async function saveDriverFromModal() {
             setDriverCreateResult(info, false);
         } else {
             setDriverCreateResult('Водитель создан и выбран в форме.\nСкопируйте текст для администратора ретрансляции или отправьте его в MAX.', false);
+        }
+        if (gpsType === 'retranslation' && !data.existing) {
+            setDriverCreateResult('Водитель создан и выбран в форме. Настройки ретрансляции отправлены в MAX.', false);
         }
         closeDriverCreateModal();
     } catch (error) {
@@ -1718,9 +1713,10 @@ async function saveDriverFromModal() {
 }
 
 async function sendRetranslationToMax() {
+    return;
     const fullName = String(document.getElementById('new_driver_full_name')?.value || '');
     const plate = String(document.getElementById('new_driver_vehicle_number')?.value || '');
-    const trackerId = String(document.getElementById('new_driver_tracker_id')?.value || '').trim();
+    const trackerId = '';
     const btn = document.getElementById('driverSendMaxBtn');
     const prev = btn ? btn.textContent : '';
     if (btn) {
@@ -1735,10 +1731,9 @@ async function sendRetranslationToMax() {
                 'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({
-                action: 'send_retranslation_max',
+                action: 'noop_send_retranslation_max',
                 full_name: fullName,
-                vehicle_make_plate: plate,
-                tracker_id: trackerId
+                vehicle_make_plate: plate
             })
         });
         const data = await response.json();
@@ -2959,9 +2954,8 @@ function init() {
     const driverCreateCancelBtn = document.getElementById('driverCreateCancelBtn');
     const driverCreateCloseTopBtn = document.getElementById('driverCreateCloseTopBtn');
     const driverCopyTextBtn = document.getElementById('driverCopyTextBtn');
-    const driverSendMaxBtn = document.getElementById('driverSendMaxBtn');
     const driverCheckFreeBtn = document.getElementById('driverCheckFreeBtn');
-    const driverGpsType = document.getElementById('new_driver_gps_type');
+    const driverGpsTypeInputs = document.querySelectorAll('input[name="new_driver_gps_type"]');
     const newDriverFullName = document.getElementById('new_driver_full_name');
     const newDriverPlate = document.getElementById('new_driver_vehicle_number');
     if (driverCreateSaveBtn) driverCreateSaveBtn.addEventListener('click', saveDriverFromModal);
@@ -2979,9 +2973,10 @@ function init() {
             }
         });
     }
-    if (driverSendMaxBtn) driverSendMaxBtn.addEventListener('click', sendRetranslationToMax);
     if (driverCheckFreeBtn) driverCheckFreeBtn.addEventListener('click', checkFreeTrackersForDriver);
-    if (driverGpsType) driverGpsType.addEventListener('change', syncDriverCreateGpsType);
+    if (driverGpsTypeInputs.length) {
+        driverGpsTypeInputs.forEach((input) => input.addEventListener('change', syncDriverCreateGpsType));
+    }
     if (newDriverFullName) {
         newDriverFullName.addEventListener('input', () => {
             const normalized = normalizeDriverNameInput(newDriverFullName.value);
@@ -3012,12 +3007,6 @@ function init() {
                     ? ''
                     : UI.msgDriverPlateInvalid
             );
-        });
-    }
-    const newDriverTrackerId = document.getElementById('new_driver_tracker_id');
-    if (newDriverTrackerId) {
-        newDriverTrackerId.addEventListener('blur', () => {
-            setInlineFieldError('new_driver_tracker_id_error', '');
         });
     }
     // Driver mini-modal intentionally does not close on overlay click.
