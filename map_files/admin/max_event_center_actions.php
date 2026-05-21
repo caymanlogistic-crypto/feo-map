@@ -352,6 +352,27 @@ function ecLoadLogs(PDO $pdo, string $statusFilter = ''): array
     return $logs;
 }
 
+function ecLoadPendingQueue(PDO $pdo): array
+{
+    if (!ecTableReady($pdo, 'max_pending_queue')) {
+        return [];
+    }
+    $stmt = $pdo->query('SELECT * FROM max_pending_queue ORDER BY id DESC LIMIT 30');
+    $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    $list = [];
+    foreach ((array)$rows as $row) {
+        $list[] = [
+            'id' => (int)($row['id'] ?? 0),
+            'created_at' => ecText($row, ['created_at', 'created', 'queued_at'], ''),
+            'event_key' => ecText($row, ['event_key', 'event_name', 'event'], ''),
+            'status' => ecText($row, ['status', 'queue_status'], ''),
+            'group_id' => ecText($row, ['group_id', 'chat_id', 'group_chat_id'], ''),
+            'message_text' => ecText($row, ['message_text', 'message', 'text', 'payload_json', 'payload'], ''),
+        ];
+    }
+    return $list;
+}
+
 function ecSaveEvent(PDO $pdo, array $input): void
 {
     $cols = ecColumns($pdo, 'max_event_templates');
@@ -414,6 +435,7 @@ try {
                 'groups' => ecLoadGroups($pdo),
                 'events' => ecLoadEvents($pdo),
                 'logs' => ecLoadLogs($pdo, $statusFilter),
+                'pending_queue' => ecLoadPendingQueue($pdo),
                 'categories' => [
                     ['key' => 'routes', 'title' => 'Рейсы'],
                     ['key' => 'drivers', 'title' => 'Водители'],

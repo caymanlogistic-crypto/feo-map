@@ -260,21 +260,48 @@ function mapQueuePendingMessage(PDO $pdo, array $payload): void
             $insert[] = "`{$column}` = :{$column}";
             $params[":{$column}"] = $value;
         };
-        $set('event_key', (string)($payload['event_key'] ?? ''));
-        $set('group_id', (string)($payload['group_id'] ?? ''));
-        $set('message_text', normalizeUtf8Message((string)($payload['message_text'] ?? '')));
-        $set('format', (string)($payload['format'] ?? 'markdown'));
-        $set('status', 'queued');
-        $set('context_json', json_encode($payload['context'] ?? [], JSON_UNESCAPED_UNICODE));
-        if (isset($columns['payload_json'])) {
-            $set('payload_json', json_encode([
-                'event_key' => (string)($payload['event_key'] ?? ''),
-                'group_id' => (string)($payload['group_id'] ?? ''),
-                'message_text' => normalizeUtf8Message((string)($payload['message_text'] ?? '')),
-                'format' => (string)($payload['format'] ?? 'markdown'),
-                'context' => $payload['context'] ?? [],
-            ], JSON_UNESCAPED_UNICODE));
+        $setFirst = static function (array $names, $value) use (&$set, $columns): void {
+            foreach ($names as $name) {
+                if (isset($columns[$name])) {
+                    $set($name, $value);
+                    return;
+                }
+            }
+        };
+
+        $eventKey = (string)($payload['event_key'] ?? '');
+        $groupId = (string)($payload['group_id'] ?? '');
+        $messageText = normalizeUtf8Message((string)($payload['message_text'] ?? ''));
+        $format = (string)($payload['format'] ?? 'markdown');
+        $contextJson = json_encode($payload['context'] ?? [], JSON_UNESCAPED_UNICODE);
+        $payloadJson = json_encode([
+            'event_key' => $eventKey,
+            'group_id' => $groupId,
+            'message_text' => $messageText,
+            'format' => $format,
+            'context' => $payload['context'] ?? [],
+        ], JSON_UNESCAPED_UNICODE);
+
+        $setFirst(['event_key', 'event_name', 'event'], $eventKey);
+        $setFirst(['group_id', 'chat_id', 'group_chat_id'], $groupId);
+        $setFirst(['message_text', 'message', 'text'], $messageText);
+        $setFirst(['format', 'parse_mode'], $format);
+        $setFirst(['status', 'queue_status'], 'pending');
+        $setFirst(['context_json', 'context'], $contextJson);
+        $setFirst(['payload_json', 'payload'], $payloadJson);
+
+        if (isset($columns['created_at'])) {
+            $set('created_at', date('Y-m-d H:i:s'));
+        } elseif (isset($columns['queued_at'])) {
+            $set('queued_at', date('Y-m-d H:i:s'));
         }
+
+        if (empty($insert) && isset($columns['payload_json'])) {
+            $set('payload_json', $payloadJson);
+        } elseif (empty($insert) && isset($columns['payload'])) {
+            $set('payload', $payloadJson);
+        }
+
         if (empty($insert)) {
             return;
         }
@@ -284,6 +311,19 @@ function mapQueuePendingMessage(PDO $pdo, array $payload): void
             $stmt->execute($params);
         }
     } catch (Throwable $e) {
+        // Legacy fallback for installations where queue status enum does not include `pending`.
+        try {
+            if (isset($params[':status'])) {
+                $params[':status'] = 'queued';
+            }
+            $stmtFallback = $pdo->prepare($sql);
+            if ($stmtFallback) {
+                $stmtFallback->execute($params);
+                return;
+            }
+        } catch (Throwable $inner) {
+            mapError('MAX queue write fallback failed', ['error' => $inner->getMessage()]);
+        }
         mapError('MAX queue write failed', ['error' => $e->getMessage()]);
     }
 }
