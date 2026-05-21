@@ -117,6 +117,27 @@ function ecDefaultCatalog(): array
             'placeholders' => '{feo_params}',
             'template' => "Ретрансляция для нового водителя:\n{driver}\nID трекера: {tracker_id}\nWialon: {wialon}\nОжидается ID для ретрансляции, если он отличается от ID трекера.",
         ],
+        'warehouse_created' => [
+            'category' => 'warehouses',
+            'title' => 'Создан новый склад',
+            'when' => 'Отправляется при нажатии кнопки сохранения нового склада',
+            'placeholders' => '{warehouse_id}, {warehouse_name}, {warehouse_address}',
+            'template' => "Создан новый склад\n#{warehouse_id} {warehouse_name}\nАдрес: {warehouse_address}",
+        ],
+        'static_text_saved' => [
+            'category' => 'admin',
+            'title' => 'Сохранение статического текста',
+            'when' => 'Отправляется при сохранении ключа в Static Text Center',
+            'placeholders' => '{text_key}, {category}, {used_in}',
+            'template' => "Static Text обновлён\nКлюч: {text_key}\nКатегория: {category}\nИспользование: {used_in}",
+        ],
+        'max_event_template_saved' => [
+            'category' => 'admin',
+            'title' => 'Сохранение MAX шаблона',
+            'when' => 'Отправляется при сохранении шаблона события в MAX Event Center',
+            'placeholders' => '{event_key}, {category}',
+            'template' => "MAX шаблон обновлён\nСобытие: {event_key}\nКатегория: {category}",
+        ],
         'route_control_cron' => [
             'category' => 'system',
             'title' => 'Cron-контроль рейсов',
@@ -483,6 +504,7 @@ try {
     }
 
     if ($action === 'save_event') {
+        $savedEventKey = trim((string)maxAdminPost('event_key', ''));
         ecSaveEvent($pdo, [
             'id' => (int)maxAdminPost('id', 0),
             'title' => maxAdminPost('title', ''),
@@ -497,6 +519,12 @@ try {
             'quiet_hours_end' => maxAdminPost('quiet_hours_end', ''),
             'placeholders' => maxAdminPost('placeholders', ''),
         ]);
+        if ($savedEventKey !== '' && function_exists('notifyEvent')) {
+            notifyEvent('max_event_template_saved', [
+                'event_key' => $savedEventKey,
+                'category' => (string)maxAdminPost('category', 'system'),
+            ], "MAX шаблон обновлён: {$savedEventKey}");
+        }
         maxAdminJsonOut(['success' => true, 'message' => 'Событие сохранено']);
     }
 

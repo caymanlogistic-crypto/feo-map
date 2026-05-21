@@ -171,6 +171,16 @@ UI.msgWarehouseGeocodeChanged = uiText('warehouse.geocode.changed_after_edit', '
 UI.msgCopied = uiText('common.copied', 'Текст скопирован.');
 UI.msgCopyFailed = uiText('common.copy_failed', 'Не удалось скопировать текст.');
 UI.msgDriverGpsTypeRequired = uiText('driver.validation.gps_type', 'Выберите тип GPS подключения.');
+UI.msgDriverCreateInProgress = uiText('driver.create.in_progress', 'Создание...');
+UI.msgDriverCreateFailed = uiText('driver.create.failed', 'Не удалось создать водителя.');
+UI.msgDriverCreateServerNoData = uiText('driver.create.server_no_driver', 'Сервер не вернул данные водителя.');
+UI.msgDriverCreateExisting = uiText('driver.create.existing_selected', 'Такой водитель уже существует и выбран в форме.');
+UI.msgDriverCreateNewTrackerDone = uiText('driver.create.new_tracker_done', 'Трекер настроен.');
+UI.msgDriverCreateFreeLeft = uiText('driver.create.free_left', 'Свободных трекеров осталось');
+UI.msgDriverCreateRetranslationDone = uiText('driver.create.retranslation_done', 'Водитель создан и выбран в форме. Настройки ретрансляции отправлены в MAX.');
+UI.msgDriverCreateNetworkError = uiText('driver.create.network_error', 'Ошибка сети при создании водителя.');
+UI.msgDriverGpsHelpRetranslation = uiText('driver.gps.helper.retranslation', 'Для варианта «Ретрансляция» используется тот же алгоритм регистрации трекера. Различается только текст MAX-уведомления.');
+UI.msgDriverGpsHelpNewMobile = uiText('driver.gps.helper.new_mobile', 'Для варианта «Новый мобильный трекер» система подберет свободный трекер SLITEX и зарегистрирует его после сохранения водителя.');
 const MANAGER_STORAGE_KEY = 'map_selected_manager_id';
 let recentActivatedTrackersMap = {};
 const foundRoutesById = {};
@@ -1573,8 +1583,8 @@ function syncDriverCreateGpsType() {
     const note = document.getElementById('new_driver_gps_note');
     if (note) {
         note.textContent = type === 'retranslation'
-            ? 'Для варианта «Ретрансляция» используется тот же алгоритм регистрации трекера. Различается только текст MAX-уведомления.'
-            : 'Для варианта «Новый мобильный трекер» система подберет свободный трекер SLITEX и зарегистрирует его после сохранения водителя.';
+            ? UI.msgDriverGpsHelpRetranslation
+            : UI.msgDriverGpsHelpNewMobile;
     }
 }
 
@@ -1637,7 +1647,7 @@ async function saveDriverFromModal() {
     driverCreateInFlight = true;
     if (saveBtn) {
         saveBtn.disabled = true;
-        saveBtn.textContent = 'Создание...';
+        saveBtn.textContent = UI.msgDriverCreateInProgress;
     }
     try {
         const response = await fetch('map_files/save_driver.php', {
@@ -1655,12 +1665,12 @@ async function saveDriverFromModal() {
         });
         const data = await response.json();
         if (!response.ok || !data || !data.success) {
-            setDriverCreateError(data?.message || 'Не удалось создать водителя.');
+            setDriverCreateError(data?.message || UI.msgDriverCreateFailed);
             return;
         }
         const driver = data.driver && data.driver.id ? data.driver : null;
         if (!driver) {
-            setDriverCreateError('Сервер не вернул данные водителя.');
+            setDriverCreateError(UI.msgDriverCreateServerNoData);
             return;
         }
         await loadDriversCatalog();
@@ -1671,29 +1681,29 @@ async function saveDriverFromModal() {
         updateFlightModalSummary();
 
         if (data.existing) {
-            setDriverCreateResult('Такой водитель уже существует и выбран в форме.', false);
+            setDriverCreateResult(UI.msgDriverCreateExisting, false);
         } else if (gpsType === 'new_mobile_tracker') {
             const info = [
-                'Трекер настроен.',
+                UI.msgDriverCreateNewTrackerDone,
                 `Водитель: ${data.tracker_name || vehicleMakePlate}`,
                 `UniqueID: ${data.tracker_uniqueid || '-'}`,
-                `Свободных трекеров осталось: ${data.free_trackers_remaining ?? '-'}`,
+                `${UI.msgDriverCreateFreeLeft}: ${data.free_trackers_remaining ?? '-'}`,
             ].join('\n');
             setDriverCreateResult(info, false);
         } else {
-            setDriverCreateResult('Водитель создан и выбран в форме.\nСкопируйте текст для администратора ретрансляции или отправьте его в MAX.', false);
+            setDriverCreateResult(UI.msgDriverCreateRetranslationDone, false);
         }
         if (gpsType === 'retranslation' && !data.existing) {
-            setDriverCreateResult('Водитель создан и выбран в форме. Настройки ретрансляции отправлены в MAX.', false);
+            setDriverCreateResult(UI.msgDriverCreateRetranslationDone, false);
         }
         closeDriverCreateModal();
     } catch (error) {
-        setDriverCreateError('Ошибка сети при создании водителя.');
+        setDriverCreateError(UI.msgDriverCreateNetworkError);
     } finally {
         driverCreateInFlight = false;
         if (saveBtn) {
             saveBtn.disabled = false;
-            saveBtn.textContent = prevText || 'Создать водителя';
+            saveBtn.textContent = prevText || uiText('driver.create.button', 'Создать водителя');
         }
     }
 }

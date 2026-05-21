@@ -2,12 +2,21 @@
 error_reporting(0);
 ini_set('display_errors', 0);
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/Support/max_notify.php';
 header('Content-Type: application/json; charset=utf-8');
 
 function outWarehouse(array $payload): void
 {
     echo json_encode($payload, JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+function warehouseText(string $key, string $fallback): string
+{
+    if (function_exists('ui_text')) {
+        return (string)ui_text($key, $fallback);
+    }
+    return $fallback;
 }
 
 function readWarehouseInput(): array
@@ -36,14 +45,14 @@ try {
     if ($name === '' || $fullAddress === '') {
         outWarehouse([
             'success' => false,
-            'message' => 'Заполните обязательные поля: название и полный адрес склада.'
+            'message' => warehouseText('warehouse.validation.required', 'Заполните обязательные поля: название и полный адрес склада.')
         ]);
     }
 
     $latitude = null;
     if ($latRaw !== null && $latRaw !== '') {
         if (!is_numeric($latRaw)) {
-            outWarehouse(['success' => false, 'message' => 'Некорректная широта.']);
+            outWarehouse(['success' => false, 'message' => warehouseText('warehouse.validation.latitude', 'Некорректная широта.')]);
         }
         $latitude = (float)$latRaw;
     }
@@ -51,7 +60,7 @@ try {
     $longitude = null;
     if ($lonRaw !== null && $lonRaw !== '') {
         if (!is_numeric($lonRaw)) {
-            outWarehouse(['success' => false, 'message' => 'Некорректная долгота.']);
+            outWarehouse(['success' => false, 'message' => warehouseText('warehouse.validation.longitude', 'Некорректная долгота.')]);
         }
         $longitude = (float)$lonRaw;
     }
@@ -66,7 +75,7 @@ try {
     $nameColumn = isset($columnMap['name']) ? 'name' : (isset($columnMap['title']) ? 'title' : null);
     $addressColumn = isset($columnMap['full_address']) ? 'full_address' : (isset($columnMap['address']) ? 'address' : null);
     if ($nameColumn === null || $addressColumn === null || !isset($columnMap['id'])) {
-        outWarehouse(['success' => false, 'message' => 'Структура таблицы складов не поддерживается.']);
+        outWarehouse(['success' => false, 'message' => warehouseText('warehouse.validation.structure', 'Структура таблицы складов не поддерживается.')]);
     }
 
     $fields = [$nameColumn, $addressColumn];
@@ -96,7 +105,15 @@ try {
     $id = (int)$pdo->lastInsertId();
 
     if ($id <= 0) {
-        outWarehouse(['success' => false, 'message' => 'Не удалось сохранить склад.']);
+        outWarehouse(['success' => false, 'message' => warehouseText('warehouse.save.failed', 'Не удалось сохранить склад.')]);
+    }
+
+    if (function_exists('notifyEvent')) {
+        notifyEvent('warehouse_created', [
+            'warehouse_id' => (string)$id,
+            'warehouse_name' => $name,
+            'warehouse_address' => $fullAddress,
+        ], "Создан новый склад: {$name} (#{$id})");
     }
 
     outWarehouse([
@@ -115,7 +132,6 @@ try {
     }
     outWarehouse([
         'success' => false,
-        'message' => 'Ошибка сохранения склада.'
+        'message' => warehouseText('warehouse.save.error_generic', 'Ошибка сохранения склада.')
     ]);
 }
-

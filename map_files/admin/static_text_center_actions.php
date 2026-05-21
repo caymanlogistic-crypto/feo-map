@@ -2,6 +2,7 @@
 session_start();
 require_once dirname(__DIR__) . '/bootstrap.php';
 require_once __DIR__ . '/common.php';
+require_once dirname(__DIR__) . '/Support/max_notify.php';
 
 maxAdminRequireAuthJson();
 if (!isset($pdo) || !($pdo instanceof PDO)) {
@@ -99,6 +100,22 @@ function stSeedCatalog(): array
         ['key' => 'common.copy_failed', 'category' => 'errors', 'name' => 'Ошибка копирования', 'description' => 'Ошибка при копировании текста в буфер обмена', 'text' => 'Не удалось скопировать текст.', 'usage' => 'map_files/assets/maptest.js'],
         ['key' => 'driver.field.full_name.label', 'category' => 'drivers', 'name' => 'Подпись поля ФИО', 'description' => 'Подпись поля ФИО в mini-modal водителя', 'text' => 'ФИО *', 'usage' => 'map_files/Views/panels.php'],
         ['key' => 'driver.field.full_name.placeholder', 'category' => 'drivers', 'name' => 'Placeholder поля ФИО', 'description' => 'Placeholder для поля ФИО в mini-modal водителя', 'text' => 'Иванов Иван Иванович', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'driver.select.open_list', 'category' => 'drivers', 'name' => 'Открыть список водителей', 'description' => 'ARIA label кнопки раскрытия списка водителей', 'text' => 'Открыть список', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'common.from_short', 'category' => 'forms', 'name' => 'Короткая подпись «С»', 'description' => 'Подпись начала диапазона дат', 'text' => 'С', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'common.to_short', 'category' => 'forms', 'name' => 'Короткая подпись «По»', 'description' => 'Подпись конца диапазона дат', 'text' => 'По', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'driver.create.button', 'category' => 'buttons', 'name' => 'Кнопка создать водителя', 'description' => 'Текст кнопки создания водителя', 'text' => 'Создать водителя', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'driver.create.in_progress', 'category' => 'drivers', 'name' => 'Создание водителя (прогресс)', 'description' => 'Текст кнопки во время создания водителя', 'text' => 'Создание...', 'usage' => 'map_files/assets/maptest.js'],
+        ['key' => 'driver.create.failed', 'category' => 'errors', 'name' => 'Ошибка создания водителя', 'description' => 'Сообщение при неуспешном ответе create_driver', 'text' => 'Не удалось создать водителя.', 'usage' => 'map_files/assets/maptest.js'],
+        ['key' => 'driver.create.server_no_driver', 'category' => 'errors', 'name' => 'Сервер не вернул водителя', 'description' => 'Сообщение если create_driver вернул success без объекта driver', 'text' => 'Сервер не вернул данные водителя.', 'usage' => 'map_files/assets/maptest.js'],
+        ['key' => 'driver.create.existing_selected', 'category' => 'drivers', 'name' => 'Существующий водитель выбран', 'description' => 'Сообщение при duplicate-driver защите', 'text' => 'Такой водитель уже существует и выбран в форме.', 'usage' => 'map_files/assets/maptest.js'],
+        ['key' => 'driver.create.new_tracker_done', 'category' => 'drivers', 'name' => 'Трекер настроен', 'description' => 'Первая строка результата при new_mobile_tracker', 'text' => 'Трекер настроен.', 'usage' => 'map_files/assets/maptest.js'],
+        ['key' => 'driver.create.free_left', 'category' => 'drivers', 'name' => 'Осталось свободных трекеров', 'description' => 'Префикс строки со счётчиком свободных трекеров', 'text' => 'Свободных трекеров осталось', 'usage' => 'map_files/assets/maptest.js'],
+        ['key' => 'driver.create.retranslation_done', 'category' => 'drivers', 'name' => 'Ретрансляция отправлена в MAX', 'description' => 'Результат создания водителя с типом retranslation', 'text' => 'Водитель создан и выбран в форме. Настройки ретрансляции отправлены в MAX.', 'usage' => 'map_files/assets/maptest.js'],
+        ['key' => 'driver.create.network_error', 'category' => 'errors', 'name' => 'Сетевая ошибка создания водителя', 'description' => 'Сообщение при fetch error в create_driver', 'text' => 'Ошибка сети при создании водителя.', 'usage' => 'map_files/assets/maptest.js'],
+        ['key' => 'driver.gps.helper.retranslation', 'category' => 'hints', 'name' => 'Подсказка GPS: ретрансляция', 'description' => 'Информирование о режиме retranslation в форме нового водителя', 'text' => 'Для варианта «Ретрансляция» используется тот же алгоритм регистрации трекера. Различается только текст MAX-уведомления.', 'usage' => 'map_files/assets/maptest.js'],
+        ['key' => 'driver.gps.helper.new_mobile', 'category' => 'hints', 'name' => 'Подсказка GPS: новый мобильный трекер', 'description' => 'Информирование о режиме new_mobile_tracker в форме нового водителя', 'text' => 'Для варианта «Новый мобильный трекер» система подберет свободный трекер SLITEX и зарегистрирует его после сохранения водителя.', 'usage' => 'map_files/assets/maptest.js'],
+        ['key' => 'warehouse.validation.structure', 'category' => 'errors', 'name' => 'Структура таблицы складов не поддерживается', 'description' => 'Ответ save_warehouse при неподдерживаемой структуре таблицы', 'text' => 'Структура таблицы складов не поддерживается.', 'usage' => 'map_files/save_warehouse.php'],
+        ['key' => 'warehouse.save.error_generic', 'category' => 'errors', 'name' => 'Общая ошибка сохранения склада', 'description' => 'Fallback-ошибка save_warehouse в catch', 'text' => 'Ошибка сохранения склада.', 'usage' => 'map_files/save_warehouse.php'],
         ['key' => 'max.test.success', 'category' => 'max', 'name' => 'Успех теста MAX', 'description' => 'Служебное сообщение статуса', 'text' => 'Тест отправлен', 'usage' => 'map_files/admin/max_event_center.php'],
     ];
 }
@@ -231,6 +248,13 @@ try {
             'text' => (string)maxAdminPost('text_value', ''),
             'usage' => trim((string)maxAdminPost('usage_path', '')),
         ]);
+        if (function_exists('notifyEvent')) {
+            notifyEvent('static_text_saved', [
+                'text_key' => $key,
+                'category' => trim((string)maxAdminPost('category', 'system')),
+                'used_in' => trim((string)maxAdminPost('usage_path', '')),
+            ], "Static Text обновлён: {$key}");
+        }
         maxAdminJsonOut(['success' => true, 'message' => 'Текст сохранен']);
     }
 

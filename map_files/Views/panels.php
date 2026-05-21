@@ -37,7 +37,7 @@ $t = static function (string $key, string $fallback): string {
         <div class="checkbox-item"><input type="checkbox" id="no_flight_default" checked onchange="filterByCustomLayer('default', this.checked)"><label for="no_flight_default"><?= $t('layers.available', 'Доступно к вывозу') ?></label><div class="color-indicator" style="background: #000000"></div></div>
         <div class="checkbox-item"><input type="checkbox" id="warehouse_layer_visible" checked onchange="toggleWarehouseLayer(this.checked)"><label for="warehouse_layer_visible"><?= $t('layers.warehouses', 'Склады') ?></label><div class="color-indicator" style="background: #5c6bc0"></div></div>
         <?php if (isset($flightStatusList['planned_route'])): ?>
-        <div class="checkbox-item"><input type="checkbox" id="flight_status_planned_route" checked onchange="filterByFlightStatus('planned_route', this.checked)"><label for="flight_status_planned_route">Планируемые маршруты</label><div class="color-indicator" style="background: #9c27b0"></div></div>
+        <div class="checkbox-item"><input type="checkbox" id="flight_status_planned_route" checked onchange="filterByFlightStatus('planned_route', this.checked)"><label for="flight_status_planned_route"><?= $t('routes.title.planned', 'Планируемые маршруты') ?></label><div class="color-indicator" style="background: #9c27b0"></div></div>
         <?php endif; ?>
         <?php foreach ($flightStatusList as $status => $v): ?>
         <?php if ($status === 'planned_route') continue; ?>
@@ -94,7 +94,7 @@ $t = static function (string $key, string $fallback): string {
 <div class="flight-modal-backdrop" id="flightEditModal" style="display:none;">
     <div class="flight-modal">
         <div class="flight-modal-header">
-            <div class="flight-modal-title" id="flightEditTitle">Редактирование рейса</div>
+            <div class="flight-modal-title" id="flightEditTitle"><?= $t('route.modal.title', 'Редактирование рейса #{id}') ?></div>
             <button class="route-action-btn route-icon-btn" id="flightEditCloseTopBtn">&times;</button>
         </div>
 
@@ -113,8 +113,8 @@ $t = static function (string $key, string $fallback): string {
                 <label class="flight-modal-label" for="edit_driver_id"><?= $t('route.field.driver', 'Водитель / машина') ?></label>
                 <div class="driver-input-row">
                     <div class="driver-combobox" id="edit_driver_combobox">
-                        <input class="flight-modal-input driver-combobox-input" type="text" id="edit_driver_input" placeholder="Выберите водителя" autocomplete="off">
-                        <button type="button" class="driver-combobox-toggle" id="edit_driver_toggle" aria-label="Открыть список">▼</button>
+                        <input class="flight-modal-input driver-combobox-input" type="text" id="edit_driver_input" placeholder="<?= $t('driver.select.placeholder', 'Выберите водителя') ?>" autocomplete="off">
+                        <button type="button" class="driver-combobox-toggle" id="edit_driver_toggle" aria-label="<?= $t('driver.select.open_list', 'Открыть список') ?>">▼</button>
                         <div class="driver-combobox-menu" id="edit_driver_menu" style="display:none;"></div>
                     </div>
                     <select class="flight-modal-input" id="edit_driver_id" style="display:none;"></select>
@@ -126,11 +126,11 @@ $t = static function (string $key, string $fallback): string {
                 <label class="flight-modal-label" id="plannedDateRangeTitle" for="edit_planned_start_date_from"><?= $t('route.field.planned_dates', 'Вывоз запланирован на даты') ?></label>
                 <div class="flight-date-range-row">
                     <div class="flight-date-col">
-                        <label class="flight-modal-label flight-sub-label" for="edit_planned_start_date_from">С</label>
+                        <label class="flight-modal-label flight-sub-label" for="edit_planned_start_date_from"><?= $t('common.from_short', 'С') ?></label>
                         <input class="flight-modal-input" type="date" id="edit_planned_start_date_from">
                     </div>
                     <div class="flight-date-col">
-                        <label class="flight-modal-label flight-sub-label" for="edit_planned_start_date_to">По</label>
+                        <label class="flight-modal-label flight-sub-label" for="edit_planned_start_date_to"><?= $t('common.to_short', 'По') ?></label>
                         <input class="flight-modal-input" type="date" id="edit_planned_start_date_to">
                     </div>
                 </div>
@@ -139,11 +139,11 @@ $t = static function (string $key, string $fallback): string {
                 <label class="flight-modal-label" id="actualDateRangeTitle" for="edit_actual_start_date"><?= $t('route.field.actual_dates', 'Фактические даты перевозки') ?></label>
                 <div class="flight-date-range-row">
                     <div class="flight-date-col">
-                        <label class="flight-modal-label flight-sub-label" for="edit_actual_start_date">С</label>
+                        <label class="flight-modal-label flight-sub-label" for="edit_actual_start_date"><?= $t('common.from_short', 'С') ?></label>
                         <input class="flight-modal-input" type="date" id="edit_actual_start_date">
                     </div>
                     <div class="flight-date-col">
-                        <label class="flight-modal-label flight-sub-label" for="edit_actual_end_date">По</label>
+                        <label class="flight-modal-label flight-sub-label" for="edit_actual_end_date"><?= $t('common.to_short', 'По') ?></label>
                         <input class="flight-modal-input" type="date" id="edit_actual_end_date">
                     </div>
                 </div>
