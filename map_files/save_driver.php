@@ -288,6 +288,54 @@ try {
     $input = readDriverInput();
     $action = trim((string)($input['action'] ?? 'create_driver'));
 
+    if ($action === 'check_free_trackers') {
+        $cfg = getSlitexConfig();
+        if ($cfg['token'] === '') {
+            driverOut(['success' => false, 'message' => 'SLITEX API token не настроен на сервере.']);
+        }
+
+        $devicesResp = slitexRequest('GET', $cfg['base_url'] . '/api/external/devices', $cfg['token']);
+        if (!$devicesResp['success']) {
+            driverOut(['success' => false, 'message' => 'Не удалось получить список устройств SLITEX: ' . $devicesResp['error']]);
+        }
+
+        $devicesData = json_decode((string)$devicesResp['body'], true);
+        if (!is_array($devicesData)) {
+            driverOut(['success' => false, 'message' => 'SLITEX вернул некорректный JSON по списку устройств.']);
+        }
+
+        $devices = [];
+        if (isset($devicesData['data']) && is_array($devicesData['data'])) {
+            $devices = $devicesData['data'];
+        } elseif (isset($devicesData[0]) && is_array($devicesData[0])) {
+            $devices = $devicesData;
+        }
+
+        $freeTrackers = [];
+        foreach ((array)$devices as $device) {
+            if (!is_array($device)) {
+                continue;
+            }
+            $name = trim((string)($device['name'] ?? ''));
+            $uniqueid = trim((string)($device['uniqueid'] ?? ''));
+            if ($uniqueid !== '' && preg_match('/^\d+$/', $name)) {
+                $freeTrackers[] = [
+                    'uniqueid' => $uniqueid,
+                    'name' => $name,
+                ];
+            }
+        }
+
+        $first = $freeTrackers[0]['uniqueid'] ?? null;
+        driverOut([
+            'success' => true,
+            'free_count' => count($freeTrackers),
+            'first_uniqueid' => $first,
+            'free_trackers' => array_slice($freeTrackers, 0, 10),
+            'message' => count($freeTrackers) > 0 ? 'Свободные трекеры найдены.' : 'Свободных трекеров нет.',
+        ]);
+    }
+
     if ($action === 'send_retranslation_max') {
         $fullName = normalizeDriverFullName((string)($input['full_name'] ?? ''));
         $plate = normalizeDriverPlate((string)($input['vehicle_make_plate'] ?? ''));
