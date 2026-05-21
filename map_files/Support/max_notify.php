@@ -289,6 +289,7 @@ function mapQueuePendingMessage(PDO $pdo, array $payload): void
         $setFirst(['status', 'queue_status'], 'pending');
         $setFirst(['context_json', 'context'], $contextJson);
         $setFirst(['payload_json', 'payload'], $payloadJson);
+        $setFirst(['scheduled_for', 'send_at', 'planned_for'], date('Y-m-d H:i:s'));
 
         if (isset($columns['created_at'])) {
             $set('created_at', date('Y-m-d H:i:s'));
