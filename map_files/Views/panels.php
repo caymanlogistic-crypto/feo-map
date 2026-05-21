@@ -285,10 +285,17 @@
         </select>
         <div class="driver-gps-note" id="new_driver_gps_note">Система автоматически выберет первый свободный трекер SLITEX, у которого имя состоит только из цифр, и переименует его.</div>
         <div id="new_driver_retranslation_wrap" style="display:none;">
-            <label class="flight-modal-label" for="new_driver_tracker_id">ID текущего трекера *</label>
+            <label class="flight-modal-label" for="new_driver_tracker_id">ID текущего трекера</label>
             <input class="flight-modal-input" type="text" id="new_driver_tracker_id" placeholder="425252">
             <div class="field-inline-hint">ID трекера берётся из текущего оборудования машины. Его должен сообщить администратор/владелец машины.</div>
+            <div class="field-inline-hint">Можно оставить пустым. ID трекера может быть добавлен позже, когда его сообщит администратор машины.</div>
             <div class="field-inline-error" id="new_driver_tracker_id_error" style="display:none;"></div>
+        </div>
+        <div class="driver-check-wrap" id="new_driver_check_wrap">
+            <div class="field-inline-hint">Система может проверить свободные SLITEX-трекеры без изменения данных.</div>
+            <button class="route-action-btn route-edit-btn route-action-main" id="driverCheckFreeBtn">Проверить свободные трекеры</button>
+            <div class="driver-check-result" id="driverCheckResult" style="display:none;"></div>
+            <div class="field-inline-hint">Переименование трекера выполняется только при allow_patch_rename=1.</div>
         </div>
         <div class="driver-copy-wrap" id="new_driver_copy_wrap" style="display:none;">
             <label class="flight-modal-label" for="new_driver_copy_text">Текст для отправки администратору</label>

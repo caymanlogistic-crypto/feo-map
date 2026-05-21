@@ -1512,7 +1512,9 @@ function syncDriverCreateGpsType() {
     const type = String(document.getElementById('new_driver_gps_type')?.value || 'new_tracker');
     const wrap = document.getElementById('new_driver_retranslation_wrap');
     const note = document.getElementById('new_driver_gps_note');
+    const checkWrap = document.getElementById('new_driver_check_wrap');
     if (wrap) wrap.style.display = type === 'retranslation' ? 'block' : 'none';
+    if (checkWrap) checkWrap.style.display = type === 'new_tracker' ? 'block' : 'none';
     if (note) {
         note.textContent = type === 'retranslation'
             ? 'Ретрансляция используется, если машина уже ездит с существующим трекером.\nВведите ID этого трекера. Его должен сообщить администратор или владелец машины.'
@@ -1532,11 +1534,16 @@ function openDriverCreateModal() {
     const gpsTypeInput = document.getElementById('new_driver_gps_type');
     const trackerInput = document.getElementById('new_driver_tracker_id');
     const copyText = document.getElementById('new_driver_copy_text');
+    const checkResult = document.getElementById('driverCheckResult');
     if (nameInput) nameInput.value = '';
     if (plateInput) plateInput.value = '';
     if (gpsTypeInput) gpsTypeInput.value = 'new_tracker';
     if (trackerInput) trackerInput.value = '';
     if (copyText) copyText.value = '';
+    if (checkResult) {
+        checkResult.style.display = 'none';
+        checkResult.textContent = '';
+    }
     setDriverCreateError('');
     setDriverCreateResult('', false);
     setInlineFieldError('new_driver_full_name_error', '');
@@ -1572,10 +1579,10 @@ async function saveDriverFromModal() {
     if (plateInput) plateInput.value = vehicleMakePlate;
     const nameOk = /^[А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+$/.test(fullName);
     const plateOk = /^[А-Я]\d{3}[А-Я]{2}\d{2,3}$/.test(vehicleMakePlate);
-    const trackerOk = gpsType !== 'retranslation' || !!trackerId;
+    const trackerOk = true;
     setInlineFieldError('new_driver_full_name_error', nameOk ? '' : 'Введите ФИО полностью: Фамилия Имя Отчество');
     setInlineFieldError('new_driver_vehicle_number_error', plateOk ? '' : 'Введите госномер в формате А123АА45 или А123АА456');
-    setInlineFieldError('new_driver_tracker_id_error', trackerOk ? '' : 'Укажите ID текущего трекера');
+    setInlineFieldError('new_driver_tracker_id_error', '');
     if (!nameOk || !plateOk || !trackerOk) {
         setDriverCreateError('');
         return;
@@ -1608,10 +1615,6 @@ async function saveDriverFromModal() {
             setDriverCreateError(data?.message || 'Не удалось создать водителя.');
             return;
         }
-        if (data.dry_run) {
-            setDriverCreateResult('Dry-run: PATCH rename не выполнен. Проверьте параметры и выполните вручную с allow_patch_rename=1.', false);
-            return;
-        }
         const driver = data.driver && data.driver.id ? data.driver : null;
         if (!driver) {
             setDriverCreateError('Сервер не вернул данные водителя.');
@@ -1642,7 +1645,7 @@ async function saveDriverFromModal() {
             ].join('\n');
             setDriverCreateResult(info, false);
         } else {
-            setDriverCreateResult('Водитель создан и выбран в форме.', false);
+            setDriverCreateResult('Водитель создан и выбран в форме.\nСкопируйте текст для администратора ретрансляции или отправьте его в MAX.', false);
         }
     } catch (error) {
         setDriverCreateError('Ошибка сети при создании водителя.');
@@ -1659,10 +1662,6 @@ async function sendRetranslationToMax() {
     const fullName = String(document.getElementById('new_driver_full_name')?.value || '');
     const plate = String(document.getElementById('new_driver_vehicle_number')?.value || '');
     const trackerId = String(document.getElementById('new_driver_tracker_id')?.value || '').trim();
-    if (!trackerId) {
-        setDriverCreateError('Укажите ID трекера для отправки в MAX.');
-        return;
-    }
     const btn = document.getElementById('driverSendMaxBtn');
     const prev = btn ? btn.textContent : '';
     if (btn) {
@@ -1695,6 +1694,51 @@ async function sendRetranslationToMax() {
         if (btn) {
             btn.disabled = false;
             btn.textContent = prev || 'Отправить в MAX';
+        }
+    }
+}
+
+async function checkFreeTrackersForDriver() {
+    const resultEl = document.getElementById('driverCheckResult');
+    const btn = document.getElementById('driverCheckFreeBtn');
+    const prev = btn ? btn.textContent : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Проверка...';
+    }
+    if (resultEl) {
+        resultEl.style.display = 'none';
+        resultEl.textContent = '';
+    }
+    try {
+        const response = await fetch('map_files/save_driver.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ action: 'check_free_trackers' })
+        });
+        const data = await response.json();
+        if (!response.ok || !data || !data.success) {
+            setDriverCreateError(data?.message || 'Не удалось проверить свободные трекеры.');
+            return;
+        }
+        const msg = [
+            `Свободных трекеров: ${Number(data.free_count || 0)}`,
+            `Первый свободный: ${data.first_uniqueid || '-'}`,
+        ].join('\n');
+        if (resultEl) {
+            resultEl.style.display = 'block';
+            resultEl.textContent = msg;
+        }
+        setDriverCreateError('');
+    } catch (e) {
+        setDriverCreateError('Ошибка сети при проверке свободных трекеров.');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = prev || 'Проверить свободные трекеры';
         }
     }
 }
@@ -2848,6 +2892,7 @@ function init() {
     const driverCreateCloseTopBtn = document.getElementById('driverCreateCloseTopBtn');
     const driverCopyTextBtn = document.getElementById('driverCopyTextBtn');
     const driverSendMaxBtn = document.getElementById('driverSendMaxBtn');
+    const driverCheckFreeBtn = document.getElementById('driverCheckFreeBtn');
     const driverGpsType = document.getElementById('new_driver_gps_type');
     const newDriverFullName = document.getElementById('new_driver_full_name');
     const newDriverPlate = document.getElementById('new_driver_vehicle_number');
@@ -2867,6 +2912,7 @@ function init() {
         });
     }
     if (driverSendMaxBtn) driverSendMaxBtn.addEventListener('click', sendRetranslationToMax);
+    if (driverCheckFreeBtn) driverCheckFreeBtn.addEventListener('click', checkFreeTrackersForDriver);
     if (driverGpsType) driverGpsType.addEventListener('change', syncDriverCreateGpsType);
     if (newDriverFullName) {
         newDriverFullName.addEventListener('input', () => {
@@ -2903,15 +2949,10 @@ function init() {
     const newDriverTrackerId = document.getElementById('new_driver_tracker_id');
     if (newDriverTrackerId) {
         newDriverTrackerId.addEventListener('blur', () => {
-            if (String(document.getElementById('new_driver_gps_type')?.value || '') !== 'retranslation') return;
-            setInlineFieldError('new_driver_tracker_id_error', String(newDriverTrackerId.value || '').trim() ? '' : 'Укажите ID текущего трекера');
+            setInlineFieldError('new_driver_tracker_id_error', '');
         });
     }
-    if (driverCreateModal) {
-        driverCreateModal.addEventListener('click', function(event) {
-            if (event.target === driverCreateModal) closeDriverCreateModal();
-        });
-    }
+    // Driver mini-modal intentionally does not close on overlay click.
     document.addEventListener('click', (event) => {
         const combo = document.getElementById('edit_driver_combobox');
         if (!combo) return;

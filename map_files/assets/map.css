@@ -156,6 +156,9 @@
 .driver-gps-note { margin-top: 8px; font-size: 11px; color: #5f6772; line-height: 1.35; background: #f6f8fb; border: 1px solid #dce3ee; border-radius: 6px; padding: 7px 8px; white-space: pre-line; }
 .driver-copy-wrap { margin-top: 8px; }
 .driver-copy-actions { margin-top: 6px; }
+.driver-check-wrap { margin-top: 8px; padding: 8px; border: 1px solid #dce3ee; border-radius: 6px; background: #f8fbff; }
+.driver-check-wrap .route-action-btn { margin-top: 6px; }
+.driver-check-result { margin-top: 6px; border-radius: 6px; padding: 6px 8px; font-size: 11px; line-height: 1.35; background: #eef4ff; border: 1px solid #cfd9f7; color: #274a9b; white-space: pre-line; }
 .driver-create-result { margin-top: 8px; border-radius: 6px; padding: 8px; font-size: 11px; line-height: 1.35; background: #eef7ef; border: 1px solid #cfe7d1; color: #1f5f29; }
 .flight-zayavki-wrap { grid-column: 2 / 3; grid-row: auto / span 2; align-self: start; }
 .flight-checkbox-wrap { grid-column: 1 / 2; align-self: start; display: flex; align-items: center; margin-top: 2px; }

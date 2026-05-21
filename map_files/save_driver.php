@@ -59,6 +59,21 @@ function normalizeDriverPlate(string $value): string
     return mb_substr((string)$value, 0, 9, 'UTF-8');
 }
 
+function extractPlateOnly(string $value): string
+{
+    $value = mb_strtoupper(trim($value), 'UTF-8');
+    $map = [
+        'A' => 'А', 'B' => 'В', 'C' => 'С', 'E' => 'Е', 'H' => 'Н',
+        'K' => 'К', 'M' => 'М', 'O' => 'О', 'P' => 'Р', 'T' => 'Т',
+        'X' => 'Х', 'Y' => 'У',
+    ];
+    $value = strtr($value, $map);
+    if (preg_match('/([АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3})/u', $value, $m)) {
+        return $m[1];
+    }
+    return trim($value);
+}
+
 function isValidDriverName(string $name): bool
 {
     return (bool)preg_match('/^[А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+$/u', $name);
@@ -72,7 +87,7 @@ function isValidDriverPlate(string $plate): bool
 function driverLabel(array $driver): string
 {
     $fullName = trim((string)($driver['full_name'] ?? ''));
-    $plate = trim((string)($driver['vehicle_make_plate'] ?? ''));
+    $plate = extractPlateOnly((string)($driver['vehicle_make_plate'] ?? ''));
     if ($fullName !== '' && $plate !== '') {
         return $fullName . ' — ' . $plate;
     }
@@ -228,7 +243,8 @@ function slitexRequest(string $method, string $url, string $token, ?array $paylo
 
 function buildRetranText(string $trackerId): string
 {
-    return 'Прошу установить ретрансляцию с треккера ' . $trackerId
+    $id = trim($trackerId) !== '' ? trim($trackerId) : '[ID ТРЕККЕРА УТОЧНИТЬ]';
+    return 'Прошу установить ретрансляцию с треккера ' . $id
         . ' на Wialon 31.207.74.35:5039, так же предоставьте ID для ретрансляции если он не совпадает с ID треккера.'
         . "\nВам должны скинуть ID, его необходимо переслать в общую группу.";
 }
@@ -254,9 +270,7 @@ try {
         $fullName = normalizeDriverFullName((string)($input['full_name'] ?? ''));
         $plate = normalizeDriverPlate((string)($input['vehicle_make_plate'] ?? ''));
         $trackerId = trim((string)($input['tracker_id'] ?? ''));
-        if ($trackerId === '') {
-            driverOut(['success' => false, 'message' => 'Укажите ID трекера для отправки в MAX.']);
-        }
+        if ($trackerId === '') $trackerId = '[ID ТРЕККЕРА УТОЧНИТЬ]';
         $driverShort = ($plate !== '' ? $plate : 'ТС') . '(' . explode(' ', $fullName)[0] . ')';
         $message = implode("\n", [
             'Ретрансляция для нового водителя:',
@@ -327,9 +341,6 @@ try {
     $driverCompact = $plate . '(' . $surname . ')';
 
     if ($gpsType === 'retranslation') {
-        if ($trackerIdInput === '') {
-            driverOut(['success' => false, 'message' => 'Для ретрансляции укажите ID трекера.']);
-        }
         $driver = insertDriver($pdo, $columns, $fullName, $plate, $gpsType, null);
         $driver['id'] = (int)($driver['id'] ?? 0);
         $driver['label'] = driverLabel($driver);
@@ -346,7 +357,7 @@ try {
             'max_message' => implode("\n", [
                 'Ретрансляция для нового водителя:',
                 $driverCompact,
-                'ID трекера: ' . $trackerIdInput,
+                'ID трекера: ' . (trim($trackerIdInput) !== '' ? $trackerIdInput : '[ID ТРЕККЕРА УТОЧНИТЬ]'),
                 'Wialon: 31.207.74.35:5039',
                 'Ожидается ID для ретрансляции, если он отличается от ID трекера.',
             ]),
@@ -390,6 +401,17 @@ try {
         }
     }
 
+    if ($action === 'check_free_trackers') {
+        $first = $freeTrackers[0]['uniqueid'] ?? null;
+        driverOut([
+            'success' => true,
+            'free_count' => count($freeTrackers),
+            'first_uniqueid' => $first,
+            'free_trackers' => array_slice($freeTrackers, 0, 10),
+            'message' => count($freeTrackers) > 0 ? 'Свободные трекеры найдены.' : 'Свободных трекеров нет.',
+        ]);
+    }
+
     if (empty($freeTrackers)) {
         driverOut(['success' => false, 'message' => 'Свободных трекеров нет.']);
     }
@@ -400,9 +422,9 @@ try {
     $allowRename = !empty($input['allow_patch_rename']) && (string)$input['allow_patch_rename'] === '1';
     if (!$allowRename) {
         driverOut([
-            'success' => true,
+            'success' => false,
             'dry_run' => true,
-            'message' => 'Готово к настройке нового трекера. PATCH rename отключён в этом запуске.',
+            'message' => 'Свободный трекер найден: ' . ($selected['uniqueid'] ?? '-') . '. Переименование не выполнено, потому что режим реального изменения SLITEX отключён. Для ручного production-теста включите allow_patch_rename=1.',
             'selected_tracker' => $selected,
             'rename_request' => [
                 'method' => 'PATCH',
