@@ -266,48 +266,48 @@
 <div class="flight-modal-backdrop" id="driverCreateModal" style="display:none;">
     <div class="flight-modal flight-modal-confirm driver-mini-modal">
         <div class="flight-modal-header">
-            <div class="flight-modal-title">Новый водитель</div>
+            <div class="flight-modal-title">????? ????????</div>
             <button class="route-action-btn route-icon-btn" id="driverCreateCloseTopBtn">&times;</button>
         </div>
-        <label class="flight-modal-label" for="new_driver_full_name">ФИО *</label>
-        <input class="flight-modal-input" type="text" id="new_driver_full_name" placeholder="Иванов Иван Иванович">
-        <div class="field-inline-hint">Формат: Иванов Иван Иванович</div>
+        <label class="flight-modal-label" for="new_driver_full_name">??? *</label>
+        <input class="flight-modal-input" type="text" id="new_driver_full_name" placeholder="?????? ???? ????????">
+        <div class="field-inline-hint">??????: ?????? ???? ????????</div>
         <div class="field-inline-error" id="new_driver_full_name_error" style="display:none;"></div>
-        <label class="flight-modal-label" for="new_driver_vehicle_number">Госномер *</label>
-        <input class="flight-modal-input" type="text" id="new_driver_vehicle_number" placeholder="А123АА45" maxlength="9">
-        <div class="field-inline-hint">Формат: А123АА45 или А123АА456</div>
+        <label class="flight-modal-label" for="new_driver_vehicle_number">???????? *</label>
+        <input class="flight-modal-input" type="text" id="new_driver_vehicle_number" placeholder="?123??45" maxlength="9">
+        <div class="field-inline-hint">??????: ?123??45 ??? ?123??456</div>
         <div class="field-inline-error" id="new_driver_vehicle_number_error" style="display:none;"></div>
-        <label class="flight-modal-label" for="new_driver_gps_type">Тип GPS подключения *</label>
+        <label class="flight-modal-label" for="new_driver_gps_type">??? GPS ??????????? *</label>
         <select class="flight-modal-input" id="new_driver_gps_type">
-            <option value="new_tracker">Новый трекер</option>
-            <option value="retranslation">Ретрансляция</option>
+            <option value="new_tracker">????? ??????</option>
+            <option value="retranslation">????????????</option>
         </select>
-        <div class="driver-gps-note" id="new_driver_gps_note">Система автоматически выберет первый свободный трекер SLITEX, у которого имя состоит только из цифр, и переименует его.</div>
+        <div class="driver-gps-note" id="new_driver_gps_note">??????? ????????????? ??????? ?????? ????????? ?????? SLITEX, ? ???????? ??? ??????? ?????? ?? ????, ? ??????????? ???.</div>
         <div id="new_driver_retranslation_wrap" style="display:none;">
-            <label class="flight-modal-label" for="new_driver_tracker_id">ID текущего трекера</label>
+            <label class="flight-modal-label" for="new_driver_tracker_id">ID ???????? ???????</label>
             <input class="flight-modal-input" type="text" id="new_driver_tracker_id" placeholder="425252">
-            <div class="field-inline-hint">ID трекера берётся из текущего оборудования машины. Его должен сообщить администратор/владелец машины.</div>
-            <div class="field-inline-hint">Можно оставить пустым. ID трекера может быть добавлен позже, когда его сообщит администратор машины.</div>
+            <div class="field-inline-hint">ID ??????? ??????? ?? ???????? ???????????? ??????. ??? ?????? ???????? ?????????????/???????? ??????.</div>
+            <div class="field-inline-hint">????? ???????? ??????. ID ??????? ????? ???? ???????? ?????, ????? ??? ??????? ????????????? ??????.</div>
             <div class="field-inline-error" id="new_driver_tracker_id_error" style="display:none;"></div>
         </div>
         <div class="driver-check-wrap" id="new_driver_check_wrap">
-            <div class="field-inline-hint">Система может проверить свободные SLITEX-трекеры без изменения данных.</div>
-            <button class="route-action-btn route-edit-btn route-action-main" id="driverCheckFreeBtn">Проверить свободные трекеры</button>
+            <div class="field-inline-hint">??????? ????? ????????? ????????? SLITEX-??????? ??? ????????? ??????.</div>
+            <button type="button" class="route-action-btn route-edit-btn route-action-main" id="driverCheckFreeBtn">????????? ????????? ???????</button>
             <div class="driver-check-result" id="driverCheckResult" style="display:none;"></div>
-            <div class="field-inline-hint">Переименование трекера выполняется только при allow_patch_rename=1.</div>
+            <div class="field-inline-hint">?????????????? ??????? ??????????? ?????? ??? allow_patch_rename=1.</div>
         </div>
         <div class="driver-copy-wrap" id="new_driver_copy_wrap" style="display:none;">
-            <label class="flight-modal-label" for="new_driver_copy_text">Текст для отправки администратору</label>
+            <label class="flight-modal-label" for="new_driver_copy_text">????? ??? ???????? ??????????????</label>
             <textarea class="flight-modal-input" id="new_driver_copy_text" rows="4" readonly></textarea>
             <div class="flight-modal-actions driver-copy-actions">
-                <button class="route-action-btn route-edit-btn route-action-main" id="driverCopyTextBtn">Скопировать текст</button>
-                <button class="route-action-btn route-transfer-btn route-action-main" id="driverSendMaxBtn">Отправить в MAX</button>
+                <button class="route-action-btn route-edit-btn route-action-main" id="driverCopyTextBtn">??????????? ?????</button>
+                <button class="route-action-btn route-transfer-btn route-action-main" id="driverSendMaxBtn">????????? ? MAX</button>
             </div>
         </div>
         <div class="driver-create-result" id="driverCreateResult" style="display:none;"></div>
         <div class="flight-modal-actions">
-            <button class="route-action-btn route-transfer-start-btn route-action-main" id="driverCreateSaveBtn">Создать водителя</button>
-            <button class="route-action-btn route-action-main" id="driverCreateCancelBtn">Отмена</button>
+            <button class="route-action-btn route-transfer-start-btn route-action-main" id="driverCreateSaveBtn">??????? ????????</button>
+            <button class="route-action-btn route-action-main" id="driverCreateCancelBtn">??????</button>
         </div>
     </div>
 </div>

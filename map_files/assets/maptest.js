@@ -1712,17 +1712,30 @@ async function sendRetranslationToMax() {
     }
 }
 
-async function checkFreeTrackersForDriver() {
+function setDriverTrackerCheckMessage(message, isError = false) {
+    const resultEl = document.getElementById('driverCheckResult');
+    if (!resultEl) return;
+    resultEl.style.display = 'block';
+    resultEl.textContent = String(message || '');
+    resultEl.classList.toggle('is-error', !!isError);
+}
+
+async function checkFreeTrackersForDriver(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
     const resultEl = document.getElementById('driverCheckResult');
     const btn = document.getElementById('driverCheckFreeBtn');
     const prev = btn ? btn.textContent : '';
     if (btn) {
         btn.disabled = true;
-        btn.textContent = 'Проверка...';
+        btn.textContent = 'Проверяем...';
     }
     if (resultEl) {
         resultEl.style.display = 'none';
         resultEl.textContent = '';
+        resultEl.classList.remove('is-error');
     }
     try {
         const response = await fetch('map_files/save_driver.php', {
@@ -1735,20 +1748,16 @@ async function checkFreeTrackersForDriver() {
         });
         const data = await response.json();
         if (!response.ok || !data || !data.success) {
-            setDriverCreateError(data?.message || 'Не удалось проверить свободные трекеры.');
+            setDriverTrackerCheckMessage(data?.message || 'Не удалось проверить свободные трекеры.', true);
             return;
         }
         const msg = [
             `Свободных трекеров: ${Number(data.free_count || 0)}`,
             `Первый свободный: ${data.first_uniqueid || '-'}`,
         ].join('\n');
-        if (resultEl) {
-            resultEl.style.display = 'block';
-            resultEl.textContent = msg;
-        }
-        setDriverCreateError('');
+        setDriverTrackerCheckMessage(msg, false);
     } catch (e) {
-        setDriverCreateError('Ошибка сети при проверке свободных трекеров.');
+        setDriverTrackerCheckMessage('Ошибка сети при проверке свободных трекеров.', true);
     } finally {
         if (btn) {
             btn.disabled = false;
