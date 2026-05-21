@@ -266,11 +266,16 @@ body{font-family:Arial,sans-serif;background:#f4f6f8;color:#1e293b;margin:0;padd
 .card{background:#fff;border:1px solid #d9e0e7;border-radius:8px;padding:12px;margin-bottom:10px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 label{font-size:13px;color:#334155}input[type=text],input[type=password],select,textarea{border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;font-size:13px;width:100%;box-sizing:border-box}
-textarea{min-height:96px}.btn{border:1px solid #94a3b8;background:#eef2f7;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:13px}
+textarea{min-height:96px}.btn{border:1px solid #94a3b8;background:#eef2f7;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:13px;height:32px;display:inline-flex;align-items:center}
 .btn.primary{background:#0ea5b7;color:#fff;border-color:#0b7285}.btn.danger{background:#fdf2f2;border-color:#f1b3b3;color:#b42318}
 .small{font-size:12px;color:#64748b}.ok{background:#ecfdf3;border-color:#b7e4c7}.err{background:#fef2f2;border-color:#fecaca;color:#b42318}
 table{width:100%;border-collapse:collapse}th,td{font-size:12px;border-bottom:1px solid #e2e8f0;padding:6px;text-align:left;vertical-align:top}
 th{background:#f8fafc}.mono{font-family:Consolas,monospace;white-space:pre-wrap}.hint{font-size:12px;color:#334155;background:#f8fafc;border-left:3px solid #0ea5b7;padding:6px 8px;border-radius:4px}
+.tpl-grid{display:grid;grid-template-columns:360px 1fr;gap:10px;align-items:start}
+.tpl-left{display:grid;gap:6px}
+.tpl-right{display:grid;gap:6px}
+.tpl-actions{display:flex;gap:8px;align-items:center}
+textarea.tpl-text{min-height:0;height:auto}
 @media (max-width:1000px){.grid{grid-template-columns:1fr}}
 </style></head><body><div class="wrap">
 <div class="top"><h2 style="margin:0">Администрирование MAX</h2><?php if (isAuthed()): ?><a class="btn" href="?logout=1">Выйти</a><?php endif; ?></div>
@@ -302,26 +307,29 @@ th{background:#f8fafc}.mono{font-family:Consolas,monospace;white-space:pre-wrap}
 </div>
 
 <div class="card" id="templates-card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Шаблоны событий</h3><form method="post" class="js-admin-ajax"><input type="hidden" name="action" value="seed_templates"><button class="btn" type="submit">Обновить default шаблоны из production</button><span class="small js-status"></span></form></div>
-<?php foreach($templates as $t): $eventKey = (string)($t['event_key'] ?? ''); $desc = trim((string)($t['description'] ?? '')); if ($desc === '' && isset($catalog[$eventKey]['description'])) { $desc = $catalog[$eventKey]['description']; } $previewText = mapAdminRenderTemplate((string)($t['template_text'] ?? ''), demoContext()); ?>
+<?php foreach($templates as $t): $eventKey = (string)($t['event_key'] ?? ''); $desc = trim((string)($t['description'] ?? '')); if ($desc === '' && isset($catalog[$eventKey]['description'])) { $desc = $catalog[$eventKey]['description']; } ?>
 <form method="post" class="card js-admin-ajax" style="margin:8px 0;padding:10px;background:#f8fafc">
 <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
-<div class="hint"><?= h($desc !== '' ? $desc : ('Отправляется при событии: ' . $eventKey)) ?></div>
-<div style="height:6px"></div>
-<div class="row"><strong class="mono" style="min-width:220px"><?= h($eventKey) ?></strong><input type="text" name="title" value="<?= h($t['title']) ?>" style="max-width:360px"><label><input type="checkbox" name="is_enabled" value="1" <?= (int)$t['is_enabled']===1?'checked':'' ?>> Включено</label></div>
-<div style="height:6px"></div>
-<textarea name="template_text"><?= h($t['template_text']) ?></textarea>
-<div class="small">Плейсхолдеры: {route_id}, {route_title}, {driver}, {planned_range}, {actual_start_short}, {meta_line}, {manager}, {route_type_line}, {requests_count}, {weight}, {message}</div>
-<div class="small">Форматирование MAX (markdown): <code>**жирный текст**</code>, переносы строк, markdown-цитаты через <code>&gt; текст</code>.</div>
-<div style="height:6px"></div>
-<input type="text" name="description" value="<?= h($desc) ?>">
-<div style="height:6px"></div>
-<div class="hint"><strong>Preview (demo-data):</strong><br><span class="mono"><?= nl2br(h($previewText)) ?></span></div>
-<div style="height:6px"></div>
-<div class="row">
-<button class="btn" type="submit" name="action" value="save_template">Сохранить шаблон</button>
-<button class="btn primary" type="submit" name="action" value="test_template">Тест</button>
-<input type="hidden" name="event_key" value="<?= h($eventKey) ?>">
-<span class="small js-status"></span>
+<div class="tpl-grid">
+  <div class="tpl-left">
+    <div class="hint"><?= h($desc !== '' ? $desc : ('Отправляется при событии: ' . $eventKey)) ?></div>
+    <div class="row"><strong><?= h($t['title']) ?></strong></div>
+    <div class="row"><span class="mono"><?= h($eventKey) ?></span></div>
+    <div class="row"><label><input type="checkbox" name="is_enabled" value="1" <?= (int)$t['is_enabled']===1?'checked':'' ?>> Включено</label></div>
+    <input type="text" name="title" value="<?= h($t['title']) ?>">
+    <input type="text" name="description" value="<?= h($desc) ?>">
+    <div class="small">Плейсхолдеры: {route_id}, {route_title}, {driver}, {planned_range}, {actual_start_short}, {meta_line}, {manager}, {route_type_line}, {requests_count}, {weight}, {message}</div>
+    <div class="small">Форматирование MAX (markdown): <code>**жирный текст**</code>, переносы строк, markdown-цитаты через <code>&gt; текст</code>.</div>
+  </div>
+  <div class="tpl-right">
+    <textarea class="tpl-text" name="template_text" rows="6"><?= h($t['template_text']) ?></textarea>
+    <div class="tpl-actions">
+      <button class="btn" type="submit" name="action" value="save_template">Сохранить шаблон</button>
+      <button class="btn primary" type="submit" name="action" value="test_template">Тест</button>
+      <input type="hidden" name="event_key" value="<?= h($eventKey) ?>">
+      <span class="small js-status"></span>
+    </div>
+  </div>
 </div>
 </form>
 <?php endforeach; ?>
