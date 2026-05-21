@@ -13,7 +13,6 @@ const MAX_ADMIN_PASSWORD = '75500';
 
 function h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
 function isAuthed(): bool { return !empty($_SESSION['max_admin_auth']); }
-function requireAuth(): void { if (!isAuthed()) { header('Location: max_admin.php'); exit; } }
 function post($k, $d='') { return $_POST[$k] ?? $d; }
 
 function adminTablesReady(PDO $pdo): bool {
@@ -41,8 +40,96 @@ function upsertSetting(PDO $pdo, string $k, string $v): void {
     if ($stmt) $stmt->execute([':k'=>$k, ':v'=>$v]);
 }
 
+function templateCatalog(): array {
+    return [
+        'planned_to_found' => [
+            'title' => 'Планируемый маршрут → Рейс сформирован',
+            'description' => 'Отправляется при переводе рейса: Планируемый маршрут → Рейс сформирован',
+            'template' => "**РЕЙС СФОРМИРОВАН**\n#{route_id} {route_title}\nНачало вывоза: {planned_range}\n{meta_line}\n{route_type_line}\n{driver}\nРейс закреплен: {manager}\n> 💡 *Просим подготовить товаросопроводительные документы на заявленные дату и водителя.*",
+        ],
+        'found_to_started' => [
+            'title' => 'Рейс сформирован → Вывоз начался',
+            'description' => 'Отправляется при начале вывоза: Рейс сформирован → Вывоз начался',
+            'template' => "**✅ ВЫВОЗ НАЧАЛСЯ**\n#{route_id} {route_title}\n{route_type_line}\nВодитель: {driver}\nСтарт: {actual_start_short}\nЗаявки: {requests_count}\nВес: {weight}\nРейс закреплен: {manager}\n> 💡 *Включено слежение за состоянием трекера.*",
+        ],
+        'started_to_found_rollback' => [
+            'title' => 'Вывоз начался → Рейс сформирован',
+            'description' => 'Отправляется при откате рейса: Вывоз начался → Рейс сформирован',
+            'template' => "**⚠️ ПРЕОСТАНОВКА ВЫПОЛНЯЕМОГО РЕЙСА ⚠️**\n#{route_id} {route_title}\n{route_type_line}\nВодитель: {driver}\nСтарт: {actual_start_short}\nЗаявки: {requests_count}\nВес: {weight}\nРейс закреплен: {manager}\n> 💡 *ВНИМАНИЕ. Статус рейса изменён с «Выполняемые» на «Сформированные». В связи с этим вероятна корректировка перечня вывозимых заявок либо замена подрядчика.*",
+        ],
+        'found_to_planned_rollback' => [
+            'title' => 'Рейс сформирован → Планируемый маршрут',
+            'description' => 'Отправляется при откате рейса: Рейс сформирован → Планируемый маршрут',
+            'template' => "**#{route_id} {route_title}**\nвозвращён в «Планируемый»\n{route_type_line}\nРейс закреплен: {manager}\n> 💡 *Подготовку документов приостановить до переформирования рейса.*",
+        ],
+        'planned_date_update' => [
+            'title' => 'Обновление плановых дат/планового рейса',
+            'description' => 'Отправляется при добавлении или изменении плановых дат в плановом рейсе',
+            'template' => "{message}",
+        ],
+        'route_diff_found' => [
+            'title' => 'Изменение в сформированном рейсе',
+            'description' => 'Отправляется при изменении данных рейса в статусе «Рейс сформирован»',
+            'template' => "**⚠️ ИЗМЕНЕНИЕ В СФОРМИРОВАННОМ РЕЙСЕ ⚠️**\n#{route_id} {route_title}\nВодитель: {driver_before} → {driver_after}\nДаты: {planned_range_before} → {planned_range_after}\nЗаявки: {requests_count_before} → {requests_count_after}\nВес: {weight_before} → {weight_after}\n{removed_ids_line}\n{added_ids_line}\nРейс закреплен: {manager}",
+        ],
+        'route_diff_started' => [
+            'title' => 'Изменение в выполняемом рейсе',
+            'description' => 'Отправляется при изменении данных рейса в статусе «Вывоз начался»',
+            'template' => "Изменён рейс #{route_id} во время выполнения\n{route_title} | {manager}\n{changes_block}\nРейс находится в выполнении. Проверьте корректность изменений.",
+        ],
+        'route_deleted' => [
+            'title' => 'Удаление маршрута',
+            'description' => 'Отправляется при удалении планируемого маршрута',
+            'template' => "#{route_id} {route_title} - Удален из системы\n{route_type_line}\nРейс закреплен: {manager}",
+        ],
+        'route_completed' => [
+            'title' => 'Вывоз начался → Груз сдан',
+            'description' => 'Отправляется при завершении рейса и переводе в «Груз сдан»',
+            'template' => "ТС ПРИБЫЛО НА РАЗГРУЗКУ\n───────────────────\n{route_type_line}\n{driver}\n#{route_id} — {route_title}\n> 💡 *Напоминаю: для оплаты подрядчику нужен полный пакет документов (диагностическая карта, путевой лист и т.д.). Прошу не затягивать с предоставлением.*",
+        ],
+        'route_control_cron' => [
+            'title' => 'Cron-контроль рейсов',
+            'description' => 'Отправляется cron-контролем рейсов (утро/вечер) для проблемных рейсов на сегодня',
+            'template' => "{message}",
+        ],
+        'test_message' => [
+            'title' => 'Тестовое сообщение',
+            'description' => 'Отправляется вручную из админки для проверки доставки и форматирования',
+            'template' => "Тест MAX уведомления\n> 💡 *Проверка markdown-цитаты.*",
+        ],
+    ];
+}
+
+function demoContext(): array {
+    return [
+        'route_id' => '165',
+        'route_title' => 'ТЕСТОВЫЙ МАРШРУТ',
+        'planned_range' => '19.05–20.05',
+        'planned_range_before' => '19.05–21.05',
+        'planned_range_after' => '18.05–21.05',
+        'actual_start_short' => '19.05',
+        'meta_line' => '2 заяв. • 468 кг',
+        'driver' => 'К769СТ134(Брюхнов)',
+        'driver_before' => 'М139МО774(Иванов)',
+        'driver_after' => 'К769СТ134(Петров)',
+        'manager' => 'Карина',
+        'requests_count' => '2',
+        'requests_count_before' => '2',
+        'requests_count_after' => '1',
+        'weight' => '468 кг',
+        'weight_before' => '468 кг',
+        'weight_after' => '153 кг',
+        'removed_ids_line' => 'Исключенные заявки: 267619',
+        'added_ids_line' => 'Добавленные заявки: 123456',
+        'changes_block' => 'Заявки: 2 → 1\nВес: 468 кг → 153 кг\nВодитель: М139МО774(Иванов) → К769СТ134(Петров)',
+        'route_type_line' => 'Вывоз на склад: Склад Феодосия',
+        'message' => 'Тестовое сообщение MAX',
+    ];
+}
+
 $flash = '';
 $flashType = 'ok';
+$catalog = templateCatalog();
 
 if (!isAuthed() && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && post('action') === 'login') {
     if (hash_equals(MAX_ADMIN_PASSWORD, (string)post('password'))) {
@@ -106,25 +193,22 @@ if (isAuthed() && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             ]);
             $flash = 'Шаблон обновлен';
         } elseif ($action === 'seed_templates') {
-            $seed = [
-                ['planned_to_found','Планируемый → Рейс сформирован'],
-                ['found_to_started','Рейс сформирован → Вывоз начался'],
-                ['started_to_found_rollback','Вывоз начался → Рейс сформирован'],
-                ['found_to_planned_rollback','Рейс сформирован → Планируемый'],
-                ['planned_date_added','Добавлена плановая дата'],
-                ['planned_date_changed','Изменены плановые даты'],
-                ['route_diff_found','Изменение в сформированном рейсе'],
-                ['route_diff_started','Изменение в выполняемом рейсе'],
-                ['route_deleted','Удаление маршрута'],
-                ['route_completed','Груз сдан'],
-                ['route_control_cron','Cron-контроль рейсов'],
-                ['test_message','Тестовое сообщение'],
-            ];
-            $stmt = $pdo->prepare('INSERT IGNORE INTO max_message_templates(event_key,title,template_text,is_enabled,description) VALUES(:event_key,:title,:template_text,1,:description)');
-            foreach ($seed as $s) {
-                $stmt->execute([':event_key'=>$s[0], ':title'=>$s[1], ':template_text'=>'{message}', ':description'=>'Override шаблон для события']);
+            $stmt = $pdo->prepare(
+                'INSERT INTO max_message_templates(event_key,title,template_text,is_enabled,description) VALUES(:event_key,:title,:template_text,1,:description)
+                 ON DUPLICATE KEY UPDATE
+                   title=VALUES(title),
+                   description=VALUES(description),
+                   template_text=CASE WHEN template_text = "{message}" OR template_text = "" THEN VALUES(template_text) ELSE template_text END'
+            );
+            foreach ($catalog as $eventKey => $cfg) {
+                $stmt->execute([
+                    ':event_key' => $eventKey,
+                    ':title' => $cfg['title'],
+                    ':template_text' => $cfg['template'],
+                    ':description' => $cfg['description'],
+                ]);
             }
-            $flash = 'Базовые шаблоны добавлены';
+            $flash = 'Production-шаблоны обновлены';
         } elseif ($action === 'send_test') {
             $eventKey = trim((string)post('event_key'));
             $message = trim((string)post('message'));
@@ -136,6 +220,22 @@ if (isAuthed() && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 throw new RuntimeException('Ошибка отправки: ' . (string)($res['error'] ?? 'unknown'));
             }
             $flash = 'Тестовое сообщение отправлено';
+        } elseif ($action === 'test_template') {
+            $eventKey = trim((string)post('event_key'));
+            $templateText = (string)post('template_text');
+            if ($eventKey === '' || $templateText === '') {
+                throw new RuntimeException('Не удалось протестировать шаблон: пустое событие или текст');
+            }
+            $demo = demoContext();
+            $rendered = mapAdminRenderTemplate($templateText, $demo);
+            $res = sendMaxNotify($rendered, 'markdown', [
+                'event_key' => 'test_message',
+                'context' => ['message' => $rendered],
+            ]);
+            if (empty($res['success'])) {
+                throw new RuntimeException('Ошибка отправки теста шаблона: ' . (string)($res['error'] ?? 'unknown'));
+            }
+            $flash = 'Тест шаблона отправлен в MAX';
         }
     } catch (Throwable $e) {
         $flash = $e->getMessage();
@@ -162,15 +262,15 @@ if ($ready) {
 <title>Администрирование MAX</title>
 <style>
 body{font-family:Arial,sans-serif;background:#f4f6f8;color:#1e293b;margin:0;padding:16px}
-.wrap{max-width:1280px;margin:0 auto}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.wrap{max-width:1240px;margin:0 auto}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .card{background:#fff;border:1px solid #d9e0e7;border-radius:8px;padding:12px;margin-bottom:10px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 label{font-size:13px;color:#334155}input[type=text],input[type=password],select,textarea{border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;font-size:13px;width:100%;box-sizing:border-box}
-textarea{min-height:88px}.btn{border:1px solid #94a3b8;background:#eef2f7;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:13px}
+textarea{min-height:96px}.btn{border:1px solid #94a3b8;background:#eef2f7;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:13px}
 .btn.primary{background:#0ea5b7;color:#fff;border-color:#0b7285}.btn.danger{background:#fdf2f2;border-color:#f1b3b3;color:#b42318}
 .small{font-size:12px;color:#64748b}.ok{background:#ecfdf3;border-color:#b7e4c7}.err{background:#fef2f2;border-color:#fecaca;color:#b42318}
 table{width:100%;border-collapse:collapse}th,td{font-size:12px;border-bottom:1px solid #e2e8f0;padding:6px;text-align:left;vertical-align:top}
-th{background:#f8fafc}.mono{font-family:Consolas,monospace;white-space:pre-wrap}
+th{background:#f8fafc}.mono{font-family:Consolas,monospace;white-space:pre-wrap}.hint{font-size:12px;color:#334155;background:#f8fafc;border-left:3px solid #0ea5b7;padding:6px 8px;border-radius:4px}
 @media (max-width:1000px){.grid{grid-template-columns:1fr}}
 </style></head><body><div class="wrap">
 <div class="top"><h2 style="margin:0">Администрирование MAX</h2><?php if (isAuthed()): ?><a class="btn" href="?logout=1">Выйти</a><?php endif; ?></div>
@@ -201,8 +301,26 @@ th{background:#f8fafc}.mono{font-family:Consolas,monospace;white-space:pre-wrap}
 <form method="post" class="row"><input type="hidden" name="action" value="add_group"><input type="text" name="title" placeholder="Название группы" style="max-width:280px"><input type="text" name="group_id" placeholder="group_id/chat_id" style="max-width:320px"><label><input type="checkbox" name="is_active" value="1" checked> Активна</label><button class="btn primary" type="submit">Добавить группу</button></form>
 </div>
 
-<div class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Шаблоны событий</h3><form method="post"><input type="hidden" name="action" value="seed_templates"><button class="btn" type="submit">Заполнить базовые события</button></form></div>
-<?php foreach($templates as $t): ?><form method="post" class="card" style="margin:8px 0;padding:10px;background:#f8fafc"><input type="hidden" name="action" value="save_template"><input type="hidden" name="id" value="<?= (int)$t['id'] ?>"><div class="row"><strong class="mono" style="min-width:220px"><?= h($t['event_key']) ?></strong><input type="text" name="title" value="<?= h($t['title']) ?>" style="max-width:320px"><label><input type="checkbox" name="is_enabled" value="1" <?= (int)$t['is_enabled']===1?'checked':'' ?>> Включено</label></div><div style="height:6px"></div><textarea name="template_text"><?= h($t['template_text']) ?></textarea><div class="small">Плейсхолдеры: {route_id}, {route_title}, {driver}, {date}, {requests_count}, {weight}, {status_from}, {status_to}, {message}</div><div style="height:6px"></div><input type="text" name="description" value="<?= h($t['description']) ?>"><div style="height:6px"></div><button class="btn" type="submit">Сохранить шаблон</button></form><?php endforeach; ?>
+<div class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Шаблоны событий</h3><form method="post"><input type="hidden" name="action" value="seed_templates"><button class="btn" type="submit">Обновить default шаблоны из production</button></form></div>
+<?php foreach($templates as $t): $eventKey = (string)($t['event_key'] ?? ''); $desc = trim((string)($t['description'] ?? '')); if ($desc === '' && isset($catalog[$eventKey]['description'])) { $desc = $catalog[$eventKey]['description']; } ?>
+<form method="post" class="card" style="margin:8px 0;padding:10px;background:#f8fafc">
+<input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
+<div class="hint"><?= h($desc !== '' ? $desc : ('Отправляется при событии: ' . $eventKey)) ?></div>
+<div style="height:6px"></div>
+<div class="row"><strong class="mono" style="min-width:220px"><?= h($eventKey) ?></strong><input type="text" name="title" value="<?= h($t['title']) ?>" style="max-width:360px"><label><input type="checkbox" name="is_enabled" value="1" <?= (int)$t['is_enabled']===1?'checked':'' ?>> Включено</label></div>
+<div style="height:6px"></div>
+<textarea name="template_text"><?= h($t['template_text']) ?></textarea>
+<div class="small">Плейсхолдеры: {route_id}, {route_title}, {driver}, {planned_range}, {actual_start_short}, {meta_line}, {manager}, {route_type_line}, {requests_count}, {weight}, {message}</div>
+<div style="height:6px"></div>
+<input type="text" name="description" value="<?= h($desc) ?>">
+<div style="height:6px"></div>
+<div class="row">
+<button class="btn" type="submit" name="action" value="save_template">Сохранить шаблон</button>
+<button class="btn primary" type="submit" name="action" value="test_template">Тест</button>
+<input type="hidden" name="event_key" value="<?= h($eventKey) ?>">
+</div>
+</form>
+<?php endforeach; ?>
 </div>
 
 <div class="card"><h3 style="margin:0 0 8px">Лог отправок (последние 50)</h3>
