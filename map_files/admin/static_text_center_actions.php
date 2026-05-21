@@ -40,6 +40,21 @@ function stSeedCatalog(): array
 {
     return [
         ['key' => 'route.modal.title', 'category' => 'routes', 'name' => 'Заголовок модального окна рейса', 'description' => 'Шапка формы редактирования рейса', 'text' => 'Редактирование рейса #{id}', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'common.loading', 'category' => 'system', 'name' => 'Загрузка', 'description' => 'Универсальная подпись загрузки', 'text' => 'Загрузка...', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'button.refresh_transport_title', 'category' => 'buttons', 'name' => 'Tooltip обновить транспорт', 'description' => 'Tooltip кнопки обновления транспорта', 'text' => 'Обновить позиции транспорта', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'button.refresh_transport', 'category' => 'buttons', 'name' => 'Кнопка обновить транспорт', 'description' => 'Текст кнопки обновления транспорта', 'text' => 'Обновить транспорт', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'routes.title.planned', 'category' => 'routes', 'name' => 'Заголовок планируемых', 'description' => 'Левая колонка', 'text' => 'Планируемые маршруты', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'routes.title.found', 'category' => 'routes', 'name' => 'Заголовок сформированных', 'description' => 'Левая колонка', 'text' => 'Сформированные рейсы', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'routes.title.started', 'category' => 'routes', 'name' => 'Заголовок started', 'description' => 'Левая колонка', 'text' => 'Вывоз начался', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'layers.title', 'category' => 'routes', 'name' => 'Заголовок управления слоями', 'description' => 'Панель слоев', 'text' => 'Управление слоями', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'layers.available', 'category' => 'routes', 'name' => 'Чекбокс доступно к вывозу', 'description' => 'Панель слоев', 'text' => 'Доступно к вывозу', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'selection.title', 'category' => 'routes', 'name' => 'Заголовок выделенных заявок', 'description' => 'Правая панель', 'text' => 'Выделенные заявки', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'selection.stats.default', 'category' => 'routes', 'name' => 'Дефолт статистики заявок', 'description' => 'Правая панель', 'text' => 'Заявок: 0 • Адресов: 0', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'selection.weight.default', 'category' => 'routes', 'name' => 'Дефолт общего веса', 'description' => 'Правая панель', 'text' => 'Общий вес: 0 кг', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'selection.route.create', 'category' => 'routes', 'name' => 'Статус создания маршрута', 'description' => 'Правая панель', 'text' => 'Создание нового маршрута', 'usage' => 'map_files/Views/panels.php'],
+        ['key' => 'driver.select.placeholder', 'category' => 'drivers', 'name' => 'Placeholder выбора водителя', 'description' => 'Combobox водителей', 'text' => 'Выберите водителя', 'usage' => 'map_files/assets/maptest.js'],
+        ['key' => 'validation.pick_one_request', 'category' => 'errors', 'name' => 'Валидация: выберите заявку', 'description' => 'Сообщение валидации', 'text' => 'Выберите хотя бы одну заявку', 'usage' => 'map_files/assets/maptest.js'],
+        ['key' => 'confirm.delete_route', 'category' => 'popup', 'name' => 'Confirm удаления маршрута', 'description' => 'Подтверждение удаления', 'text' => 'Удалить маршрут?', 'usage' => 'map_files/assets/maptest.js'],
         ['key' => 'route.status.planned', 'category' => 'routes', 'name' => 'Статус планируемый', 'description' => 'Текст статуса planned_route', 'text' => 'Планируемый маршрут', 'usage' => 'map_files/Views/panels.php'],
         ['key' => 'route.status.found', 'category' => 'routes', 'name' => 'Статус сформирован', 'description' => 'Текст статуса found', 'text' => 'Рейс сформирован', 'usage' => 'map_files/Views/panels.php'],
         ['key' => 'route.status.started', 'category' => 'routes', 'name' => 'Статус started', 'description' => 'Текст статуса started', 'text' => 'Вывоз начался', 'usage' => 'map_files/Views/panels.php'],
@@ -51,6 +66,16 @@ function stSeedCatalog(): array
         ['key' => 'button.cancel', 'category' => 'buttons', 'name' => 'Кнопка отмена', 'description' => 'Базовая кнопка', 'text' => 'Отмена', 'usage' => 'map_files/Views/panels.php'],
         ['key' => 'max.test.success', 'category' => 'max', 'name' => 'Успех теста MAX', 'description' => 'Служебное сообщение статуса', 'text' => 'Тест отправлен', 'usage' => 'map_files/admin/max_event_center.php'],
     ];
+}
+
+function stDefaultByKey(string $key): ?array
+{
+    foreach (stSeedCatalog() as $row) {
+        if ((string)($row['key'] ?? '') === $key) {
+            return $row;
+        }
+    }
+    return null;
 }
 
 function stSaveRow(PDO $pdo, array $row): void
@@ -65,6 +90,7 @@ function stSaveRow(PDO $pdo, array $row): void
     };
     $put('text_key', (string)($row['key'] ?? ''));
     $put('key_name', (string)($row['key'] ?? ''));
+    $put('key', (string)($row['key'] ?? ''));
     $put('category', (string)($row['category'] ?? 'system'));
     $put('title', (string)($row['name'] ?? ''));
     $put('name', (string)($row['name'] ?? ''));
@@ -78,7 +104,7 @@ function stSaveRow(PDO $pdo, array $row): void
         return;
     }
 
-    $keyColumn = isset($cols['text_key']) ? 'text_key' : (isset($cols['key_name']) ? 'key_name' : '');
+    $keyColumn = isset($cols['text_key']) ? 'text_key' : (isset($cols['key_name']) ? 'key_name' : (isset($cols['key']) ? 'key' : ''));
     if ($keyColumn === '') {
         throw new RuntimeException('Не найден ключевой столбец ui_static_texts');
     }
@@ -105,7 +131,7 @@ function stLoadRows(PDO $pdo, string $q = ''): array
         return [];
     }
     $cols = stColumns($pdo);
-    $keyCol = isset($cols['text_key']) ? 'text_key' : (isset($cols['key_name']) ? 'key_name' : '');
+    $keyCol = isset($cols['text_key']) ? 'text_key' : (isset($cols['key_name']) ? 'key_name' : (isset($cols['key']) ? 'key' : ''));
     $textCol = isset($cols['text_value']) ? 'text_value' : (isset($cols['text']) ? 'text' : '');
     $nameCol = isset($cols['title']) ? 'title' : (isset($cols['name']) ? 'name' : '');
     $usageCol = isset($cols['usage_path']) ? 'usage_path' : (isset($cols['used_in']) ? 'used_in' : '');
@@ -171,6 +197,19 @@ try {
             'usage' => trim((string)maxAdminPost('usage_path', '')),
         ]);
         maxAdminJsonOut(['success' => true, 'message' => 'Текст сохранен']);
+    }
+
+    if ($action === 'restore_default') {
+        $key = trim((string)maxAdminPost('text_key', ''));
+        if ($key === '') {
+            throw new RuntimeException('Пустой KEY');
+        }
+        $default = stDefaultByKey($key);
+        if (!$default) {
+            throw new RuntimeException('Для ключа нет default значения');
+        }
+        stSaveRow($pdo, $default);
+        maxAdminJsonOut(['success' => true, 'message' => 'Default восстановлен', 'data' => ['text_value' => (string)$default['text']]]);
     }
 
     maxAdminJsonOut(['success' => false, 'error' => 'Неизвестное действие']);

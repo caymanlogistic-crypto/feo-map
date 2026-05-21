@@ -122,6 +122,13 @@ UI.labelRouteType = '\u0422\u0438\u043f \u0440\u0435\u0439\u0441\u0430';
 const mapBootstrap = (typeof window !== 'undefined' && window.MAP_BOOTSTRAP && typeof window.MAP_BOOTSTRAP === 'object')
     ? window.MAP_BOOTSTRAP
     : {};
+const uiTexts = (mapBootstrap.uiTexts && typeof mapBootstrap.uiTexts === 'object') ? mapBootstrap.uiTexts : {};
+function uiText(key, fallback) {
+    const value = uiTexts[key];
+    if (typeof value !== 'string') return fallback;
+    const trimmed = value.trim();
+    return trimmed !== '' ? trimmed : fallback;
+}
 const initialTrackers = Array.isArray(mapBootstrap.initialTrackers) ? mapBootstrap.initialTrackers : [];
 const allTrackers = Array.isArray(mapBootstrap.allTrackers) ? mapBootstrap.allTrackers : [];
 const routeCardsMeta = (mapBootstrap.routeCardsMeta && typeof mapBootstrap.routeCardsMeta === 'object') ? mapBootstrap.routeCardsMeta : {};
@@ -143,6 +150,9 @@ let managerScopeDriverIds = new Set();
 let managerScopePlates = new Set();
 let managerScopeInitialized = false;
 let currentManagers = [];
+UI.chooseDriver = uiText('driver.select.placeholder', UI.chooseDriver);
+UI.msgPickAtLeastOneRequest = uiText('validation.pick_one_request', UI.msgPickAtLeastOneRequest);
+UI.msgDeleteRouteConfirm = uiText('confirm.delete_route', UI.msgDeleteRouteConfirm);
 const MANAGER_STORAGE_KEY = 'map_selected_manager_id';
 let recentActivatedTrackersMap = {};
 const foundRoutesById = {};

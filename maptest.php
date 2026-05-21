@@ -15,6 +15,7 @@ if (function_exists('opcache_invalidate')) {
 }
 
 require_once __DIR__ . '/map_files/bootstrap.php';
+require_once __DIR__ . '/map_files/Support/ui_texts.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && strpos((string)$_GET['action'], 'route_') === 0) {
     if (!headers_sent()) {
@@ -561,6 +562,15 @@ $mapData = [
     'customLayers' => [],
     'hasDefault' => false,
 ];
+
+$uiTexts = [];
+try {
+    if (isset($pdo) && $pdo instanceof PDO) {
+        $uiTexts = mapLoadUiTexts($pdo);
+    }
+} catch (Throwable $e) {
+    $uiTexts = [];
+}
 
 try {
     $builtData = $mapDataService->build();

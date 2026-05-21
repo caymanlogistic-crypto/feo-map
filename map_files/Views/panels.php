@@ -1,36 +1,41 @@
-<?php include 'menu2.php'; ?>
+<?php
+include 'menu2.php';
+$t = static function (string $key, string $fallback): string {
+    return htmlspecialchars(ui_text($key, $fallback), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+};
+?>
 <div id="map"></div>
 
-<button class="refresh-btn" id="refreshBtn" title="Обновить позиции транспорта">Обновить транспорт</button>
+<button class="refresh-btn" id="refreshBtn" title="<?= $t('button.refresh_transport_title', 'Обновить позиции транспорта') ?>"><?= $t('button.refresh_transport', 'Обновить транспорт') ?></button>
 
 <div class="routes-panel">
     <div class="routes-section routes-section-planned">
-        <h3 class="routes-title-planned">Планируемые маршруты</h3>
-        <div id="plannedRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
+        <h3 class="routes-title-planned"><?= $t('routes.title.planned', 'Планируемые маршруты') ?></h3>
+        <div id="plannedRoutesList" class="routes-list"><div class="route-list-empty"><?= $t('common.loading', 'Загрузка...') ?></div></div>
     </div>
     <div class="routes-section routes-section-found">
-        <h3 class="routes-title-found">Сформированные рейсы</h3>
-        <div id="foundRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
+        <h3 class="routes-title-found"><?= $t('routes.title.found', 'Сформированные рейсы') ?></h3>
+        <div id="foundRoutesList" class="routes-list"><div class="route-list-empty"><?= $t('common.loading', 'Загрузка...') ?></div></div>
     </div>
     <div class="routes-section routes-section-started">
-        <h3 class="routes-title-started">Вывоз начался</h3>
-        <div id="startedRoutesList" class="routes-list"><div class="route-list-empty">Загрузка...</div></div>
+        <h3 class="routes-title-started"><?= $t('routes.title.started', 'Вывоз начался') ?></h3>
+        <div id="startedRoutesList" class="routes-list"><div class="route-list-empty"><?= $t('common.loading', 'Загрузка...') ?></div></div>
     </div>
 </div>
 
 <div class="layer-panel">
     <div class="layer-group manager-scope-group">
-        <div class="layer-group-title">Менеджер</div>
+        <div class="layer-group-title"><?= $t('layers.manager.title', 'Менеджер') ?></div>
         <select id="managerScopeSelect" class="manager-scope-select">
-            <option value="">Показать все</option>
+            <option value=""><?= $t('layers.manager.all', 'Показать все') ?></option>
         </select>
         <div class="manager-scope-error" id="managerScopeError" style="display:none;"></div>
     </div>
-    <h3>Управление слоями</h3>
+    <h3><?= $t('layers.title', 'Управление слоями') ?></h3>
     <div class="layer-group">
-        <div class="layer-group-title">Рейсы</div>
-        <div class="checkbox-item"><input type="checkbox" id="no_flight_default" checked onchange="filterByCustomLayer('default', this.checked)"><label for="no_flight_default">Доступно к вывозу</label><div class="color-indicator" style="background: #000000"></div></div>
-        <div class="checkbox-item"><input type="checkbox" id="warehouse_layer_visible" checked onchange="toggleWarehouseLayer(this.checked)"><label for="warehouse_layer_visible">Склады</label><div class="color-indicator" style="background: #5c6bc0"></div></div>
+        <div class="layer-group-title"><?= $t('layers.routes.title', 'Рейсы') ?></div>
+        <div class="checkbox-item"><input type="checkbox" id="no_flight_default" checked onchange="filterByCustomLayer('default', this.checked)"><label for="no_flight_default"><?= $t('layers.available', 'Доступно к вывозу') ?></label><div class="color-indicator" style="background: #000000"></div></div>
+        <div class="checkbox-item"><input type="checkbox" id="warehouse_layer_visible" checked onchange="toggleWarehouseLayer(this.checked)"><label for="warehouse_layer_visible"><?= $t('layers.warehouses', 'Склады') ?></label><div class="color-indicator" style="background: #5c6bc0"></div></div>
         <?php if (isset($flightStatusList['planned_route'])): ?>
         <div class="checkbox-item"><input type="checkbox" id="flight_status_planned_route" checked onchange="filterByFlightStatus('planned_route', this.checked)"><label for="flight_status_planned_route">Планируемые маршруты</label><div class="color-indicator" style="background: #9c27b0"></div></div>
         <?php endif; ?>
@@ -40,7 +45,7 @@
         <?php endforeach; ?>
     </div>
     <?php if ($hasDefault || !empty($customLayers)): ?>
-    <div class="layer-group"><div class="layer-group-title">Дополнительно</div>
+    <div class="layer-group"><div class="layer-group-title"><?= $t('layers.extra.title', 'Дополнительно') ?></div>
         <?php foreach ($customLayers as $ln => $ld): ?>
         <div class="checkbox-item"><input type="checkbox" id="custom_layer_<?= md5($ln) ?>" checked onchange="filterByCustomLayer('<?= addslashes($ln) ?>', this.checked)"><label for="custom_layer_<?= md5($ln) ?>"><?= htmlspecialchars($ln) ?></label><div class="color-indicator" style="background: <?= $ld['color'] ?>"></div></div>
         <?php endforeach; ?>
@@ -48,41 +53,41 @@
     <?php endif; ?>
 
     <div class="layer-group" style="border-top: 1px solid #eee; padding-top: 10px; margin-top: 5px;">
-        <div class="layer-group-title">Транспорт (Slitex)</div>
+        <div class="layer-group-title"><?= $t('layers.transport.title', 'Транспорт (Slitex)') ?></div>
         <div class="checkbox-item">
             <input type="radio" name="transportMode" id="transport_mode_active" value="active" checked onchange="setTransportDisplayMode('active')">
-            <label for="transport_mode_active">Транспорт в активных рейсах</label>
+            <label for="transport_mode_active"><?= $t('layers.transport.active', 'Транспорт в активных рейсах') ?></label>
         </div>
         <div class="checkbox-item">
             <input type="radio" name="transportMode" id="transport_mode_all" value="all" onchange="setTransportDisplayMode('all')">
-            <label for="transport_mode_all">Показать весь транспорт</label>
+            <label for="transport_mode_all"><?= $t('layers.transport.all', 'Показать весь транспорт') ?></label>
         </div>
         <div class="checkbox-item">
             <input type="radio" name="transportMode" id="transport_mode_none" value="none" onchange="setTransportDisplayMode('none')">
-            <label for="transport_mode_none">Не отображать транспорт</label>
+            <label for="transport_mode_none"><?= $t('layers.transport.none', 'Не отображать транспорт') ?></label>
         </div>
     </div>
 
-    <div class="layer-group" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;"><div class="checkbox-item" style="background: #fff3cd; border: 1px solid #ffc107;"><input type="checkbox" id="disable-popups" checked onchange="togglePopups(this.checked)"><label for="disable-popups">Не показывать попапы</label></div></div>
+    <div class="layer-group" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;"><div class="checkbox-item" style="background: #fff3cd; border: 1px solid #ffc107;"><input type="checkbox" id="disable-popups" checked onchange="togglePopups(this.checked)"><label for="disable-popups"><?= $t('layers.popups.disable', 'Не показывать попапы') ?></label></div></div>
 </div>
 
 <div class="selection-panel" id="selection-panel">
-    <h4>Выделенные заявки</h4>
-    <div id="stats-box">Заявок: 0 • Адресов: 0</div>
-    <div id="total-weight">Общий вес: 0 кг</div>
-    <div id="route-edit-status"><span style="color:#28a745;">Создание нового маршрута</span></div>
+    <h4><?= $t('selection.title', 'Выделенные заявки') ?></h4>
+    <div id="stats-box"><?= $t('selection.stats.default', 'Заявок: 0 • Адресов: 0') ?></div>
+    <div id="total-weight"><?= $t('selection.weight.default', 'Общий вес: 0 кг') ?></div>
+    <div id="route-edit-status"><span style="color:#28a745;"><?= $t('selection.route.create', 'Создание нового маршрута') ?></span></div>
     <input type="hidden" id="route-cost-input" value="">
     <div id="route-info-container"></div>
     <div id="selected-list"></div>
-    <div class="hint">Введите ID через запятую или Enter</div>
-    <textarea id="route-input" class="manual-input" placeholder="ID заявок..."></textarea>
+    <div class="hint"><?= $t('selection.hint.ids', 'Введите ID через запятую или Enter') ?></div>
+    <textarea id="route-input" class="manual-input" placeholder="<?= $t('selection.placeholder.ids', 'ID заявок...') ?>"></textarea>
     <div class="route-buttons">
-        <button class="route-btn calculate-route-btn" id="calc-route-btn" onclick="calculateRoute()" disabled>Рассчитать</button>
-        <button class="route-btn save-route-btn" id="saveRouteBtn" onclick="promptSaveRoute()" disabled>Сохранить маршрут</button>
+        <button class="route-btn calculate-route-btn" id="calc-route-btn" onclick="calculateRoute()" disabled><?= $t('button.calculate_route', 'Рассчитать') ?></button>
+        <button class="route-btn save-route-btn" id="saveRouteBtn" onclick="promptSaveRoute()" disabled><?= $t('button.save_route', 'Сохранить маршрут') ?></button>
     </div>
     <div class="route-buttons route-buttons-secondary">
-        <button class="route-btn edit-data-btn" id="editRouteDataBtn" onclick="openSelectedRouteEditor()" disabled>Редактирование данных</button>
-        <button class="route-btn clear-btn" onclick="clearSelection()">Закрыть</button>
+        <button class="route-btn edit-data-btn" id="editRouteDataBtn" onclick="openSelectedRouteEditor()" disabled><?= $t('button.edit_data', 'Редактирование данных') ?></button>
+        <button class="route-btn clear-btn" onclick="clearSelection()"><?= $t('button.close', 'Закрыть') ?></button>
     </div>
 </div>
 
