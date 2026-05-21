@@ -269,7 +269,6 @@
             <div class="flight-modal-title">Новый водитель</div>
             <button class="route-action-btn route-icon-btn" id="driverCreateCloseTopBtn">&times;</button>
         </div>
-        <div class="flight-validation-errors" id="driverCreateErrors" style="display:none;"></div>
         <label class="flight-modal-label" for="new_driver_full_name">ФИО *</label>
         <input class="flight-modal-input" type="text" id="new_driver_full_name" placeholder="Иванов Иван Иванович">
         <div class="field-inline-hint">Формат: Иванов Иван Иванович</div>
