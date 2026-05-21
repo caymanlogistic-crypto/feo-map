@@ -276,6 +276,8 @@ th{background:#f8fafc}.mono{font-family:Consolas,monospace;white-space:pre-wrap}
 .tpl-right{display:grid;gap:6px}
 .tpl-actions{display:flex;gap:8px;align-items:center}
 textarea.tpl-text{min-height:0;height:auto}
+.event-key{font-size:12px;color:#94a3b8}
+.tpl-actions .btn{min-width:156px;justify-content:center}
 @media (max-width:1000px){.grid{grid-template-columns:1fr}}
 </style></head><body><div class="wrap">
 <div class="top"><h2 style="margin:0">Администрирование MAX</h2><?php if (isAuthed()): ?><a class="btn" href="?logout=1">Выйти</a><?php endif; ?></div>
@@ -310,14 +312,13 @@ textarea.tpl-text{min-height:0;height:auto}
 <?php foreach($templates as $t): $eventKey = (string)($t['event_key'] ?? ''); $desc = trim((string)($t['description'] ?? '')); if ($desc === '' && isset($catalog[$eventKey]['description'])) { $desc = $catalog[$eventKey]['description']; } ?>
 <form method="post" class="card js-admin-ajax" style="margin:8px 0;padding:10px;background:#f8fafc">
 <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
+<input type="hidden" name="title" value="<?= h($t['title']) ?>">
+<input type="hidden" name="description" value="<?= h($desc) ?>">
 <div class="tpl-grid">
   <div class="tpl-left">
     <div class="hint"><?= h($desc !== '' ? $desc : ('Отправляется при событии: ' . $eventKey)) ?></div>
-    <div class="row"><strong><?= h($t['title']) ?></strong></div>
-    <div class="row"><span class="mono"><?= h($eventKey) ?></span></div>
+    <div class="event-key mono"><?= h($eventKey) ?></div>
     <div class="row"><label><input type="checkbox" name="is_enabled" value="1" <?= (int)$t['is_enabled']===1?'checked':'' ?>> Включено</label></div>
-    <input type="text" name="title" value="<?= h($t['title']) ?>">
-    <input type="text" name="description" value="<?= h($desc) ?>">
     <div class="small">Плейсхолдеры: {route_id}, {route_title}, {driver}, {planned_range}, {actual_start_short}, {meta_line}, {manager}, {route_type_line}, {requests_count}, {weight}, {message}</div>
     <div class="small">Форматирование MAX (markdown): <code>**жирный текст**</code>, переносы строк, markdown-цитаты через <code>&gt; текст</code>.</div>
   </div>
