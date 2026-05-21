@@ -283,27 +283,27 @@ th{background:#f8fafc}.mono{font-family:Consolas,monospace;white-space:pre-wrap}
 <?php if (!$ready): ?><div class="card err">Таблицы MAX Admin не найдены. Выполните SQL: <span class="mono">map_files/admin/sql/max_admin_tables.sql</span></div><?php endif; ?>
 
 <div class="grid">
-<div class="card"><h3 style="margin:0 0 8px">Глобальные настройки</h3>
-<form method="post"><input type="hidden" name="action" value="save_global">
+<div class="card" id="global-card"><h3 style="margin:0 0 8px">Глобальные настройки</h3>
+<form method="post" class="js-admin-ajax"><input type="hidden" name="action" value="save_global">
 <div class="row"><label><input type="checkbox" name="max_enabled" value="1" <?= (($settings['max_enabled'] ?? '1') === '1') ? 'checked' : '' ?>> Отправка MAX включена</label></div>
 <div class="row"><label>Группа по умолчанию</label><select name="default_group_id"><option value="0">Legacy fallback</option><?php foreach($groups as $g): ?><option value="<?= (int)$g['id'] ?>" <?= ((int)($settings['default_group_id'] ?? 0) === (int)$g['id']) ? 'selected' : '' ?>><?= h($g['title']) ?> (<?= h($g['group_id']) ?>)</option><?php endforeach; ?></select></div>
-<button class="btn primary" type="submit">Сохранить</button></form></div>
+<button class="btn primary" type="submit">Сохранить</button><span class="small js-status"></span></form></div>
 
 <div class="card"><h3 style="margin:0 0 8px">Тестовая отправка</h3>
-<form method="post"><input type="hidden" name="action" value="send_test"><label>event_key</label><input type="text" name="event_key" value="test_message"><div style="height:6px"></div><label>Текст</label><textarea name="message">Тест MAX уведомления
-> 💡 *Проверка markdown-цитаты.*</textarea><div style="height:8px"></div><button class="btn primary" type="submit">Отправить тест</button></form></div>
+<form method="post" class="js-admin-ajax"><input type="hidden" name="action" value="send_test"><label>event_key</label><input type="text" name="event_key" value="test_message"><div style="height:6px"></div><label>Текст</label><textarea name="message">Тест MAX уведомления
+> 💡 *Проверка markdown-цитаты.*</textarea><div style="height:8px"></div><button class="btn primary" type="submit">Отправить тест</button><span class="small js-status"></span></form></div>
 </div>
 
-<div class="card"><h3 style="margin:0 0 8px">Группы</h3>
+<div class="card" id="groups-card"><h3 style="margin:0 0 8px">Группы</h3>
 <table><thead><tr><th>Название</th><th>group_id</th><th>Активна</th><th>Default</th><th>Действия</th></tr></thead><tbody>
-<?php foreach($groups as $g): ?><tr><td><form method="post" class="row"><input type="hidden" name="action" value="save_group"><input type="hidden" name="id" value="<?= (int)$g['id'] ?>"><input type="text" name="title" value="<?= h($g['title']) ?>"></td><td><input type="text" name="group_id" value="<?= h($g['group_id']) ?>"></td><td><label><input type="checkbox" name="is_active" value="1" <?= (int)$g['is_active']===1?'checked':'' ?>></label></td><td><?= (int)$g['is_default']===1?'Да':'Нет' ?></td><td><button class="btn" type="submit">Сохранить</button></form><form method="post" style="display:inline"><input type="hidden" name="action" value="set_default_group"><input type="hidden" name="id" value="<?= (int)$g['id'] ?>"><button class="btn" type="submit">Сделать default</button></form><form method="post" style="display:inline" onsubmit="return confirm('Удалить группу?')"><input type="hidden" name="action" value="delete_group"><input type="hidden" name="id" value="<?= (int)$g['id'] ?>"><button class="btn danger" type="submit">Удалить</button></form></td></tr><?php endforeach; ?></tbody></table>
+<?php foreach($groups as $g): ?><tr><td><form method="post" class="row js-admin-ajax"><input type="hidden" name="action" value="save_group"><input type="hidden" name="id" value="<?= (int)$g['id'] ?>"><input type="text" name="title" value="<?= h($g['title']) ?>"></td><td><input type="text" name="group_id" value="<?= h($g['group_id']) ?>"></td><td><label><input type="checkbox" name="is_active" value="1" <?= (int)$g['is_active']===1?'checked':'' ?>></label></td><td><?= (int)$g['is_default']===1?'Да':'Нет' ?></td><td><button class="btn" type="submit">Сохранить</button><span class="small js-status"></span></form><form method="post" class="js-admin-ajax" style="display:inline"><input type="hidden" name="action" value="set_default_group"><input type="hidden" name="id" value="<?= (int)$g['id'] ?>"><button class="btn" type="submit">Сделать default</button><span class="small js-status"></span></form><form method="post" class="js-admin-ajax" style="display:inline" onsubmit="return confirm('Удалить группу?')"><input type="hidden" name="action" value="delete_group"><input type="hidden" name="id" value="<?= (int)$g['id'] ?>"><button class="btn danger" type="submit">Удалить</button><span class="small js-status"></span></form></td></tr><?php endforeach; ?></tbody></table>
 <div style="height:8px"></div>
-<form method="post" class="row"><input type="hidden" name="action" value="add_group"><input type="text" name="title" placeholder="Название группы" style="max-width:280px"><input type="text" name="group_id" placeholder="group_id/chat_id" style="max-width:320px"><label><input type="checkbox" name="is_active" value="1" checked> Активна</label><button class="btn primary" type="submit">Добавить группу</button></form>
+<form method="post" class="row js-admin-ajax"><input type="hidden" name="action" value="add_group"><input type="text" name="title" placeholder="Название группы" style="max-width:280px"><input type="text" name="group_id" placeholder="group_id/chat_id" style="max-width:320px"><label><input type="checkbox" name="is_active" value="1" checked> Активна</label><button class="btn primary" type="submit">Добавить группу</button><span class="small js-status"></span></form>
 </div>
 
-<div class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Шаблоны событий</h3><form method="post"><input type="hidden" name="action" value="seed_templates"><button class="btn" type="submit">Обновить default шаблоны из production</button></form></div>
+<div class="card" id="templates-card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Шаблоны событий</h3><form method="post" class="js-admin-ajax"><input type="hidden" name="action" value="seed_templates"><button class="btn" type="submit">Обновить default шаблоны из production</button><span class="small js-status"></span></form></div>
 <?php foreach($templates as $t): $eventKey = (string)($t['event_key'] ?? ''); $desc = trim((string)($t['description'] ?? '')); if ($desc === '' && isset($catalog[$eventKey]['description'])) { $desc = $catalog[$eventKey]['description']; } $previewText = mapAdminRenderTemplate((string)($t['template_text'] ?? ''), demoContext()); ?>
-<form method="post" class="card" style="margin:8px 0;padding:10px;background:#f8fafc">
+<form method="post" class="card js-admin-ajax" style="margin:8px 0;padding:10px;background:#f8fafc">
 <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
 <div class="hint"><?= h($desc !== '' ? $desc : ('Отправляется при событии: ' . $eventKey)) ?></div>
 <div style="height:6px"></div>
@@ -321,14 +321,62 @@ th{background:#f8fafc}.mono{font-family:Consolas,monospace;white-space:pre-wrap}
 <button class="btn" type="submit" name="action" value="save_template">Сохранить шаблон</button>
 <button class="btn primary" type="submit" name="action" value="test_template">Тест</button>
 <input type="hidden" name="event_key" value="<?= h($eventKey) ?>">
+<span class="small js-status"></span>
 </div>
 </form>
 <?php endforeach; ?>
 </div>
 
-<div class="card"><h3 style="margin:0 0 8px">Лог отправок (последние 50)</h3>
+<div class="card" id="logs-card"><h3 style="margin:0 0 8px">Лог отправок (последние 50)</h3>
 <table><thead><tr><th>Дата</th><th>Событие</th><th>Группа</th><th>Успех</th><th>Ошибка/ответ</th></tr></thead><tbody>
 <?php foreach($logs as $log): ?><tr><td><?= h($log['created_at'] ?? '') ?></td><td class="mono"><?= h($log['event_key'] ?? '') ?></td><td class="mono"><?= h($log['group_id'] ?? '') ?></td><td><?= (int)($log['success'] ?? 0)===1?'OK':'ERR' ?></td><td class="mono"><?= h(trim((string)($log['error_text'] ?? '')) !== '' ? $log['error_text'] : mb_substr((string)($log['response_text'] ?? ''),0,220)) ?></td></tr><?php endforeach; ?></tbody></table>
 </div>
 <?php endif; ?>
-</div></body></html>
+</div>
+<?php if (isAuthed()): ?>
+<script>
+(() => {
+  const endpoint = 'max_admin_actions.php';
+  const forms = document.querySelectorAll('form.js-admin-ajax');
+  const status = (form, text, isError=false) => {
+    const el = form.querySelector('.js-status');
+    if (!el) return;
+    el.textContent = text;
+    el.style.color = isError ? '#b42318' : '#0f766e';
+  };
+  const lock = (btn, locked, text='') => {
+    if (!btn) return;
+    if (locked) {
+      btn.dataset.originalText = btn.textContent;
+      btn.textContent = text || 'Выполняется...';
+      btn.disabled = true;
+    } else {
+      btn.disabled = false;
+      if (btn.dataset.originalText) btn.textContent = btn.dataset.originalText;
+    }
+  };
+
+  forms.forEach((form) => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitter = e.submitter || form.querySelector('button[type="submit"]');
+      lock(submitter, true, 'Выполняется...');
+      status(form, 'Подождите...');
+      try {
+        const fd = new FormData(form);
+        if (submitter && submitter.name && submitter.value) fd.set(submitter.name, submitter.value);
+        const resp = await fetch(endpoint, { method: 'POST', body: fd, credentials: 'same-origin' });
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.error || 'Ошибка');
+        status(form, data.message || 'Сохранено');
+      } catch (err) {
+        status(form, 'Ошибка: ' + (err.message || 'unknown'), true);
+      } finally {
+        lock(submitter, false);
+      }
+    });
+  });
+})();
+</script>
+<?php endif; ?>
+</body></html>
