@@ -306,7 +306,7 @@ function escapeHtml(str) {
 
 function createTrackerBalloon(tracker) {
     const newTrackerBadge = tracker && tracker.is_new_tracker
-        ? `<br><span style="display:inline-block; margin-top:6px; font-size:11px; font-weight:700; color:#0d47a1;">РќРћР’Р«Р™ РўР Р•РљР•Р </span>`
+        ? `<br><span style="display:inline-block; margin-top:6px; font-size:11px; font-weight:700; color:#0d47a1;">НОВЫЙ ТРЕКЕР</span>`
         : '';
     return `<div style="padding:12px; font-family:Arial,sans-serif; max-width:280px;">
         <b>${UI.truck} ${escapeHtml(tracker.name)}</b><br>
@@ -407,17 +407,17 @@ function resolveUnloadTypeByRouteType(routeType) {
 
 function getRouteTypeLabel(routeTypeRaw, unloadTypeRaw = 'OO') {
     const routeType = normalizeRouteType(routeTypeRaw, unloadTypeRaw);
-    if (routeType === 'generator_to_warehouse') return 'РћС‚С…РѕРґРѕРѕР±СЂР°Р·РѕРІР°С‚РµР»СЊ в†’ РЎРєР»Р°Рґ';
-    if (routeType === 'warehouse_to_warehouse') return 'РЎРєР»Р°Рґ в†’ РЎРєР»Р°Рґ';
-    if (routeType === 'warehouse_to_utilizer') return 'РЎРєР»Р°Рґ в†’ РЈС‚РёР»РёР·Р°С‚РѕСЂ';
-    return 'РћС‚С…РѕРґРѕРѕР±СЂР°Р·РѕРІР°С‚РµР»СЊ в†’ РЈС‚РёР»РёР·Р°С‚РѕСЂ';
+    if (routeType === 'generator_to_warehouse') return 'Отходообразователь → Склад';
+    if (routeType === 'warehouse_to_warehouse') return 'Склад → Склад';
+    if (routeType === 'warehouse_to_utilizer') return 'Склад → Утилизатор';
+    return 'Отходообразователь → Утилизатор';
 }
 
 function getRouteTypeCompactSuffix(routeTypeRaw, unloadTypeRaw = 'OO') {
     const routeType = normalizeRouteType(routeTypeRaw, unloadTypeRaw);
-    if (routeType === 'generator_to_warehouse') return `${UI.bullet}<strong>Рћ \u2192 РЎ</strong>`;
-    if (routeType === 'warehouse_to_warehouse') return `${UI.bullet}<strong>РЎ \u2192 РЎ</strong>`;
-    if (routeType === 'warehouse_to_utilizer') return `${UI.bullet}<strong>РЎ \u2192 РЈ</strong>`;
+    if (routeType === 'generator_to_warehouse') return `${UI.bullet}<strong>О \u2192 С</strong>`;
+    if (routeType === 'warehouse_to_warehouse') return `${UI.bullet}<strong>С \u2192 С</strong>`;
+    if (routeType === 'warehouse_to_utilizer') return `${UI.bullet}<strong>С \u2192 У</strong>`;
     return '';
 }
 
@@ -793,7 +793,7 @@ function clearSelection() {
 function openSelectedRouteEditor() {
     const activeRouteEl = document.querySelector('.route-item.active[data-route-editable="1"]');
     if (!activeRouteEl) {
-        alert('Р’С‹Р±РµСЂРёС‚Рµ СЂРµР№СЃ РґР»СЏ СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЏ.');
+        alert('Выберите рейс для редактирования.');
         return;
     }
     const routeId = Number(activeRouteEl.dataset.routeId || 0);
@@ -818,7 +818,7 @@ function updateMap() {
             const filterVal = flightStatusFilters[g.flight_status];
             if (filterVal === false) visible = false;
         } else {
-            // "Р”РѕСЃС‚СѓРїРЅРѕ Рє РІС‹РІРѕР·Сѓ" must gate all requests outside routes.
+            // "Доступно к вывозу" must gate all requests outside routes.
             const defaultLayerVisible = customLayerFilters.default !== false;
             if (!defaultLayerVisible) {
                 visible = false;
@@ -1027,8 +1027,8 @@ function showFlightValidationErrors(errorMap, headerText = UI.msgTransitionValid
         actual_end_date: UI.msgTransitionValidationDates,
         cost: UI.msgTransitionValidationCost,
         zayavki_ids: UI.msgTransitionValidationRequests,
-        source_warehouse_id: 'СЃРєР»Р°Рґ РѕС‚РїСЂР°РІР»РµРЅРёСЏ',
-        destination_warehouse_id: 'СЃРєР»Р°Рґ РЅР°Р·РЅР°С‡РµРЅРёСЏ'
+        source_warehouse_id: 'склад отправления',
+        destination_warehouse_id: 'склад назначения'
     };
 
     clearFlightValidationErrors();
@@ -1079,13 +1079,13 @@ function validateRequiredForFoundTransition() {
 }
 
 function buildWarehouseOptions(selectedId, placeholderText) {
-    const options = [`<option value="">${escapeHtml(placeholderText || 'Р’С‹Р±РµСЂРёС‚Рµ СЃРєР»Р°Рґ')}</option>`];
+    const options = [`<option value="">${escapeHtml(placeholderText || 'Выберите склад')}</option>`];
     const selectedStr = String(selectedId || '').trim();
     (Array.isArray(warehousesData) ? warehousesData : []).forEach((warehouse) => {
         if (!warehouse || !warehouse.id) return;
         const idStr = String(warehouse.id);
         const selected = idStr === selectedStr ? ' selected' : '';
-        const title = String(warehouse.name || (`РЎРєР»Р°Рґ #${idStr}`));
+        const title = String(warehouse.name || (`Склад #${idStr}`));
         options.push(`<option value="${idStr}"${selected}>${escapeHtml(title)}</option>`);
     });
     return options.join('');
@@ -1144,7 +1144,7 @@ async function saveWarehouseFromModal() {
     if (!name || !fullAddress) {
         if (errors) {
             errors.style.display = 'block';
-            errors.textContent = 'Р—Р°РїРѕР»РЅРёС‚Рµ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ РїРѕР»СЏ: РЅР°Р·РІР°РЅРёРµ Рё РїРѕР»РЅС‹Р№ Р°РґСЂРµСЃ СЃРєР»Р°РґР°.';
+            errors.textContent = 'Заполните обязательные поля: название и полный адрес склада.';
         }
         return;
     }
@@ -1159,14 +1159,14 @@ async function saveWarehouseFromModal() {
     if (payload.latitude !== null && !Number.isFinite(payload.latitude)) {
         if (errors) {
             errors.style.display = 'block';
-            errors.textContent = 'РќРµРєРѕСЂСЂРµРєС‚РЅР°СЏ С€РёСЂРѕС‚Р°.';
+            errors.textContent = 'Некорректная широта.';
         }
         return;
     }
     if (payload.longitude !== null && !Number.isFinite(payload.longitude)) {
         if (errors) {
             errors.style.display = 'block';
-            errors.textContent = 'РќРµРєРѕСЂСЂРµРєС‚РЅР°СЏ РґРѕР»РіРѕС‚Р°.';
+            errors.textContent = 'Некорректная долгота.';
         }
         return;
     }
@@ -1187,7 +1187,7 @@ async function saveWarehouseFromModal() {
         if (!response.ok || !data || !data.success || !data.warehouse || !data.warehouse.id) {
             if (errors) {
                 errors.style.display = 'block';
-                errors.textContent = (data && data.message) ? data.message : 'РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ СЃРєР»Р°Рґ.';
+                errors.textContent = (data && data.message) ? data.message : 'Не удалось сохранить склад.';
             }
             return;
         }
@@ -1199,10 +1199,10 @@ async function saveWarehouseFromModal() {
         const currentSource = sourceSelect ? sourceSelect.value : '';
         const currentDestination = destinationSelect ? destinationSelect.value : '';
         if (sourceSelect) {
-            sourceSelect.innerHTML = buildWarehouseOptions(currentSource, 'Р’С‹Р±РµСЂРёС‚Рµ СЃРєР»Р°Рґ РѕС‚РїСЂР°РІР»РµРЅРёСЏ');
+            sourceSelect.innerHTML = buildWarehouseOptions(currentSource, 'Выберите склад отправления');
         }
         if (destinationSelect) {
-            destinationSelect.innerHTML = buildWarehouseOptions(currentDestination, 'Р’С‹Р±РµСЂРёС‚Рµ СЃРєР»Р°Рґ РЅР°Р·РЅР°С‡РµРЅРёСЏ');
+            destinationSelect.innerHTML = buildWarehouseOptions(currentDestination, 'Выберите склад назначения');
         }
         const targetSelect = document.getElementById(warehouseCreateTargetFieldId);
         if (targetSelect) {
@@ -1214,7 +1214,7 @@ async function saveWarehouseFromModal() {
     } catch (e) {
         if (errors) {
             errors.style.display = 'block';
-            errors.textContent = 'РћС€РёР±РєР° СЃРµС‚Рё РїСЂРё СЃРѕС…СЂР°РЅРµРЅРёРё СЃРєР»Р°РґР°.';
+            errors.textContent = 'Ошибка сети при сохранении склада.';
         }
     } finally {
         if (saveBtn) {
@@ -1245,7 +1245,7 @@ async function geocodeWarehouseAddress() {
     if (!address) {
         if (errors) {
             errors.style.display = 'block';
-            errors.textContent = 'Р’РІРµРґРёС‚Рµ РїРѕР»РЅС‹Р№ Р°РґСЂРµСЃ РґР»СЏ РѕРїСЂРµРґРµР»РµРЅРёСЏ РєРѕРѕСЂРґРёРЅР°С‚.';
+            errors.textContent = 'Введите полный адрес для определения координат.';
         }
         if (addressInput) addressInput.focus();
         return;
@@ -1254,7 +1254,7 @@ async function geocodeWarehouseAddress() {
     const prevText = geocodeBtn ? geocodeBtn.textContent : '';
     if (geocodeBtn) {
         geocodeBtn.disabled = true;
-        geocodeBtn.textContent = 'РћРїСЂРµРґРµР»РµРЅРёРµ...';
+        geocodeBtn.textContent = 'Определение...';
     }
 
     try {
@@ -1267,7 +1267,7 @@ async function geocodeWarehouseAddress() {
         if (!response.ok || !data || !data.success) {
             if (errors) {
                 errors.style.display = 'block';
-                errors.textContent = (data && data.error) ? data.error : 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕРїСЂРµРґРµР»РёС‚СЊ РєРѕРѕСЂРґРёРЅР°С‚С‹.';
+                errors.textContent = (data && data.error) ? data.error : 'Не удалось определить координаты.';
             }
             return;
         }
@@ -1277,12 +1277,12 @@ async function geocodeWarehouseAddress() {
         warehouseAddressGeocoded = true;
         if (note) {
             note.style.display = 'block';
-            note.textContent = 'РљРѕРѕСЂРґРёРЅР°С‚С‹ РѕРїСЂРµРґРµР»РµРЅС‹.';
+            note.textContent = 'Координаты определены.';
         }
     } catch (e) {
         if (errors) {
             errors.style.display = 'block';
-            errors.textContent = 'РћС€РёР±РєР° СЃРµС‚Рё РїСЂРё РѕРїСЂРµРґРµР»РµРЅРёРё РєРѕРѕСЂРґРёРЅР°С‚.';
+            errors.textContent = 'Ошибка сети при определении координат.';
         }
     } finally {
         if (geocodeBtn) {
@@ -1418,7 +1418,7 @@ function renderDriverMenu(query) {
     });
     driverMenuItems = matched;
     if (!matched.length) {
-        menu.innerHTML = '<div class="driver-combobox-item">РќРёС‡РµРіРѕ РЅРµ РЅР°Р№РґРµРЅРѕ</div>';
+        menu.innerHTML = '<div class="driver-combobox-item">Ничего не найдено</div>';
         return;
     }
     menu.innerHTML = matched.map((driver, idx) =>
@@ -1475,7 +1475,7 @@ function validateDriverComboboxSelection() {
     if (selectedId) return true;
     if (error) {
         error.style.display = 'block';
-        error.textContent = 'Р’С‹Р±РµСЂРёС‚Рµ РІРѕРґРёС‚РµР»СЏ РёР· СЃРїРёСЃРєР°.';
+        error.textContent = 'Выберите водителя из списка.';
     }
     return false;
 }
@@ -1531,8 +1531,8 @@ function syncDriverCreateGpsType() {
     if (checkWrap) checkWrap.style.display = type === 'new_tracker' ? 'block' : 'none';
     if (note) {
         note.textContent = type === 'retranslation'
-            ? 'Р РµС‚СЂР°РЅСЃР»СЏС†РёСЏ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ, РµСЃР»Рё РјР°С€РёРЅР° СѓР¶Рµ РµР·РґРёС‚ СЃ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёРј С‚СЂРµРєРµСЂРѕРј.\nР’РІРµРґРёС‚Рµ ID СЌС‚РѕРіРѕ С‚СЂРµРєРµСЂР°. Р•РіРѕ РґРѕР»Р¶РµРЅ СЃРѕРѕР±С‰РёС‚СЊ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ РёР»Рё РІР»Р°РґРµР»РµС† РјР°С€РёРЅС‹.'
-            : 'РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ, РµСЃР»Рё РІРѕРґРёС‚РµР»СЋ РІС‹РґР°С‘С‚СЃСЏ РЅРѕРІС‹Р№ СЃРІРѕР±РѕРґРЅС‹Р№ SLITEX-С‚СЂРµРєРµСЂ.\nРЎРёСЃС‚РµРјР° РЅР°Р№РґС‘С‚ СЃРІРѕР±РѕРґРЅС‹Р№ С‚СЂРµРєРµСЂ, Сѓ РєРѕС‚РѕСЂРѕРіРѕ РёРјСЏ СЃРѕСЃС‚РѕРёС‚ С‚РѕР»СЊРєРѕ РёР· С†РёС„СЂ, Рё РїРµСЂРµРёРјРµРЅСѓРµС‚ РµРіРѕ РІ С„РѕСЂРјР°С‚ Р“РћРЎРќРћРњР•Р (Р¤Р°РјРёР»РёСЏ).\nР РµР°Р»СЊРЅРѕРµ РїРµСЂРµРёРјРµРЅРѕРІР°РЅРёРµ РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ С‚РѕР»СЊРєРѕ РїСЂРё РїРѕРґС‚РІРµСЂР¶РґС‘РЅРЅРѕРј СЂРµР¶РёРјРµ allow_patch_rename=1.';
+            ? 'Ретрансляция используется, если машина уже ездит с существующим трекером.\nВведите ID этого трекера. Его должен сообщить администратор или владелец машины.'
+            : 'Используется, если водителю выдаётся новый свободный SLITEX-трекер.\nСистема найдёт свободный трекер, у которого имя состоит только из цифр, и переименует его в формат ГОСНОМЕР(Фамилия).\nРеальное переименование выполняется только при подтверждённом режиме allow_patch_rename=1.';
     }
     const copyWrap = document.getElementById('new_driver_copy_wrap');
     if (copyWrap && type !== 'retranslation') {
@@ -1594,8 +1594,8 @@ async function saveDriverFromModal() {
     const nameOk = isValidDriverFullName(fullName);
     const plateOk = isValidDriverPlate(vehicleMakePlate);
     const trackerOk = true;
-    setInlineFieldError('new_driver_full_name_error', nameOk ? '' : 'Р’РІРµРґРёС‚Рµ Р¤РРћ РїРѕР»РЅРѕСЃС‚СЊСЋ: Р¤Р°РјРёР»РёСЏ РРјСЏ РћС‚С‡РµСЃС‚РІРѕ');
-    setInlineFieldError('new_driver_vehicle_number_error', plateOk ? '' : 'Р’РІРµРґРёС‚Рµ РіРѕСЃРЅРѕРјРµСЂ РІ С„РѕСЂРјР°С‚Рµ Рђ123РђРђ45 РёР»Рё Рђ123РђРђ456');
+    setInlineFieldError('new_driver_full_name_error', nameOk ? '' : 'Введите ФИО полностью: Фамилия Имя Отчество');
+    setInlineFieldError('new_driver_vehicle_number_error', plateOk ? '' : 'Введите госномер в формате А123АА45 или А123АА456');
     setInlineFieldError('new_driver_tracker_id_error', '');
     if (!nameOk || !plateOk || !trackerOk) {
         setDriverCreateError('');
@@ -1607,7 +1607,7 @@ async function saveDriverFromModal() {
     driverCreateInFlight = true;
     if (saveBtn) {
         saveBtn.disabled = true;
-        saveBtn.textContent = 'РЎРѕР·РґР°РЅРёРµ...';
+        saveBtn.textContent = 'Создание...';
     }
     try {
         const response = await fetch('map_files/save_driver.php', {
@@ -1626,12 +1626,12 @@ async function saveDriverFromModal() {
         });
         const data = await response.json();
         if (!response.ok || !data || !data.success) {
-            setDriverCreateError(data?.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕР·РґР°С‚СЊ РІРѕРґРёС‚РµР»СЏ.');
+            setDriverCreateError(data?.message || 'Не удалось создать водителя.');
             return;
         }
         const driver = data.driver && data.driver.id ? data.driver : null;
         if (!driver) {
-            setDriverCreateError('РЎРµСЂРІРµСЂ РЅРµ РІРµСЂРЅСѓР» РґР°РЅРЅС‹Рµ РІРѕРґРёС‚РµР»СЏ.');
+            setDriverCreateError('Сервер не вернул данные водителя.');
             return;
         }
         await loadDriversCatalog();
@@ -1649,25 +1649,25 @@ async function saveDriverFromModal() {
         }
 
         if (data.existing) {
-            setDriverCreateResult('РўР°РєРѕР№ РІРѕРґРёС‚РµР»СЊ СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚ Рё РІС‹Р±СЂР°РЅ РІ С„РѕСЂРјРµ.', false);
+            setDriverCreateResult('Такой водитель уже существует и выбран в форме.', false);
         } else if (gpsType === 'new_tracker') {
             const info = [
-                'РўСЂРµРєРµСЂ РЅР°СЃС‚СЂРѕРµРЅ.',
-                `Р’РѕРґРёС‚РµР»СЊ: ${data.tracker_name || vehicleMakePlate}`,
+                'Трекер настроен.',
+                `Водитель: ${data.tracker_name || vehicleMakePlate}`,
                 `UniqueID: ${data.tracker_uniqueid || '-'}`,
-                `РЎРІРѕР±РѕРґРЅС‹С… С‚СЂРµРєРµСЂРѕРІ РѕСЃС‚Р°Р»РѕСЃСЊ: ${data.free_trackers_remaining ?? '-'}`,
+                `Свободных трекеров осталось: ${data.free_trackers_remaining ?? '-'}`,
             ].join('\n');
             setDriverCreateResult(info, false);
         } else {
-            setDriverCreateResult('Р’РѕРґРёС‚РµР»СЊ СЃРѕР·РґР°РЅ Рё РІС‹Р±СЂР°РЅ РІ С„РѕСЂРјРµ.\nРЎРєРѕРїРёСЂСѓР№С‚Рµ С‚РµРєСЃС‚ РґР»СЏ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР° СЂРµС‚СЂР°РЅСЃР»СЏС†РёРё РёР»Рё РѕС‚РїСЂР°РІСЊС‚Рµ РµРіРѕ РІ MAX.', false);
+            setDriverCreateResult('Водитель создан и выбран в форме.\nСкопируйте текст для администратора ретрансляции или отправьте его в MAX.', false);
         }
     } catch (error) {
-        setDriverCreateError('РћС€РёР±РєР° СЃРµС‚Рё РїСЂРё СЃРѕР·РґР°РЅРёРё РІРѕРґРёС‚РµР»СЏ.');
+        setDriverCreateError('Ошибка сети при создании водителя.');
     } finally {
         driverCreateInFlight = false;
         if (saveBtn) {
             saveBtn.disabled = false;
-            saveBtn.textContent = prevText || 'РЎРѕР·РґР°С‚СЊ РІРѕРґРёС‚РµР»СЏ';
+            saveBtn.textContent = prevText || 'Создать водителя';
         }
     }
 }
@@ -1680,7 +1680,7 @@ async function sendRetranslationToMax() {
     const prev = btn ? btn.textContent : '';
     if (btn) {
         btn.disabled = true;
-        btn.textContent = 'РћС‚РїСЂР°РІРєР°...';
+        btn.textContent = 'Отправка...';
     }
     try {
         const response = await fetch('map_files/save_driver.php', {
@@ -1698,16 +1698,16 @@ async function sendRetranslationToMax() {
         });
         const data = await response.json();
         if (!response.ok || !data || !data.success) {
-            setDriverCreateError(data?.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ MAX.');
+            setDriverCreateError(data?.message || 'Не удалось отправить сообщение в MAX.');
             return;
         }
-        setDriverCreateResult(data.notify_success ? 'РЎРѕРѕР±С‰РµРЅРёРµ РІ MAX РѕС‚РїСЂР°РІР»РµРЅРѕ.' : `MAX: ${data.notify_error || 'РѕС€РёР±РєР° РѕС‚РїСЂР°РІРєРё'}`, !data.notify_success);
+        setDriverCreateResult(data.notify_success ? 'Сообщение в MAX отправлено.' : `MAX: ${data.notify_error || 'ошибка отправки'}`, !data.notify_success);
     } catch (e) {
-        setDriverCreateError('РћС€РёР±РєР° СЃРµС‚Рё РїСЂРё РѕС‚РїСЂР°РІРєРµ РІ MAX.');
+        setDriverCreateError('Ошибка сети при отправке в MAX.');
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.textContent = prev || 'РћС‚РїСЂР°РІРёС‚СЊ РІ MAX';
+            btn.textContent = prev || 'Отправить в MAX';
         }
     }
 }
@@ -1718,7 +1718,7 @@ async function checkFreeTrackersForDriver() {
     const prev = btn ? btn.textContent : '';
     if (btn) {
         btn.disabled = true;
-        btn.textContent = 'РџСЂРѕРІРµСЂРєР°...';
+        btn.textContent = 'Проверка...';
     }
     if (resultEl) {
         resultEl.style.display = 'none';
@@ -1735,12 +1735,12 @@ async function checkFreeTrackersForDriver() {
         });
         const data = await response.json();
         if (!response.ok || !data || !data.success) {
-            setDriverCreateError(data?.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕРІРµСЂРёС‚СЊ СЃРІРѕР±РѕРґРЅС‹Рµ С‚СЂРµРєРµСЂС‹.');
+            setDriverCreateError(data?.message || 'Не удалось проверить свободные трекеры.');
             return;
         }
         const msg = [
-            `РЎРІРѕР±РѕРґРЅС‹С… С‚СЂРµРєРµСЂРѕРІ: ${Number(data.free_count || 0)}`,
-            `РџРµСЂРІС‹Р№ СЃРІРѕР±РѕРґРЅС‹Р№: ${data.first_uniqueid || '-'}`,
+            `Свободных трекеров: ${Number(data.free_count || 0)}`,
+            `Первый свободный: ${data.first_uniqueid || '-'}`,
         ].join('\n');
         if (resultEl) {
             resultEl.style.display = 'block';
@@ -1748,11 +1748,11 @@ async function checkFreeTrackersForDriver() {
         }
         setDriverCreateError('');
     } catch (e) {
-        setDriverCreateError('РћС€РёР±РєР° СЃРµС‚Рё РїСЂРё РїСЂРѕРІРµСЂРєРµ СЃРІРѕР±РѕРґРЅС‹С… С‚СЂРµРєРµСЂРѕРІ.');
+        setDriverCreateError('Ошибка сети при проверке свободных трекеров.');
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.textContent = prev || 'РџСЂРѕРІРµСЂРёС‚СЊ СЃРІРѕР±РѕРґРЅС‹Рµ С‚СЂРµРєРµСЂС‹';
+            btn.textContent = prev || 'Проверить свободные трекеры';
         }
     }
 }
@@ -1820,10 +1820,10 @@ async function openFlightEditModal(routeId, source) {
     if (routeTypeInput) routeTypeInput.value = initialRouteType;
     await Promise.allSettled([loadDriversCatalog(), loadWarehouses(true)]);
     if (sourceWarehouseInput) {
-        sourceWarehouseInput.innerHTML = buildWarehouseOptions(meta.source_warehouse_id, 'Р’С‹Р±РµСЂРёС‚Рµ СЃРєР»Р°Рґ РѕС‚РїСЂР°РІР»РµРЅРёСЏ');
+        sourceWarehouseInput.innerHTML = buildWarehouseOptions(meta.source_warehouse_id, 'Выберите склад отправления');
     }
     if (destinationWarehouseInput) {
-        destinationWarehouseInput.innerHTML = buildWarehouseOptions(meta.destination_warehouse_id, 'Р’С‹Р±РµСЂРёС‚Рµ СЃРєР»Р°Рґ РЅР°Р·РЅР°С‡РµРЅРёСЏ');
+        destinationWarehouseInput.innerHTML = buildWarehouseOptions(meta.destination_warehouse_id, 'Выберите склад назначения');
     }
     syncRouteTypeFieldsVisibility(initialRouteType);
     if (statusInput) statusInput.value = currentEditingMeta.status;
@@ -1866,16 +1866,16 @@ function applyLifecycleButtons(status) {
         if (el) el.style.display = 'none';
     });
     if (status === 'planned_route') {
-        if (updateTitle) updateTitle.textContent = 'РђРєС‚СѓР°Р»РёР·Р°С†РёСЏ СЂРµР№СЃР°';
-        if (updateDesc) updateDesc.textContent = 'РР·РјРµРЅРµРЅРёСЏ РґР°С‚ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё С„РёРєСЃРёСЂСѓСЋС‚СЃСЏ РІ РњРђРљРЎ.';
-        if (saveBtn) saveBtn.textContent = 'РЎРѕС…СЂР°РЅРёС‚СЊ РёР·РјРµРЅРµРЅРёСЏ';
+        if (updateTitle) updateTitle.textContent = 'Актуализация рейса';
+        if (updateDesc) updateDesc.textContent = 'Изменения дат автоматически фиксируются в МАКС.';
+        if (saveBtn) saveBtn.textContent = 'Сохранить изменения';
         if (map.updateSection) map.updateSection.style.display = 'block';
         if (map.toFound) map.toFound.style.display = 'block';
         if (map.deleteWrap) map.deleteWrap.style.display = 'block';
     } else if (status === 'found') {
-        if (updateTitle) updateTitle.textContent = 'РђРєС‚СѓР°Р»РёР·Р°С†РёСЏ СЂРµР№СЃР°';
-        if (updateDesc) updateDesc.textContent = 'РР·РјРµРЅРµРЅРёСЏ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё С„РёРєСЃРёСЂСѓСЋС‚СЃСЏ РІ РњРђРљРЎ.';
-        if (saveBtn) saveBtn.textContent = 'РЎРѕС…СЂР°РЅРёС‚СЊ РёР·РјРµРЅРµРЅРёСЏ';
+        if (updateTitle) updateTitle.textContent = 'Актуализация рейса';
+        if (updateDesc) updateDesc.textContent = 'Изменения автоматически фиксируются в МАКС.';
+        if (saveBtn) saveBtn.textContent = 'Сохранить изменения';
         if (map.updateSection) map.updateSection.style.display = 'block';
         if (map.toStarted) map.toStarted.style.display = 'block';
         if (map.toPlanned) map.toPlanned.style.display = 'block';
@@ -2274,7 +2274,7 @@ function renderWarehousesLayer() {
         const lat = Number(warehouse.latitude);
         const lon = Number(warehouse.longitude);
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-        const name = String(warehouse.name || `РЎРєР»Р°Рґ #${warehouse.id || ''}`).trim();
+        const name = String(warehouse.name || `Склад #${warehouse.id || ''}`).trim();
         const address = String(warehouse.address || '').trim();
         const placemark = new ymaps.Placemark([lat, lon], {
             hintContent: name,
@@ -2891,7 +2891,7 @@ function init() {
         warehouseAddressInput.addEventListener('input', () => {
             if (warehouseAddressGeocoded && warehouseGeocodeNote) {
                 warehouseGeocodeNote.style.display = 'block';
-                warehouseGeocodeNote.textContent = 'РђРґСЂРµСЃ РёР·РјРµРЅС‘РЅ, РєРѕРѕСЂРґРёРЅР°С‚С‹ Р»СѓС‡С€Рµ РѕРїСЂРµРґРµР»РёС‚СЊ Р·Р°РЅРѕРІРѕ.';
+                warehouseGeocodeNote.textContent = 'Адрес изменён, координаты лучше определить заново.';
             }
         });
     }
@@ -2919,9 +2919,9 @@ function init() {
             if (!value) return;
             try {
                 await navigator.clipboard.writeText(value);
-                setDriverCreateResult('РўРµРєСЃС‚ СЃРєРѕРїРёСЂРѕРІР°РЅ.', false);
+                setDriverCreateResult('Текст скопирован.', false);
             } catch (e) {
-                setDriverCreateError('РќРµ СѓРґР°Р»РѕСЃСЊ СЃРєРѕРїРёСЂРѕРІР°С‚СЊ С‚РµРєСЃС‚.');
+                setDriverCreateError('Не удалось скопировать текст.');
             }
         });
     }
@@ -2940,7 +2940,7 @@ function init() {
                 'new_driver_full_name_error',
                 isValidDriverFullName(value) || !value
                     ? ''
-                    : 'Р’РІРµРґРёС‚Рµ Р¤РРћ РїРѕР»РЅРѕСЃС‚СЊСЋ: Р¤Р°РјРёР»РёСЏ РРјСЏ РћС‚С‡РµСЃС‚РІРѕ'
+                    : 'Введите ФИО полностью: Фамилия Имя Отчество'
             );
         });
     }
@@ -2956,7 +2956,7 @@ function init() {
                 'new_driver_vehicle_number_error',
                 isValidDriverPlate(value) || !value
                     ? ''
-                    : 'Р’РІРµРґРёС‚Рµ РіРѕСЃРЅРѕРјРµСЂ РІ С„РѕСЂРјР°С‚Рµ Рђ123РђРђ45 РёР»Рё Рђ123РђРђ456'
+                    : 'Введите госномер в формате А123АА45 или А123АА456'
             );
         });
     }
@@ -3088,4 +3088,3 @@ function init() {
         if (bounds) map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 50 });
     }
 }
-
