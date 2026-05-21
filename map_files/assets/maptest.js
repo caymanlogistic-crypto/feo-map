@@ -21,6 +21,8 @@ let warehousesData = [];
 let warehousesVisible = true;
 let warehouseCreateTargetFieldId = '';
 let warehouseAddressGeocoded = false;
+let driverCreateInFlight = false;
+let lastDriverSearchQuery = '';
 const TXT = {
     notSpecified: '\u041d\u0435 \u0443\u043a\u0430\u0437\u0430\u043d',
     requests: '\u0417\u0430\u044f\u0432\u043a\u0438',
@@ -1326,19 +1328,292 @@ async function loadDriversCatalog() {
     }
 }
 
+function applyLatinToCyrillicPlate(value) {
+    const map = {
+        A: 'А', B: 'В', C: 'С', E: 'Е', H: 'Н',
+        K: 'К', M: 'М', O: 'О', P: 'Р', T: 'Т',
+        X: 'Х', Y: 'У'
+    };
+    return String(value || '').replace(/[ABCEHKMOPTXY]/g, (ch) => map[ch] || ch);
+}
+
+function normalizeDriverNameInput(value) {
+    const cleaned = String(value || '')
+        .replace(/[^А-Яа-яЁё\s-]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!cleaned) return '';
+    return cleaned
+        .split(' ')
+        .filter(Boolean)
+        .map((part) => {
+            const lower = part.toLowerCase();
+            return lower.charAt(0).toUpperCase() + lower.slice(1);
+        })
+        .join(' ');
+}
+
+function normalizeDriverPlateInput(value) {
+    const upper = applyLatinToCyrillicPlate(String(value || '').toUpperCase());
+    return upper.replace(/[^А-Я0-9]/g, '').slice(0, 9);
+}
+
+function applyDriverSearch(selectedDriverId) {
+    const driverSelect = document.getElementById('edit_driver_id');
+    const selected = selectedDriverId !== undefined && selectedDriverId !== null
+        ? String(selectedDriverId)
+        : String(driverSelect?.value || '');
+    fillDriverSelect(driverSelect, selected);
+}
+
 function fillDriverSelect(driverSelect, selectedDriverId) {
     if (!driverSelect) return;
     const selected = String(selectedDriverId || '');
+    const query = String(lastDriverSearchQuery || '').trim().toLowerCase();
     const options = [`<option value="">${UI.chooseDriver}</option>`];
     if (Array.isArray(currentDriversCatalog)) {
         currentDriversCatalog.forEach(driver => {
             if (!driver || !driver.id) return;
             const val = String(driver.id);
+            const fullName = String(driver.full_name || '');
+            const plate = String(driver.vehicle_make_plate || '');
+            const labelText = String(driver.label || (UI.driverPrefix + val));
+            if (query) {
+                const haystack = `${fullName} ${plate} ${labelText}`.toLowerCase();
+                if (!haystack.includes(query) && val !== selected) return;
+            }
             const isSelected = val === selected ? ' selected' : '';
-            options.push(`<option value="${val}"${isSelected}>${escapeHtml(driver.label || (UI.driverPrefix + val))}</option>`);
+            options.push(`<option value="${val}"${isSelected}>${escapeHtml(labelText)}</option>`);
         });
     }
     driverSelect.innerHTML = options.join('');
+}
+
+function setDriverCreateError(message) {
+    const errors = document.getElementById('driverCreateErrors');
+    if (!errors) return;
+    const text = String(message || '').trim();
+    if (!text) {
+        errors.style.display = 'none';
+        errors.innerHTML = '';
+        return;
+    }
+    errors.style.display = 'block';
+    errors.textContent = text;
+}
+
+function setDriverCreateResult(message, isError) {
+    const el = document.getElementById('driverCreateResult');
+    if (!el) return;
+    const text = String(message || '').trim();
+    if (!text) {
+        el.style.display = 'none';
+        el.textContent = '';
+        el.style.background = '';
+        el.style.borderColor = '';
+        el.style.color = '';
+        return;
+    }
+    el.style.display = 'block';
+    el.textContent = text;
+    if (isError) {
+        el.style.background = '#fff4f4';
+        el.style.borderColor = '#efb0b0';
+        el.style.color = '#842029';
+    } else {
+        el.style.background = '#eef7ef';
+        el.style.borderColor = '#cfe7d1';
+        el.style.color = '#1f5f29';
+    }
+}
+
+function syncDriverCreateGpsType() {
+    const type = String(document.getElementById('new_driver_gps_type')?.value || 'new_tracker');
+    const wrap = document.getElementById('new_driver_retranslation_wrap');
+    const note = document.getElementById('new_driver_gps_note');
+    if (wrap) wrap.style.display = type === 'retranslation' ? 'block' : 'none';
+    if (note) {
+        note.textContent = type === 'retranslation'
+            ? 'После создания вы получите текст для отправки администратору ретрансляции.'
+            : 'Система автоматически выберет первый свободный трекер SLITEX, у которого имя состоит только из цифр, и переименует его.';
+    }
+    const copyWrap = document.getElementById('new_driver_copy_wrap');
+    if (copyWrap && type !== 'retranslation') {
+        copyWrap.style.display = 'none';
+    }
+}
+
+function openDriverCreateModal() {
+    const modal = document.getElementById('driverCreateModal');
+    if (!modal) return;
+    const nameInput = document.getElementById('new_driver_full_name');
+    const plateInput = document.getElementById('new_driver_vehicle_number');
+    const gpsTypeInput = document.getElementById('new_driver_gps_type');
+    const trackerInput = document.getElementById('new_driver_tracker_id');
+    const copyText = document.getElementById('new_driver_copy_text');
+    if (nameInput) nameInput.value = '';
+    if (plateInput) plateInput.value = '';
+    if (gpsTypeInput) gpsTypeInput.value = 'new_tracker';
+    if (trackerInput) trackerInput.value = '';
+    if (copyText) copyText.value = '';
+    setDriverCreateError('');
+    setDriverCreateResult('', false);
+    syncDriverCreateGpsType();
+    modal.style.display = 'flex';
+}
+
+function closeDriverCreateModal() {
+    const modal = document.getElementById('driverCreateModal');
+    if (modal) modal.style.display = 'none';
+    driverCreateInFlight = false;
+}
+
+async function saveDriverFromModal() {
+    if (driverCreateInFlight) return;
+    const saveBtn = document.getElementById('driverCreateSaveBtn');
+    const prevText = saveBtn ? saveBtn.textContent : '';
+    const fullNameInput = document.getElementById('new_driver_full_name');
+    const plateInput = document.getElementById('new_driver_vehicle_number');
+    const gpsTypeInput = document.getElementById('new_driver_gps_type');
+    const trackerInput = document.getElementById('new_driver_tracker_id');
+    const copyWrap = document.getElementById('new_driver_copy_wrap');
+    const copyText = document.getElementById('new_driver_copy_text');
+
+    const fullName = normalizeDriverNameInput(fullNameInput?.value || '');
+    const vehicleMakePlate = normalizeDriverPlateInput(plateInput?.value || '');
+    const gpsType = String(gpsTypeInput?.value || 'new_tracker');
+    const trackerId = String(trackerInput?.value || '').trim();
+
+    if (fullNameInput) fullNameInput.value = fullName;
+    if (plateInput) plateInput.value = vehicleMakePlate;
+    if (fullName.split(' ').length !== 3) {
+        setDriverCreateError('ФИО должно быть в формате: Фамилия Имя Отчество.');
+        return;
+    }
+    if (!/^[А-Я]\d{3}[А-Я]{2}\d{2,3}$/.test(vehicleMakePlate)) {
+        setDriverCreateError('Госномер должен быть в формате А123АА45 или А123АА456.');
+        return;
+    }
+    if (gpsType === 'retranslation' && !trackerId) {
+        setDriverCreateError('Для ретрансляции укажите ID трекера.');
+        return;
+    }
+
+    setDriverCreateError('');
+    setDriverCreateResult('', false);
+    driverCreateInFlight = true;
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Создание...';
+    }
+    try {
+        const response = await fetch('map_files/save_driver.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                action: 'create_driver',
+                full_name: fullName,
+                vehicle_make_plate: vehicleMakePlate,
+                gps_connection_type: gpsType,
+                tracker_id: trackerId
+            })
+        });
+        const data = await response.json();
+        if (!response.ok || !data || !data.success) {
+            setDriverCreateError(data?.message || 'Не удалось создать водителя.');
+            return;
+        }
+        if (data.dry_run) {
+            setDriverCreateResult('Dry-run: PATCH rename не выполнен. Проверьте параметры и выполните вручную с allow_patch_rename=1.', false);
+            return;
+        }
+        const driver = data.driver && data.driver.id ? data.driver : null;
+        if (!driver) {
+            setDriverCreateError('Сервер не вернул данные водителя.');
+            return;
+        }
+        await loadDriversCatalog();
+        applyDriverSearch(String(driver.id));
+        const driverSelect = document.getElementById('edit_driver_id');
+        if (driverSelect) driverSelect.value = String(driver.id);
+        updateFlightModalSummary();
+
+        if (gpsType === 'retranslation' && copyText) {
+            copyText.value = String(data.copy_text || '');
+            if (copyWrap) copyWrap.style.display = data.copy_text ? 'block' : 'none';
+        } else if (copyWrap) {
+            copyWrap.style.display = 'none';
+        }
+
+        if (data.existing) {
+            setDriverCreateResult('Такой водитель уже существует и выбран в форме.', false);
+        } else if (gpsType === 'new_tracker') {
+            const info = [
+                'Трекер настроен.',
+                `Водитель: ${data.tracker_name || vehicleMakePlate}`,
+                `UniqueID: ${data.tracker_uniqueid || '-'}`,
+                `Свободных трекеров осталось: ${data.free_trackers_remaining ?? '-'}`,
+            ].join('\n');
+            setDriverCreateResult(info, false);
+        } else {
+            setDriverCreateResult('Водитель создан и выбран в форме.', false);
+        }
+    } catch (error) {
+        setDriverCreateError('Ошибка сети при создании водителя.');
+    } finally {
+        driverCreateInFlight = false;
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = prevText || 'Создать водителя';
+        }
+    }
+}
+
+async function sendRetranslationToMax() {
+    const fullName = String(document.getElementById('new_driver_full_name')?.value || '');
+    const plate = String(document.getElementById('new_driver_vehicle_number')?.value || '');
+    const trackerId = String(document.getElementById('new_driver_tracker_id')?.value || '').trim();
+    if (!trackerId) {
+        setDriverCreateError('Укажите ID трекера для отправки в MAX.');
+        return;
+    }
+    const btn = document.getElementById('driverSendMaxBtn');
+    const prev = btn ? btn.textContent : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Отправка...';
+    }
+    try {
+        const response = await fetch('map_files/save_driver.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                action: 'send_retranslation_max',
+                full_name: fullName,
+                vehicle_make_plate: plate,
+                tracker_id: trackerId
+            })
+        });
+        const data = await response.json();
+        if (!response.ok || !data || !data.success) {
+            setDriverCreateError(data?.message || 'Не удалось отправить сообщение в MAX.');
+            return;
+        }
+        setDriverCreateResult(data.notify_success ? 'Сообщение в MAX отправлено.' : `MAX: ${data.notify_error || 'ошибка отправки'}`, !data.notify_success);
+    } catch (e) {
+        setDriverCreateError('Ошибка сети при отправке в MAX.');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = prev || 'Отправить в MAX';
+        }
+    }
 }
 
 async function openFlightEditModal(routeId, source) {
@@ -1421,6 +1696,9 @@ async function openFlightEditModal(routeId, source) {
     if (plannedDateRangeTitle) plannedDateRangeTitle.textContent = UI.modalPlanStart;
     if (actualDateRangeTitle) actualDateRangeTitle.textContent = UI.modalActualDates;
 
+    const driverSearchInput = document.getElementById('edit_driver_search');
+    lastDriverSearchQuery = '';
+    if (driverSearchInput) driverSearchInput.value = '';
     fillDriverSelect(driverSelect, meta.driver_id || '');
 
     applyLifecycleButtons(currentEditingMeta.status);
@@ -1498,6 +1776,14 @@ function setFlightEditReadOnlyMode(isReadOnly) {
             el.removeAttribute('readonly');
         }
     });
+    const addDriverBtn = document.getElementById('add_driver_btn');
+    if (addDriverBtn) {
+        addDriverBtn.disabled = !!isReadOnly;
+    }
+    const driverSearch = document.getElementById('edit_driver_search');
+    if (driverSearch) {
+        driverSearch.disabled = !!isReadOnly;
+    }
     if (modal) {
         modal.classList.toggle('is-started-readonly', !!isReadOnly);
     }
@@ -2395,8 +2681,18 @@ function init() {
     }
     const addSourceWarehouseBtn = document.getElementById('add_source_warehouse_btn');
     const addDestinationWarehouseBtn = document.getElementById('add_destination_warehouse_btn');
+    const addDriverBtn = document.getElementById('add_driver_btn');
+    const driverSearchInput = document.getElementById('edit_driver_search');
     if (addSourceWarehouseBtn) addSourceWarehouseBtn.addEventListener('click', () => openWarehouseCreateModal('edit_source_warehouse_id'));
     if (addDestinationWarehouseBtn) addDestinationWarehouseBtn.addEventListener('click', () => openWarehouseCreateModal('edit_destination_warehouse_id'));
+    if (addDriverBtn) addDriverBtn.addEventListener('click', openDriverCreateModal);
+    if (driverSearchInput) {
+        driverSearchInput.addEventListener('input', () => {
+            lastDriverSearchQuery = String(driverSearchInput.value || '');
+            const selected = document.getElementById('edit_driver_id')?.value || '';
+            applyDriverSearch(selected);
+        });
+    }
     const warehouseCreateModal = document.getElementById('warehouseCreateModal');
     const warehouseCreateSaveBtn = document.getElementById('warehouseCreateSaveBtn');
     const warehouseCreateCancelBtn = document.getElementById('warehouseCreateCancelBtn');
@@ -2419,6 +2715,49 @@ function init() {
     if (warehouseCreateModal) {
         warehouseCreateModal.addEventListener('click', function(event) {
             if (event.target === warehouseCreateModal) closeWarehouseCreateModal();
+        });
+    }
+    const driverCreateModal = document.getElementById('driverCreateModal');
+    const driverCreateSaveBtn = document.getElementById('driverCreateSaveBtn');
+    const driverCreateCancelBtn = document.getElementById('driverCreateCancelBtn');
+    const driverCreateCloseTopBtn = document.getElementById('driverCreateCloseTopBtn');
+    const driverCopyTextBtn = document.getElementById('driverCopyTextBtn');
+    const driverSendMaxBtn = document.getElementById('driverSendMaxBtn');
+    const driverGpsType = document.getElementById('new_driver_gps_type');
+    const newDriverFullName = document.getElementById('new_driver_full_name');
+    const newDriverPlate = document.getElementById('new_driver_vehicle_number');
+    if (driverCreateSaveBtn) driverCreateSaveBtn.addEventListener('click', saveDriverFromModal);
+    if (driverCreateCancelBtn) driverCreateCancelBtn.addEventListener('click', closeDriverCreateModal);
+    if (driverCreateCloseTopBtn) driverCreateCloseTopBtn.addEventListener('click', closeDriverCreateModal);
+    if (driverCopyTextBtn) {
+        driverCopyTextBtn.addEventListener('click', async () => {
+            const value = String(document.getElementById('new_driver_copy_text')?.value || '');
+            if (!value) return;
+            try {
+                await navigator.clipboard.writeText(value);
+                setDriverCreateResult('Текст скопирован.', false);
+            } catch (e) {
+                setDriverCreateError('Не удалось скопировать текст.');
+            }
+        });
+    }
+    if (driverSendMaxBtn) driverSendMaxBtn.addEventListener('click', sendRetranslationToMax);
+    if (driverGpsType) driverGpsType.addEventListener('change', syncDriverCreateGpsType);
+    if (newDriverFullName) {
+        newDriverFullName.addEventListener('input', () => {
+            const normalized = normalizeDriverNameInput(newDriverFullName.value);
+            if (newDriverFullName.value !== normalized) newDriverFullName.value = normalized;
+        });
+    }
+    if (newDriverPlate) {
+        newDriverPlate.addEventListener('input', () => {
+            const normalized = normalizeDriverPlateInput(newDriverPlate.value);
+            if (newDriverPlate.value !== normalized) newDriverPlate.value = normalized;
+        });
+    }
+    if (driverCreateModal) {
+        driverCreateModal.addEventListener('click', function(event) {
+            if (event.target === driverCreateModal) closeDriverCreateModal();
         });
     }
 

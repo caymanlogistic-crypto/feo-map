@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 error_reporting(0);
 ini_set('display_errors', 0);
 require_once __DIR__ . '/bootstrap.php';
@@ -25,12 +25,14 @@ try {
         }
         $fullName = trim((string)($row['full_name'] ?? ''));
         $plate = trim((string)($row['vehicle_make_plate'] ?? ''));
-        $label = trim($plate . ($fullName !== '' ? " ({$fullName})" : ''));
+        $label = trim(($fullName !== '' ? $fullName : '') . (($fullName !== '' && $plate !== '') ? ' — ' : '') . ($plate !== '' ? $plate : ''));
         if ($label === '') {
             $label = 'Водитель #' . $id;
         }
         $drivers[] = [
             'id' => $id,
+            'full_name' => $fullName,
+            'vehicle_make_plate' => $plate,
             'label' => $label,
         ];
     }
@@ -48,4 +50,3 @@ try {
         'message' => 'Ошибка загрузки списка водителей.',
     ]);
 }
-

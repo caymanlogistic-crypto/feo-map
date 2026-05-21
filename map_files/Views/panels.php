@@ -106,7 +106,11 @@
             </div>
             <div>
                 <label class="flight-modal-label" for="edit_driver_id">Водитель / машина</label>
-                <select class="flight-modal-input" id="edit_driver_id"></select>
+                <div class="driver-input-row">
+                    <select class="flight-modal-input" id="edit_driver_id"></select>
+                    <button type="button" class="route-action-btn route-action-main driver-add-btn" id="add_driver_btn">+ Новый водитель</button>
+                </div>
+                <input class="flight-modal-input driver-search-input" type="text" id="edit_driver_search" placeholder="Поиск водителя или госномера">
             </div>
             <div class="flight-date-range" id="plannedDateRangeWrap">
                 <label class="flight-modal-label" id="plannedDateRangeTitle" for="edit_planned_start_date_from">Вывоз запланирован на даты</label>
@@ -250,6 +254,43 @@
         <div class="flight-modal-actions">
             <button class="route-action-btn route-transfer-start-btn route-action-main" id="warehouseCreateSaveBtn">Сохранить</button>
             <button class="route-action-btn route-action-main" id="warehouseCreateCancelBtn">Отмена</button>
+        </div>
+    </div>
+</div>
+
+<div class="flight-modal-backdrop" id="driverCreateModal" style="display:none;">
+    <div class="flight-modal flight-modal-confirm driver-mini-modal">
+        <div class="flight-modal-header">
+            <div class="flight-modal-title">Новый водитель</div>
+            <button class="route-action-btn route-icon-btn" id="driverCreateCloseTopBtn">&times;</button>
+        </div>
+        <div class="flight-validation-errors" id="driverCreateErrors" style="display:none;"></div>
+        <label class="flight-modal-label" for="new_driver_full_name">ФИО *</label>
+        <input class="flight-modal-input" type="text" id="new_driver_full_name" placeholder="Иванов Иван Иванович">
+        <label class="flight-modal-label" for="new_driver_vehicle_number">Госномер *</label>
+        <input class="flight-modal-input" type="text" id="new_driver_vehicle_number" placeholder="А123АА45" maxlength="9">
+        <label class="flight-modal-label" for="new_driver_gps_type">Тип GPS подключения *</label>
+        <select class="flight-modal-input" id="new_driver_gps_type">
+            <option value="new_tracker">Новый трекер</option>
+            <option value="retranslation">Ретрансляция</option>
+        </select>
+        <div class="driver-gps-note" id="new_driver_gps_note">Система автоматически выберет первый свободный трекер SLITEX, у которого имя состоит только из цифр, и переименует его.</div>
+        <div id="new_driver_retranslation_wrap" style="display:none;">
+            <label class="flight-modal-label" for="new_driver_tracker_id">ID трекера *</label>
+            <input class="flight-modal-input" type="text" id="new_driver_tracker_id" placeholder="425252">
+        </div>
+        <div class="driver-copy-wrap" id="new_driver_copy_wrap" style="display:none;">
+            <label class="flight-modal-label" for="new_driver_copy_text">Текст для отправки администратору</label>
+            <textarea class="flight-modal-input" id="new_driver_copy_text" rows="4" readonly></textarea>
+            <div class="flight-modal-actions driver-copy-actions">
+                <button class="route-action-btn route-edit-btn route-action-main" id="driverCopyTextBtn">Скопировать текст</button>
+                <button class="route-action-btn route-transfer-btn route-action-main" id="driverSendMaxBtn">Отправить в MAX</button>
+            </div>
+        </div>
+        <div class="driver-create-result" id="driverCreateResult" style="display:none;"></div>
+        <div class="flight-modal-actions">
+            <button class="route-action-btn route-transfer-start-btn route-action-main" id="driverCreateSaveBtn">Создать водителя</button>
+            <button class="route-action-btn route-action-main" id="driverCreateCancelBtn">Отмена</button>
         </div>
     </div>
 </div>
