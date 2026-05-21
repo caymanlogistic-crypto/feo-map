@@ -140,7 +140,7 @@ function mapAdminRenderTemplate(string $template, array $context): string
     return (string)preg_replace_callback('/\{([a-zA-Z0-9_]+)\}/', static function ($m) use ($context) {
         $key = $m[1] ?? '';
         if ($key === '' || !array_key_exists($key, $context)) {
-            return '-';
+            return '';
         }
         $value = $context[$key];
         if (is_array($value)) {
@@ -149,7 +149,7 @@ function mapAdminRenderTemplate(string $template, array $context): string
         if (is_bool($value)) {
             return $value ? '1' : '0';
         }
-        return trim((string)$value) === '' ? '-' : (string)$value;
+        return trim((string)$value) === '' ? '' : (string)$value;
     }, $template);
 }
 
@@ -262,6 +262,10 @@ function sendMaxNotify(string $message, string $format = 'markdown', array $meta
 
     $messageToSend = (string)$override['message'];
     if ($messageToSend !== $message) {
+        $hasPlaceholders = (bool)preg_match('/\{[a-zA-Z0-9_]+\}/', $messageToSend);
+        if ($hasPlaceholders && count($context) <= 1) {
+            $messageToSend = $message;
+        }
         $messageToSend = mapAdminRenderTemplate($messageToSend, $context);
         if (trim($messageToSend) === '' || $messageToSend === '-') {
             $messageToSend = $message;
