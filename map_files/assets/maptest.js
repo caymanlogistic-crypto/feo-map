@@ -1361,6 +1361,10 @@ function normalizeDriverPlateInput(value) {
     return upper.replace(/[^А-Я0-9]/g, '').slice(0, 9);
 }
 
+function isValidDriverFullName(value) {
+    return /^[А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+$/.test(String(value || '').trim());
+}
+
 function fillDriverSelect(driverSelect, selectedDriverId) {
     if (!driverSelect) return;
     const selected = String(selectedDriverId || '');
@@ -1577,7 +1581,7 @@ async function saveDriverFromModal() {
 
     if (fullNameInput) fullNameInput.value = fullName;
     if (plateInput) plateInput.value = vehicleMakePlate;
-    const nameOk = /^[А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+$/.test(fullName);
+    const nameOk = isValidDriverFullName(fullName);
     const plateOk = /^[А-Я]\d{3}[А-Я]{2}\d{2,3}$/.test(vehicleMakePlate);
     const trackerOk = true;
     setInlineFieldError('new_driver_full_name_error', nameOk ? '' : 'Введите ФИО полностью: Фамилия Имя Отчество');
@@ -2924,7 +2928,7 @@ function init() {
             newDriverFullName.value = value;
             setInlineFieldError(
                 'new_driver_full_name_error',
-                /^[А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+$/.test(value) || !value
+                isValidDriverFullName(value) || !value
                     ? ''
                     : 'Введите ФИО полностью: Фамилия Имя Отчество'
             );

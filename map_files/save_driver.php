@@ -34,7 +34,7 @@ function normalizeDriverFullName(string $value): string
     $parts = preg_split('/\s+/u', $value);
     $normalized = [];
     foreach ((array)$parts as $part) {
-        $part = preg_replace('/[^\p{Cyrillic}-]/u', '', (string)$part);
+        $part = preg_replace('/[^А-Яа-яЁё-]/u', '', (string)$part);
         if ($part === '') {
             continue;
         }
