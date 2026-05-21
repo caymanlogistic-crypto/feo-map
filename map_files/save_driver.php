@@ -38,10 +38,19 @@ function normalizeDriverFullName(string $value): string
         if ($part === '') {
             continue;
         }
-        $part = mb_strtolower($part, 'UTF-8');
-        $first = mb_substr($part, 0, 1, 'UTF-8');
-        $rest = mb_substr($part, 1, null, 'UTF-8');
-        $normalized[] = mb_strtoupper($first, 'UTF-8') . $rest;
+        $hyphenParts = preg_split('/-+/u', $part);
+        $chunks = [];
+        foreach ((array)$hyphenParts as $hp) {
+            $hp = trim((string)$hp);
+            if ($hp === '') continue;
+            $hp = mb_strtolower($hp, 'UTF-8');
+            $first = mb_substr($hp, 0, 1, 'UTF-8');
+            $rest = mb_substr($hp, 1, null, 'UTF-8');
+            $chunks[] = mb_strtoupper($first, 'UTF-8') . $rest;
+        }
+        if (!empty($chunks)) {
+            $normalized[] = implode('-', $chunks);
+        }
     }
     return trim(implode(' ', $normalized));
 }
@@ -76,12 +85,25 @@ function extractPlateOnly(string $value): string
 
 function isValidDriverName(string $name): bool
 {
-    return (bool)preg_match('/^[А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+$/u', $name);
+    $name = trim((string)$name);
+    if ($name === '') return false;
+    $words = preg_split('/\s+/u', $name);
+    if (!is_array($words) || count($words) !== 3) return false;
+    foreach ($words as $word) {
+        if (!preg_match('/^[А-ЯЁ][а-яё-]+$/u', (string)$word)) {
+            return false;
+        }
+        $plain = str_replace('-', '', (string)$word);
+        if (mb_strlen($plain, 'UTF-8') < 2) {
+            return false;
+        }
+    }
+    return true;
 }
 
 function isValidDriverPlate(string $plate): bool
 {
-    return (bool)preg_match('/^[А-Я]\d{3}[А-Я]{2}\d{2,3}$/u', $plate);
+    return (bool)preg_match('/^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$/u', $plate);
 }
 
 function driverLabel(array $driver): string

@@ -1339,9 +1339,14 @@ function applyLatinToCyrillicPlate(value) {
 }
 
 function normalizeDriverNameInput(value) {
+    const cleaned = String(value || '').replace(/\s{2,}/g, ' ');
+    return cleaned;
+}
+
+function normalizeDriverNameFinal(value) {
     const cleaned = String(value || '')
         .replace(/[^А-Яа-яЁё\s-]/g, ' ')
-        .replace(/\s{2,}/g, ' ');
+        .replace(/\s+/g, ' ');
     const endsWithSpace = /\s$/.test(cleaned);
     const trimmed = cleaned.trim();
     if (!trimmed) return endsWithSpace ? ' ' : '';
@@ -1349,8 +1354,14 @@ function normalizeDriverNameInput(value) {
         .split(' ')
         .filter(Boolean)
         .map((part) => {
-            const lower = part.toLowerCase();
-            return lower.charAt(0).toUpperCase() + lower.slice(1);
+            return part
+                .split('-')
+                .filter(Boolean)
+                .map((seg) => {
+                    const lower = seg.toLowerCase();
+                    return lower.charAt(0).toUpperCase() + lower.slice(1);
+                })
+                .join('-');
         })
         .join(' ');
     return endsWithSpace ? `${normalized} ` : normalized;
@@ -1362,7 +1373,14 @@ function normalizeDriverPlateInput(value) {
 }
 
 function isValidDriverFullName(value) {
-    return /^[А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+$/.test(String(value || '').trim());
+    const normalized = String(value || '').trim();
+    const words = normalized.split(/\s+/).filter(Boolean);
+    if (words.length !== 3) return false;
+    return words.every((word) => /^[А-ЯЁ][а-яё-]+$/.test(word) && word.replace(/-/g, '').length >= 2);
+}
+
+function isValidDriverPlate(value) {
+    return /^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$/.test(String(value || ''));
 }
 
 function fillDriverSelect(driverSelect, selectedDriverId) {
@@ -1574,7 +1592,7 @@ async function saveDriverFromModal() {
     const copyWrap = document.getElementById('new_driver_copy_wrap');
     const copyText = document.getElementById('new_driver_copy_text');
 
-    const fullName = String(normalizeDriverNameInput(fullNameInput?.value || '')).trim();
+    const fullName = String(normalizeDriverNameFinal(fullNameInput?.value || '')).trim();
     const vehicleMakePlate = normalizeDriverPlateInput(plateInput?.value || '');
     const gpsType = String(gpsTypeInput?.value || 'new_tracker');
     const trackerId = String(trackerInput?.value || '').trim();
@@ -1582,7 +1600,7 @@ async function saveDriverFromModal() {
     if (fullNameInput) fullNameInput.value = fullName;
     if (plateInput) plateInput.value = vehicleMakePlate;
     const nameOk = isValidDriverFullName(fullName);
-    const plateOk = /^[А-Я]\d{3}[А-Я]{2}\d{2,3}$/.test(vehicleMakePlate);
+    const plateOk = isValidDriverPlate(vehicleMakePlate);
     const trackerOk = true;
     setInlineFieldError('new_driver_full_name_error', nameOk ? '' : 'Введите ФИО полностью: Фамилия Имя Отчество');
     setInlineFieldError('new_driver_vehicle_number_error', plateOk ? '' : 'Введите госномер в формате А123АА45 или А123АА456');
@@ -2924,7 +2942,7 @@ function init() {
             if (newDriverFullName.value !== normalized) newDriverFullName.value = normalized;
         });
         newDriverFullName.addEventListener('blur', () => {
-            const value = String(normalizeDriverNameInput(newDriverFullName.value)).trim();
+            const value = String(normalizeDriverNameFinal(newDriverFullName.value)).trim();
             newDriverFullName.value = value;
             setInlineFieldError(
                 'new_driver_full_name_error',
@@ -2944,7 +2962,7 @@ function init() {
             newDriverPlate.value = value;
             setInlineFieldError(
                 'new_driver_vehicle_number_error',
-                /^[А-Я]\d{3}[А-Я]{2}\d{2,3}$/.test(value) || !value
+                isValidDriverPlate(value) || !value
                     ? ''
                     : 'Введите госномер в формате А123АА45 или А123АА456'
             );
