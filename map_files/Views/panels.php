@@ -107,10 +107,15 @@
             <div>
                 <label class="flight-modal-label" for="edit_driver_id">Водитель / машина</label>
                 <div class="driver-input-row">
-                    <select class="flight-modal-input" id="edit_driver_id"></select>
+                    <div class="driver-combobox" id="edit_driver_combobox">
+                        <input class="flight-modal-input driver-combobox-input" type="text" id="edit_driver_input" placeholder="Выберите водителя" autocomplete="off">
+                        <button type="button" class="driver-combobox-toggle" id="edit_driver_toggle" aria-label="Открыть список">▼</button>
+                        <div class="driver-combobox-menu" id="edit_driver_menu" style="display:none;"></div>
+                    </div>
+                    <select class="flight-modal-input" id="edit_driver_id" style="display:none;"></select>
                     <button type="button" class="route-action-btn route-action-main driver-add-btn" id="add_driver_btn">+ Новый водитель</button>
                 </div>
-                <input class="flight-modal-input driver-search-input" type="text" id="edit_driver_search" placeholder="Поиск водителя или госномера">
+                <div class="field-inline-error" id="edit_driver_error" style="display:none;"></div>
             </div>
             <div class="flight-date-range" id="plannedDateRangeWrap">
                 <label class="flight-modal-label" id="plannedDateRangeTitle" for="edit_planned_start_date_from">Вывоз запланирован на даты</label>
@@ -267,8 +272,12 @@
         <div class="flight-validation-errors" id="driverCreateErrors" style="display:none;"></div>
         <label class="flight-modal-label" for="new_driver_full_name">ФИО *</label>
         <input class="flight-modal-input" type="text" id="new_driver_full_name" placeholder="Иванов Иван Иванович">
+        <div class="field-inline-hint">Формат: Иванов Иван Иванович</div>
+        <div class="field-inline-error" id="new_driver_full_name_error" style="display:none;"></div>
         <label class="flight-modal-label" for="new_driver_vehicle_number">Госномер *</label>
         <input class="flight-modal-input" type="text" id="new_driver_vehicle_number" placeholder="А123АА45" maxlength="9">
+        <div class="field-inline-hint">Формат: А123АА45 или А123АА456</div>
+        <div class="field-inline-error" id="new_driver_vehicle_number_error" style="display:none;"></div>
         <label class="flight-modal-label" for="new_driver_gps_type">Тип GPS подключения *</label>
         <select class="flight-modal-input" id="new_driver_gps_type">
             <option value="new_tracker">Новый трекер</option>
@@ -276,8 +285,10 @@
         </select>
         <div class="driver-gps-note" id="new_driver_gps_note">Система автоматически выберет первый свободный трекер SLITEX, у которого имя состоит только из цифр, и переименует его.</div>
         <div id="new_driver_retranslation_wrap" style="display:none;">
-            <label class="flight-modal-label" for="new_driver_tracker_id">ID трекера *</label>
+            <label class="flight-modal-label" for="new_driver_tracker_id">ID текущего трекера *</label>
             <input class="flight-modal-input" type="text" id="new_driver_tracker_id" placeholder="425252">
+            <div class="field-inline-hint">ID трекера берётся из текущего оборудования машины. Его должен сообщить администратор/владелец машины.</div>
+            <div class="field-inline-error" id="new_driver_tracker_id_error" style="display:none;"></div>
         </div>
         <div class="driver-copy-wrap" id="new_driver_copy_wrap" style="display:none;">
             <label class="flight-modal-label" for="new_driver_copy_text">Текст для отправки администратору</label>

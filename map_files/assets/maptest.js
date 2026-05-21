@@ -22,7 +22,8 @@ let warehousesVisible = true;
 let warehouseCreateTargetFieldId = '';
 let warehouseAddressGeocoded = false;
 let driverCreateInFlight = false;
-let lastDriverSearchQuery = '';
+let driverMenuVisible = false;
+let driverMenuItems = [];
 const TXT = {
     notSpecified: '\u041d\u0435 \u0443\u043a\u0430\u0437\u0430\u043d',
     requests: '\u0417\u0430\u044f\u0432\u043a\u0438',
@@ -1340,10 +1341,11 @@ function applyLatinToCyrillicPlate(value) {
 function normalizeDriverNameInput(value) {
     const cleaned = String(value || '')
         .replace(/[^А-Яа-яЁё\s-]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-    if (!cleaned) return '';
-    return cleaned
+        .replace(/\s{2,}/g, ' ');
+    const endsWithSpace = /\s$/.test(cleaned);
+    const trimmed = cleaned.trim();
+    if (!trimmed) return endsWithSpace ? ' ' : '';
+    const normalized = trimmed
         .split(' ')
         .filter(Boolean)
         .map((part) => {
@@ -1351,6 +1353,7 @@ function normalizeDriverNameInput(value) {
             return lower.charAt(0).toUpperCase() + lower.slice(1);
         })
         .join(' ');
+    return endsWithSpace ? `${normalized} ` : normalized;
 }
 
 function normalizeDriverPlateInput(value) {
@@ -1358,35 +1361,100 @@ function normalizeDriverPlateInput(value) {
     return upper.replace(/[^А-Я0-9]/g, '').slice(0, 9);
 }
 
-function applyDriverSearch(selectedDriverId) {
-    const driverSelect = document.getElementById('edit_driver_id');
-    const selected = selectedDriverId !== undefined && selectedDriverId !== null
-        ? String(selectedDriverId)
-        : String(driverSelect?.value || '');
-    fillDriverSelect(driverSelect, selected);
-}
-
 function fillDriverSelect(driverSelect, selectedDriverId) {
     if (!driverSelect) return;
     const selected = String(selectedDriverId || '');
-    const query = String(lastDriverSearchQuery || '').trim().toLowerCase();
     const options = [`<option value="">${UI.chooseDriver}</option>`];
     if (Array.isArray(currentDriversCatalog)) {
         currentDriversCatalog.forEach(driver => {
             if (!driver || !driver.id) return;
             const val = String(driver.id);
-            const fullName = String(driver.full_name || '');
-            const plate = String(driver.vehicle_make_plate || '');
             const labelText = String(driver.label || (UI.driverPrefix + val));
-            if (query) {
-                const haystack = `${fullName} ${plate} ${labelText}`.toLowerCase();
-                if (!haystack.includes(query) && val !== selected) return;
-            }
             const isSelected = val === selected ? ' selected' : '';
             options.push(`<option value="${val}"${isSelected}>${escapeHtml(labelText)}</option>`);
         });
     }
     driverSelect.innerHTML = options.join('');
+}
+
+function getDriverById(driverId) {
+    const id = String(driverId || '');
+    if (!id) return null;
+    return Array.isArray(currentDriversCatalog) ? currentDriversCatalog.find((d) => String(d?.id || '') === id) || null : null;
+}
+
+function renderDriverMenu(query) {
+    const menu = document.getElementById('edit_driver_menu');
+    if (!menu) return;
+    const q = String(query || '').trim().toLowerCase();
+    const matched = (Array.isArray(currentDriversCatalog) ? currentDriversCatalog : []).filter((driver) => {
+        if (!driver || !driver.id) return false;
+        if (!q) return true;
+        const haystack = `${driver.full_name || ''} ${driver.vehicle_make_plate || ''} ${driver.label || ''}`.toLowerCase();
+        return haystack.includes(q);
+    });
+    driverMenuItems = matched;
+    if (!matched.length) {
+        menu.innerHTML = '<div class="driver-combobox-item">Ничего не найдено</div>';
+        return;
+    }
+    menu.innerHTML = matched.map((driver, idx) =>
+        `<div class="driver-combobox-item${idx === 0 ? ' is-active' : ''}" data-driver-id="${escapeHtml(String(driver.id))}">${escapeHtml(String(driver.label || ''))}</div>`
+    ).join('');
+}
+
+function showDriverMenu() {
+    const menu = document.getElementById('edit_driver_menu');
+    const input = document.getElementById('edit_driver_input');
+    if (!menu || !input) return;
+    renderDriverMenu(input.value);
+    menu.style.display = 'block';
+    driverMenuVisible = true;
+}
+
+function hideDriverMenu() {
+    const menu = document.getElementById('edit_driver_menu');
+    if (!menu) return;
+    menu.style.display = 'none';
+    driverMenuVisible = false;
+}
+
+function selectDriverValue(driverId, updateInput = true) {
+    const driverSelect = document.getElementById('edit_driver_id');
+    if (driverSelect) driverSelect.value = String(driverId || '');
+    if (updateInput) {
+        const input = document.getElementById('edit_driver_input');
+        const driver = getDriverById(driverId);
+        if (input) input.value = driver ? String(driver.label || '') : '';
+    }
+    const error = document.getElementById('edit_driver_error');
+    if (error) {
+        error.style.display = 'none';
+        error.textContent = '';
+    }
+}
+
+function validateDriverComboboxSelection() {
+    const input = document.getElementById('edit_driver_input');
+    const select = document.getElementById('edit_driver_id');
+    const error = document.getElementById('edit_driver_error');
+    if (!input || !select) return true;
+    const typed = String(input.value || '').trim();
+    const selectedId = String(select.value || '').trim();
+    if (!typed) {
+        select.value = '';
+        if (error) {
+            error.style.display = 'none';
+            error.textContent = '';
+        }
+        return true;
+    }
+    if (selectedId) return true;
+    if (error) {
+        error.style.display = 'block';
+        error.textContent = 'Выберите водителя из списка.';
+    }
+    return false;
 }
 
 function setDriverCreateError(message) {
@@ -1400,6 +1468,19 @@ function setDriverCreateError(message) {
     }
     errors.style.display = 'block';
     errors.textContent = text;
+}
+
+function setInlineFieldError(id, message) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const text = String(message || '').trim();
+    if (!text) {
+        el.style.display = 'none';
+        el.textContent = '';
+        return;
+    }
+    el.style.display = 'block';
+    el.textContent = text;
 }
 
 function setDriverCreateResult(message, isError) {
@@ -1434,8 +1515,8 @@ function syncDriverCreateGpsType() {
     if (wrap) wrap.style.display = type === 'retranslation' ? 'block' : 'none';
     if (note) {
         note.textContent = type === 'retranslation'
-            ? 'После создания вы получите текст для отправки администратору ретрансляции.'
-            : 'Система автоматически выберет первый свободный трекер SLITEX, у которого имя состоит только из цифр, и переименует его.';
+            ? 'Ретрансляция используется, если машина уже ездит с существующим трекером.\nВведите ID этого трекера. Его должен сообщить администратор или владелец машины.'
+            : 'Используется, если водителю выдаётся новый свободный SLITEX-трекер.\nСистема найдёт свободный трекер, у которого имя состоит только из цифр, и переименует его в формат ГОСНОМЕР(Фамилия).\nРеальное переименование выполняется только при подтверждённом режиме allow_patch_rename=1.';
     }
     const copyWrap = document.getElementById('new_driver_copy_wrap');
     if (copyWrap && type !== 'retranslation') {
@@ -1458,6 +1539,9 @@ function openDriverCreateModal() {
     if (copyText) copyText.value = '';
     setDriverCreateError('');
     setDriverCreateResult('', false);
+    setInlineFieldError('new_driver_full_name_error', '');
+    setInlineFieldError('new_driver_vehicle_number_error', '');
+    setInlineFieldError('new_driver_tracker_id_error', '');
     syncDriverCreateGpsType();
     modal.style.display = 'flex';
 }
@@ -1479,23 +1563,21 @@ async function saveDriverFromModal() {
     const copyWrap = document.getElementById('new_driver_copy_wrap');
     const copyText = document.getElementById('new_driver_copy_text');
 
-    const fullName = normalizeDriverNameInput(fullNameInput?.value || '');
+    const fullName = String(normalizeDriverNameInput(fullNameInput?.value || '')).trim();
     const vehicleMakePlate = normalizeDriverPlateInput(plateInput?.value || '');
     const gpsType = String(gpsTypeInput?.value || 'new_tracker');
     const trackerId = String(trackerInput?.value || '').trim();
 
     if (fullNameInput) fullNameInput.value = fullName;
     if (plateInput) plateInput.value = vehicleMakePlate;
-    if (fullName.split(' ').length !== 3) {
-        setDriverCreateError('ФИО должно быть в формате: Фамилия Имя Отчество.');
-        return;
-    }
-    if (!/^[А-Я]\d{3}[А-Я]{2}\d{2,3}$/.test(vehicleMakePlate)) {
-        setDriverCreateError('Госномер должен быть в формате А123АА45 или А123АА456.');
-        return;
-    }
-    if (gpsType === 'retranslation' && !trackerId) {
-        setDriverCreateError('Для ретрансляции укажите ID трекера.');
+    const nameOk = /^[А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+$/.test(fullName);
+    const plateOk = /^[А-Я]\d{3}[А-Я]{2}\d{2,3}$/.test(vehicleMakePlate);
+    const trackerOk = gpsType !== 'retranslation' || !!trackerId;
+    setInlineFieldError('new_driver_full_name_error', nameOk ? '' : 'Введите ФИО полностью: Фамилия Имя Отчество');
+    setInlineFieldError('new_driver_vehicle_number_error', plateOk ? '' : 'Введите госномер в формате А123АА45 или А123АА456');
+    setInlineFieldError('new_driver_tracker_id_error', trackerOk ? '' : 'Укажите ID текущего трекера');
+    if (!nameOk || !plateOk || !trackerOk) {
+        setDriverCreateError('');
         return;
     }
 
@@ -1536,7 +1618,8 @@ async function saveDriverFromModal() {
             return;
         }
         await loadDriversCatalog();
-        applyDriverSearch(String(driver.id));
+        fillDriverSelect(document.getElementById('edit_driver_id'), String(driver.id));
+        selectDriverValue(String(driver.id), true);
         const driverSelect = document.getElementById('edit_driver_id');
         if (driverSelect) driverSelect.value = String(driver.id);
         updateFlightModalSummary();
@@ -1696,10 +1779,8 @@ async function openFlightEditModal(routeId, source) {
     if (plannedDateRangeTitle) plannedDateRangeTitle.textContent = UI.modalPlanStart;
     if (actualDateRangeTitle) actualDateRangeTitle.textContent = UI.modalActualDates;
 
-    const driverSearchInput = document.getElementById('edit_driver_search');
-    lastDriverSearchQuery = '';
-    if (driverSearchInput) driverSearchInput.value = '';
     fillDriverSelect(driverSelect, meta.driver_id || '');
+    selectDriverValue(String(meta.driver_id || ''), true);
 
     applyLifecycleButtons(currentEditingMeta.status);
     setFlightEditReadOnlyMode(currentEditingMeta.status === 'started');
@@ -1780,10 +1861,10 @@ function setFlightEditReadOnlyMode(isReadOnly) {
     if (addDriverBtn) {
         addDriverBtn.disabled = !!isReadOnly;
     }
-    const driverSearch = document.getElementById('edit_driver_search');
-    if (driverSearch) {
-        driverSearch.disabled = !!isReadOnly;
-    }
+    const driverInput = document.getElementById('edit_driver_input');
+    const driverToggle = document.getElementById('edit_driver_toggle');
+    if (driverInput) driverInput.disabled = !!isReadOnly;
+    if (driverToggle) driverToggle.disabled = !!isReadOnly;
     if (modal) {
         modal.classList.toggle('is-started-readonly', !!isReadOnly);
     }
@@ -1908,6 +1989,9 @@ async function postRouteAction(action, payload) {
 }
 
 async function saveFlightEdit() {
+    if (!validateDriverComboboxSelection()) {
+        return;
+    }
     const idInput = document.getElementById('edit_flight_id');
     const driverInput = document.getElementById('edit_driver_id');
     const fromInput = document.getElementById('edit_planned_start_date_from');
@@ -1932,6 +2016,7 @@ async function saveFlightEdit() {
         .filter(v => /^\d+$/.test(v));
     const saveErrors = {};
     if (!commentVal) saveErrors.comment = true;
+    if (!driverId) saveErrors.driver_id = true;
     if (idsForSave.length === 0) saveErrors.zayavki_ids = true;
     if (Object.keys(saveErrors).length > 0) {
         showFlightValidationErrors(saveErrors, UI.msgSaveValidationTitle);
@@ -1993,6 +2078,9 @@ async function saveFlightEdit() {
 }
 
 async function transferPlannedToFound(routeId) {
+    if (!validateDriverComboboxSelection()) {
+        return;
+    }
     const preErrors = validateRequiredForFoundTransition();
     if (Object.keys(preErrors).length > 0) {
         showFlightValidationErrors(preErrors);
@@ -2682,15 +2770,52 @@ function init() {
     const addSourceWarehouseBtn = document.getElementById('add_source_warehouse_btn');
     const addDestinationWarehouseBtn = document.getElementById('add_destination_warehouse_btn');
     const addDriverBtn = document.getElementById('add_driver_btn');
-    const driverSearchInput = document.getElementById('edit_driver_search');
+    const driverSelect = document.getElementById('edit_driver_id');
+    const driverInput = document.getElementById('edit_driver_input');
+    const driverToggle = document.getElementById('edit_driver_toggle');
+    const driverMenu = document.getElementById('edit_driver_menu');
     if (addSourceWarehouseBtn) addSourceWarehouseBtn.addEventListener('click', () => openWarehouseCreateModal('edit_source_warehouse_id'));
     if (addDestinationWarehouseBtn) addDestinationWarehouseBtn.addEventListener('click', () => openWarehouseCreateModal('edit_destination_warehouse_id'));
     if (addDriverBtn) addDriverBtn.addEventListener('click', openDriverCreateModal);
-    if (driverSearchInput) {
-        driverSearchInput.addEventListener('input', () => {
-            lastDriverSearchQuery = String(driverSearchInput.value || '');
-            const selected = document.getElementById('edit_driver_id')?.value || '';
-            applyDriverSearch(selected);
+    if (driverInput) {
+        driverInput.addEventListener('focus', showDriverMenu);
+        driverInput.addEventListener('input', () => {
+            if (driverSelect) driverSelect.value = '';
+            renderDriverMenu(driverInput.value);
+            showDriverMenu();
+        });
+        driverInput.addEventListener('blur', () => {
+            setTimeout(() => {
+                hideDriverMenu();
+                validateDriverComboboxSelection();
+            }, 120);
+        });
+        driverInput.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                showDriverMenu();
+            }
+        });
+    }
+    if (driverToggle) {
+        driverToggle.addEventListener('click', () => {
+            if (driverMenuVisible) hideDriverMenu(); else showDriverMenu();
+        });
+    }
+    if (driverMenu) {
+        driverMenu.addEventListener('mousedown', (event) => {
+            const target = event.target && event.target.closest ? event.target.closest('.driver-combobox-item[data-driver-id]') : null;
+            if (!target) return;
+            const id = String(target.getAttribute('data-driver-id') || '');
+            selectDriverValue(id, true);
+            hideDriverMenu();
+            updateFlightModalSummary();
+        });
+    }
+    if (driverSelect) {
+        driverSelect.addEventListener('change', () => {
+            selectDriverValue(driverSelect.value, true);
+            updateFlightModalSummary();
         });
     }
     const warehouseCreateModal = document.getElementById('warehouseCreateModal');
@@ -2748,11 +2873,38 @@ function init() {
             const normalized = normalizeDriverNameInput(newDriverFullName.value);
             if (newDriverFullName.value !== normalized) newDriverFullName.value = normalized;
         });
+        newDriverFullName.addEventListener('blur', () => {
+            const value = String(normalizeDriverNameInput(newDriverFullName.value)).trim();
+            newDriverFullName.value = value;
+            setInlineFieldError(
+                'new_driver_full_name_error',
+                /^[А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+$/.test(value) || !value
+                    ? ''
+                    : 'Введите ФИО полностью: Фамилия Имя Отчество'
+            );
+        });
     }
     if (newDriverPlate) {
         newDriverPlate.addEventListener('input', () => {
             const normalized = normalizeDriverPlateInput(newDriverPlate.value);
             if (newDriverPlate.value !== normalized) newDriverPlate.value = normalized;
+        });
+        newDriverPlate.addEventListener('blur', () => {
+            const value = normalizeDriverPlateInput(newDriverPlate.value);
+            newDriverPlate.value = value;
+            setInlineFieldError(
+                'new_driver_vehicle_number_error',
+                /^[А-Я]\d{3}[А-Я]{2}\d{2,3}$/.test(value) || !value
+                    ? ''
+                    : 'Введите госномер в формате А123АА45 или А123АА456'
+            );
+        });
+    }
+    const newDriverTrackerId = document.getElementById('new_driver_tracker_id');
+    if (newDriverTrackerId) {
+        newDriverTrackerId.addEventListener('blur', () => {
+            if (String(document.getElementById('new_driver_gps_type')?.value || '') !== 'retranslation') return;
+            setInlineFieldError('new_driver_tracker_id_error', String(newDriverTrackerId.value || '').trim() ? '' : 'Укажите ID текущего трекера');
         });
     }
     if (driverCreateModal) {
@@ -2760,6 +2912,13 @@ function init() {
             if (event.target === driverCreateModal) closeDriverCreateModal();
         });
     }
+    document.addEventListener('click', (event) => {
+        const combo = document.getElementById('edit_driver_combobox');
+        if (!combo) return;
+        if (!combo.contains(event.target)) {
+            hideDriverMenu();
+        }
+    });
 
     const saveEditBtn = document.getElementById('flightEditSaveBtn');
     const cancelEditBtn = document.getElementById('flightEditCancelBtn');

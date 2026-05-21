@@ -138,14 +138,22 @@
 .warehouse-add-btn { height: 32px; padding: 0 10px; font-size: 11px; white-space: nowrap; }
 .driver-input-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; }
 .driver-add-btn { height: 32px; padding: 0 10px; font-size: 11px; white-space: nowrap; }
-.driver-search-input { margin-top: 6px; }
+.driver-combobox { position: relative; }
+.driver-combobox-input { padding-right: 26px; }
+.driver-combobox-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; color: #5f6772; cursor: pointer; font-size: 10px; line-height: 1; padding: 2px; }
+.driver-combobox-menu { position: absolute; left: 0; right: 0; top: calc(100% + 2px); max-height: 220px; overflow-y: auto; background: #fff; border: 1px solid #d0d7de; border-radius: 6px; box-shadow: 0 8px 22px rgba(0,0,0,0.12); z-index: 30; }
+.driver-combobox-item { padding: 6px 8px; font-size: 12px; cursor: pointer; border-bottom: 1px solid #f1f3f6; }
+.driver-combobox-item:last-child { border-bottom: 0; }
+.driver-combobox-item:hover, .driver-combobox-item.is-active { background: #eef4ff; }
+.field-inline-hint { margin-top: 4px; font-size: 11px; color: #6b7280; line-height: 1.3; }
+.field-inline-error { margin-top: 4px; font-size: 11px; color: #b42318; line-height: 1.3; }
 .warehouse-mini-modal { width: min(560px, calc(100vw - 32px)); }
 .driver-mini-modal { width: min(560px, calc(100vw - 32px)); }
 .warehouse-mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .warehouse-geocode-row { display: flex; align-items: center; gap: 8px; margin: 8px 0 2px; }
 .warehouse-geocode-row .route-action-btn { height: 30px; padding: 0 10px; font-size: 11px; }
 .warehouse-geocode-note { font-size: 11px; color: #5f6772; line-height: 1.3; }
-.driver-gps-note { margin-top: 8px; font-size: 11px; color: #5f6772; line-height: 1.35; background: #f6f8fb; border: 1px solid #dce3ee; border-radius: 6px; padding: 7px 8px; }
+.driver-gps-note { margin-top: 8px; font-size: 11px; color: #5f6772; line-height: 1.35; background: #f6f8fb; border: 1px solid #dce3ee; border-radius: 6px; padding: 7px 8px; white-space: pre-line; }
 .driver-copy-wrap { margin-top: 8px; }
 .driver-copy-actions { margin-top: 6px; }
 .driver-create-result { margin-top: 8px; border-radius: 6px; padding: 8px; font-size: 11px; line-height: 1.35; background: #eef7ef; border: 1px solid #cfe7d1; color: #1f5f29; }
