@@ -2,6 +2,7 @@
 error_reporting(0);
 ini_set('display_errors', 0);
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/Support/max_notify.php';
 header('Content-Type: application/json; charset=utf-8');
 
 function geocodeOut(array $payload): void
@@ -125,6 +126,14 @@ try {
         $normalizedAddress = $address;
     }
 
+    if (function_exists('notifyEvent')) {
+        notifyEvent('warehouse_geocode', [
+            'address' => $normalizedAddress,
+            'latitude' => (string)$latitude,
+            'longitude' => (string)$longitude,
+        ], "Координаты склада определены: {$normalizedAddress}");
+    }
+
     geocodeOut([
         'success' => true,
         'address' => $normalizedAddress,
@@ -137,4 +146,3 @@ try {
     }
     geocodeOut(['success' => false, 'error' => 'Не удалось определить координаты.']);
 }
-

@@ -124,6 +124,20 @@ function ecDefaultCatalog(): array
             'placeholders' => '{warehouse_id}, {warehouse_name}, {warehouse_address}',
             'template' => "Создан новый склад\n#{warehouse_id} {warehouse_name}\nАдрес: {warehouse_address}",
         ],
+        'warehouse_geocode' => [
+            'category' => 'warehouses',
+            'title' => 'Определение координат склада',
+            'when' => 'Отправляется при успешном определении координат склада',
+            'placeholders' => '{address}, {latitude}, {longitude}',
+            'template' => "Координаты склада определены\nАдрес: {address}\nКоординаты: {latitude}, {longitude}",
+        ],
+        'driver_create' => [
+            'category' => 'drivers',
+            'title' => 'Создание водителя',
+            'when' => 'Отправляется при успешном создании водителя',
+            'placeholders' => '{driver}, {gps_connection_type}',
+            'template' => "Создан водитель: {driver}\nТип GPS: {gps_connection_type}",
+        ],
         'static_text_saved' => [
             'category' => 'admin',
             'title' => 'Сохранение статического текста',

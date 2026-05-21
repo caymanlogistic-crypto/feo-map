@@ -168,6 +168,10 @@ UI.msgWarehouseGeocodeLoading = uiText('warehouse.geocode.loading', 'Опред�
 UI.msgWarehouseGeocodeSuccess = uiText('warehouse.geocode.success', 'Координаты определены.');
 UI.msgWarehouseGeocodeNetwork = uiText('warehouse.geocode.network_error', 'Ошибка сети при определении координат.');
 UI.msgWarehouseGeocodeChanged = uiText('warehouse.geocode.changed_after_edit', 'Адрес изменён, координаты лучше определить заново.');
+UI.labelWarehouseMarker = uiText('warehouse.marker.label', 'СКЛАД');
+UI.labelWarehouseName = uiText('warehouse.popup.name', 'Название');
+UI.labelWarehouseAddress = uiText('warehouse.popup.address', 'Адрес');
+UI.labelWarehouseCoordinates = uiText('warehouse.popup.coordinates', 'Координаты');
 UI.msgCopied = uiText('common.copied', 'Текст скопирован.');
 UI.msgCopyFailed = uiText('common.copy_failed', 'Не удалось скопировать текст.');
 UI.msgDriverGpsTypeRequired = uiText('driver.validation.gps_type', 'Выберите тип GPS подключения.');
@@ -1821,15 +1825,15 @@ function applyLifecycleButtons(status) {
         if (el) el.style.display = 'none';
     });
     if (status === 'planned_route') {
-        if (updateTitle) updateTitle.textContent = 'Актуализация рейса';
-        if (updateDesc) updateDesc.textContent = 'Изменения дат автоматически фиксируются в МАКС.';
+        if (updateTitle) updateTitle.textContent = uiText('route.workflow.update.title', 'Актуализация рейса');
+        if (updateDesc) updateDesc.textContent = uiText('route.workflow.update.desc', 'Изменения дат автоматически фиксируются в МАКС.');
         if (saveBtn) saveBtn.textContent = 'Сохранить изменения';
         if (map.updateSection) map.updateSection.style.display = 'block';
         if (map.toFound) map.toFound.style.display = 'block';
         if (map.deleteWrap) map.deleteWrap.style.display = 'block';
     } else if (status === 'found') {
-        if (updateTitle) updateTitle.textContent = 'Актуализация рейса';
-        if (updateDesc) updateDesc.textContent = 'Изменения автоматически фиксируются в МАКС.';
+        if (updateTitle) updateTitle.textContent = uiText('route.workflow.update.title', 'Актуализация рейса');
+        if (updateDesc) updateDesc.textContent = uiText('route.workflow.update.desc.found', 'Изменения автоматически фиксируются в МАКС.');
         if (saveBtn) saveBtn.textContent = 'Сохранить изменения';
         if (map.updateSection) map.updateSection.style.display = 'block';
         if (map.toStarted) map.toStarted.style.display = 'block';
@@ -2231,11 +2235,22 @@ function renderWarehousesLayer() {
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
         const name = String(warehouse.name || `Склад #${warehouse.id || ''}`).trim();
         const address = String(warehouse.address || '').trim();
+        const coordsText = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
         const placemark = new ymaps.Placemark([lat, lon], {
             hintContent: name,
-            balloonContent: `<div style="padding:8px;max-width:280px;"><div><strong>${escapeHtml(name)}</strong></div>${address ? `<div>${escapeHtml(address)}</div>` : ''}</div>`
+            iconContent: UI.labelWarehouseMarker,
+            balloonContent: `<div style="padding:8px;max-width:320px;">
+                <div><strong>${UI.labelWarehouseName}:</strong> ${escapeHtml(name)}</div>
+                <div><strong>${UI.labelWarehouseAddress}:</strong> ${escapeHtml(address || TXT.notSpecified)}</div>
+                <div><strong>${UI.labelWarehouseCoordinates}:</strong> ${escapeHtml(coordsText)}</div>
+            </div>`
         }, {
-            preset: 'islands#blueShoppingIcon',
+            iconLayout: 'default#imageWithContent',
+            iconImageHref: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="82" height="34"><rect x="1" y="1" width="80" height="32" rx="9" ry="9" fill="%23000000" stroke="%23000000" stroke-width="2"/></svg>',
+            iconImageSize: [82, 34],
+            iconImageOffset: [-41, -34],
+            iconContentOffset: [0, -8],
+            iconContentLayout: ymaps.templateLayoutFactory.createClass('<div style="width:82px;text-align:center;color:#fff;font-weight:700;font-size:12px;line-height:34px;font-family:Arial,sans-serif;">$[properties.iconContent]</div>'),
             zIndex: 520
         });
         warehousesCollection.add(placemark);

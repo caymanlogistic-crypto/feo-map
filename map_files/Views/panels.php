@@ -149,28 +149,28 @@ $t = static function (string $key, string $fallback): string {
                 </div>
             </div>
             <div class="flight-cost-wrap">
-                <label class="flight-modal-label" for="edit_cost">Стоимость</label>
+                <label class="flight-modal-label" for="edit_cost"><?= $t('route.field.cost', 'Стоимость') ?></label>
                 <input class="flight-modal-input" type="number" id="edit_cost" step="0.01" min="0">
             </div>
             <div class="flight-route-type-wrap">
-                <label class="flight-modal-label" for="edit_route_type">Тип рейса</label>
+                <label class="flight-modal-label" for="edit_route_type"><?= $t('route.field.route_type', 'Тип рейса') ?></label>
                 <select class="flight-modal-input" id="edit_route_type">
-                    <option value="generator_to_utilizer">Отходообразователь → Утилизатор</option>
-                    <option value="generator_to_warehouse">Отходообразователь → Склад</option>
-                    <option value="warehouse_to_warehouse">Склад → Склад</option>
-                    <option value="warehouse_to_utilizer">Склад → Утилизатор</option>
+                    <option value="generator_to_utilizer"><?= $t('route.type.generator_to_utilizer', 'Отходообразователь → Утилизатор') ?></option>
+                    <option value="generator_to_warehouse"><?= $t('route.type.generator_to_warehouse', 'Отходообразователь → Склад') ?></option>
+                    <option value="warehouse_to_warehouse"><?= $t('route.type.warehouse_to_warehouse', 'Склад → Склад') ?></option>
+                    <option value="warehouse_to_utilizer"><?= $t('route.type.warehouse_to_utilizer', 'Склад → Утилизатор') ?></option>
                 </select>
             </div>
             <div class="flight-warehouse-group" id="edit_warehouse_group" style="display:none;">
                 <div class="flight-warehouse-wrap" id="edit_source_warehouse_wrap" style="display:none;">
-                    <label class="flight-modal-label" for="edit_source_warehouse_id">Склад отправления</label>
+                    <label class="flight-modal-label" for="edit_source_warehouse_id"><?= $t('warehouse.field.source', 'Склад отправления') ?></label>
                     <div class="warehouse-input-row">
                         <select class="flight-modal-input" id="edit_source_warehouse_id"></select>
                         <button type="button" class="route-action-btn route-action-main warehouse-add-btn" id="add_source_warehouse_btn">+ Новый склад</button>
                     </div>
                 </div>
                 <div class="flight-warehouse-wrap" id="edit_destination_warehouse_wrap" style="display:none;">
-                    <label class="flight-modal-label" for="edit_destination_warehouse_id">Склад назначения</label>
+                    <label class="flight-modal-label" for="edit_destination_warehouse_id"><?= $t('warehouse.field.destination', 'Склад назначения') ?></label>
                     <div class="warehouse-input-row">
                         <select class="flight-modal-input" id="edit_destination_warehouse_id"></select>
                         <button type="button" class="route-action-btn route-action-main warehouse-add-btn" id="add_destination_warehouse_btn">+ Новый склад</button>
@@ -178,7 +178,7 @@ $t = static function (string $key, string $fallback): string {
                 </div>
             </div>
             <div class="flight-zayavki-wrap">
-                <label class="flight-modal-label" for="edit_zayavki_ids">Список заявок</label>
+                <label class="flight-modal-label" for="edit_zayavki_ids"><?= $t('route.field.requests', 'Список заявок') ?></label>
                 <textarea class="flight-modal-input" id="edit_zayavki_ids" rows="3" placeholder="101,104,105"></textarea>
             </div>
         </div>
@@ -187,9 +187,9 @@ $t = static function (string $key, string $fallback): string {
         <div class="flight-validation-errors" id="flightValidationErrors" style="display:none;"></div>
 
         <div class="workflow-section workflow-card workflow-card-update" id="workflowUpdateSection">
-            <div class="workflow-title" id="workflowUpdateTitle">Актуализация рейса</div>
-            <div class="workflow-desc" id="workflowUpdateDesc">Изменения дат автоматически фиксируются в МАКС.</div>
-            <button class="route-action-btn route-edit-btn route-action-main" id="flightEditSaveBtn">Сохранить/Обновить</button>
+            <div class="workflow-title" id="workflowUpdateTitle"><?= $t('route.workflow.update.title', 'Актуализация рейса') ?></div>
+            <div class="workflow-desc" id="workflowUpdateDesc"><?= $t('route.workflow.update.desc', 'Изменения дат автоматически фиксируются в МАКС.') ?></div>
+            <button class="route-action-btn route-edit-btn route-action-main" id="flightEditSaveBtn"><?= $t('route.action.save_update.button', 'Сохранить/Обновить') ?></button>
         </div>
 
         <div class="workflow-section workflow-card workflow-card-lifecycle" id="workflowLifecycleSection">
@@ -243,21 +243,21 @@ $t = static function (string $key, string $fallback): string {
             <button class="route-action-btn route-icon-btn" id="warehouseCreateCloseTopBtn">&times;</button>
         </div>
         <div class="flight-validation-errors" id="warehouseCreateErrors" style="display:none;"></div>
-        <label class="flight-modal-label" for="new_warehouse_name">Название склада *</label>
+        <label class="flight-modal-label" for="new_warehouse_name"><?= $t('warehouse.field.name.required', 'Название склада *') ?></label>
         <input class="flight-modal-input" type="text" id="new_warehouse_name">
-        <label class="flight-modal-label" for="new_warehouse_address">Полный адрес *</label>
+        <label class="flight-modal-label" for="new_warehouse_address"><?= $t('warehouse.field.address.required', 'Полный адрес *') ?></label>
         <textarea class="flight-modal-input" id="new_warehouse_address" rows="2"></textarea>
         <div class="warehouse-geocode-row">
-            <button class="route-action-btn route-edit-btn route-action-main" id="warehouseGeocodeBtn">Определить координаты</button>
+            <button class="route-action-btn route-edit-btn route-action-main" id="warehouseGeocodeBtn"><?= $t('warehouse.button.geocode', 'Определить координаты') ?></button>
             <div class="warehouse-geocode-note" id="warehouseGeocodeNote" style="display:none;"></div>
         </div>
         <div class="warehouse-mini-grid">
             <div>
-                <label class="flight-modal-label" for="new_warehouse_latitude">Широта</label>
+                <label class="flight-modal-label" for="new_warehouse_latitude"><?= $t('warehouse.field.latitude', 'Широта') ?></label>
                 <input class="flight-modal-input" type="number" step="any" id="new_warehouse_latitude">
             </div>
             <div>
-                <label class="flight-modal-label" for="new_warehouse_longitude">Долгота</label>
+                <label class="flight-modal-label" for="new_warehouse_longitude"><?= $t('warehouse.field.longitude', 'Долгота') ?></label>
                 <input class="flight-modal-input" type="number" step="any" id="new_warehouse_longitude">
             </div>
         </div>
@@ -297,8 +297,8 @@ $t = static function (string $key, string $fallback): string {
         <div class="field-inline-error" id="new_driver_gps_type_error" style="display:none;"></div>
         <div class="driver-create-result" id="driverCreateResult" style="display:none;"></div>
         <div class="flight-modal-actions">
-            <button class="route-action-btn route-transfer-start-btn route-action-main" id="driverCreateSaveBtn">Создать водителя</button>
-            <button class="route-action-btn route-action-main" id="driverCreateCancelBtn">Отмена</button>
+            <button class="route-action-btn route-transfer-start-btn route-action-main" id="driverCreateSaveBtn"><?= $t('driver.create.button', 'Создать водителя') ?></button>
+            <button class="route-action-btn route-action-main" id="driverCreateCancelBtn"><?= $t('button.cancel', 'Отмена') ?></button>
         </div>
     </div>
 </div>

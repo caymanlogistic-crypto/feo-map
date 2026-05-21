@@ -613,6 +613,13 @@ try {
             'outProtocol' => $feoParams['outProtocol'],
         ],
     ]);
+    if (function_exists('notifyEvent')) {
+        notifyEvent('driver_create', [
+            'driver' => $driverCompact,
+            'gps_connection_type' => $gpsType,
+            'tracker_uniqueid' => $selected['uniqueid'],
+        ], "Создан водитель: {$driverCompact}");
+    }
 
     driverOut([
         'success' => true,
