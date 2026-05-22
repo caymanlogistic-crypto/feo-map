@@ -107,7 +107,7 @@ class FlightRepository
             return null;
         }
 
-        $sql = "SELECT id, status, driver_id, planned_start_date_from, planned_start_date_to, actual_start_date, actual_end_date, cost FROM flights WHERE id = ? LIMIT 1";
+        $sql = "SELECT id, status, driver_id, planned_start_date_from, planned_start_date_to, actual_start_date, actual_end_date, cost, zayavki_ids, route_type, source_warehouse_id, destination_warehouse_id FROM flights WHERE id = ? LIMIT 1";
         try {
             $stmt = $this->pdo->prepare($sql);
             if (!$stmt) {

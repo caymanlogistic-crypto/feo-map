@@ -236,8 +236,21 @@ function resolveFlightsManagerColumn(PDO $pdo): ?string
     return null;
 }
 
-function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTransition, bool $requireTitle = false): array
+function validateRouteData(
+    PDO $pdo,
+    array $data,
+    bool $requireFullForFoundTransition,
+    bool $requireTitle = false,
+    ?bool $requireRequests = null,
+    ?bool $requireWarehouses = null
+): array
 {
+    if ($requireRequests === null) {
+        $requireRequests = $requireFullForFoundTransition;
+    }
+    if ($requireWarehouses === null) {
+        $requireWarehouses = $requireFullForFoundTransition;
+    }
     if ($requireTitle) {
         $title = trim((string)($data['comment'] ?? $data['name'] ?? ''));
         if ($title === '') {
@@ -246,24 +259,26 @@ function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTrans
     }
 
     $ids = normalizeIdsString($data['zayavki_ids'] ?? '');
-    if (empty($ids)) {
+    if ($requireRequests && empty($ids)) {
         return [false, 'Список заявок пустой', [], ['zayavki_ids' => 'Список заявок пустой']];
     }
-    $placeholders = implode(',', array_fill(0, count($ids), '?'));
-    $stmtIds = $pdo->prepare("SELECT zayavka_id FROM feo WHERE zayavka_id IN ({$placeholders})");
-    if (!$stmtIds || !$stmtIds->execute($ids)) {
-        return [false, 'Не удалось проверить заявки', [], ['zayavki_ids' => 'Не удалось проверить заявки']];
-    }
-    $existsRows = $stmtIds->fetchAll(PDO::FETCH_COLUMN);
-    $existsMap = [];
-    if (is_array($existsRows)) {
-        foreach ($existsRows as $v) {
-            $existsMap[(string)$v] = true;
+    if (!empty($ids)) {
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmtIds = $pdo->prepare("SELECT zayavka_id FROM feo WHERE zayavka_id IN ({$placeholders})");
+        if (!$stmtIds || !$stmtIds->execute($ids)) {
+            return [false, 'Не удалось проверить заявки', [], ['zayavki_ids' => 'Не удалось проверить заявки']];
         }
-    }
-    foreach ($ids as $id) {
-        if (!isset($existsMap[$id])) {
-            return [false, "Заявка {$id} не существует", [], ['zayavki_ids' => "Заявка {$id} не существует"]];
+        $existsRows = $stmtIds->fetchAll(PDO::FETCH_COLUMN);
+        $existsMap = [];
+        if (is_array($existsRows)) {
+            foreach ($existsRows as $v) {
+                $existsMap[(string)$v] = true;
+            }
+        }
+        foreach ($ids as $id) {
+            if (!isset($existsMap[$id])) {
+                return [false, "Заявка {$id} не существует", [], ['zayavki_ids' => "Заявка {$id} не существует"]];
+            }
         }
     }
 
@@ -276,10 +291,10 @@ function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTrans
     $sourceWarehouseId = normalizeWarehouseId($pdo, $data['source_warehouse_id'] ?? null);
     $destinationWarehouseId = normalizeWarehouseId($pdo, $data['destination_warehouse_id'] ?? null);
 
-    if ($routeType === ROUTE_TYPE_GENERATOR_TO_WAREHOUSE && $destinationWarehouseId === null) {
+    if ($requireWarehouses && $routeType === ROUTE_TYPE_GENERATOR_TO_WAREHOUSE && $destinationWarehouseId === null) {
         return [false, 'Укажите склад назначения', [], ['destination_warehouse_id' => 'Укажите склад назначения']];
     }
-    if ($routeType === ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE) {
+    if ($requireWarehouses && $routeType === ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE) {
         if ($sourceWarehouseId === null) {
             return [false, 'Укажите склад отправления', [], ['source_warehouse_id' => 'Укажите склад отправления']];
         }
@@ -287,7 +302,7 @@ function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTrans
             return [false, 'Укажите склад назначения', [], ['destination_warehouse_id' => 'Укажите склад назначения']];
         }
     }
-    if ($routeType === ROUTE_TYPE_WAREHOUSE_TO_UTILIZER && $sourceWarehouseId === null) {
+    if ($requireWarehouses && $routeType === ROUTE_TYPE_WAREHOUSE_TO_UTILIZER && $sourceWarehouseId === null) {
         return [false, 'Укажите склад отправления', [], ['source_warehouse_id' => 'Укажите склад отправления']];
     }
 
@@ -324,10 +339,9 @@ function validateRouteData(PDO $pdo, array $data, bool $requireFullForFoundTrans
         }
     }
     if (!$driverOk && $requireFullForFoundTransition) return [false, 'Не выбран корректный водитель', [], ['driver_id' => 'Не выбран корректный водитель']];
-    if ($requireFullForFoundTransition && ($plannedFrom === null || $plannedTo === null)) {
+    if ($requireFullForFoundTransition && $plannedFrom === null) {
         return [false, '   " "   ', [], [
-            'planned_start_date_from' => 'Обязательная дата',
-            'planned_start_date_to' => 'Обязательная дата'
+            'planned_start_date_from' => 'Обязательная дата'
         ]];
     }
     if ($requireFullForFoundTransition && $cost === null) return [false, '   " "  ', [], ['cost' => ' ']];
@@ -834,11 +848,25 @@ try {
 
     if ($action === 'save') {
         $requireFull = false;
+        $requireTitle = true;
+        $requireRequests = true;
+        $requireWarehouses = true;
         if ($routeId > 0) {
             $current = loadFlightSnapshot($pdo, $routeId);
-            $requireFull = is_array($current) && (string)$current['status'] === STATUS_FOUND;
+            $isFoundEdit = is_array($current) && (string)$current['status'] === STATUS_FOUND;
+            $requireFull = $isFoundEdit;
+            $requireTitle = $isFoundEdit;
+            $requireRequests = $isFoundEdit;
+            $requireWarehouses = $isFoundEdit;
         }
-            [$ok, $msg, $normalized, $errors] = validateRouteData($pdo, $data, $requireFull, true);
+        [$ok, $msg, $normalized, $errors] = validateRouteData(
+            $pdo,
+            $data,
+            $requireFull,
+            $requireTitle,
+            $requireRequests,
+            $requireWarehouses
+        );
         if (!$ok) {
             jsonOut(['success' => false, 'message' => $msg, 'errors' => $errors]);
         }
@@ -1028,7 +1056,15 @@ try {
                 if (!isset($payload['name']) || trim((string)$payload['name']) === '') $payload['name'] = trim((string)($flight['comment'] ?? $flight['name'] ?? ''));
             }
             $requireTitle = !$wasStarted;
-            [$ok, $msg, $normalized, $errors] = validateRouteData($pdo, $payload, !$wasStarted, $requireTitle);
+            $strictFoundTransition = !$wasStarted;
+            [$ok, $msg, $normalized, $errors] = validateRouteData(
+                $pdo,
+                $payload,
+                $strictFoundTransition,
+                $requireTitle,
+                $strictFoundTransition,
+                $strictFoundTransition
+            );
             if (!$ok) {
                 jsonOut(['success' => false, 'message' => $msg, 'errors' => $errors]);
             }

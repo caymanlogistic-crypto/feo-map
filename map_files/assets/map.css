@@ -153,6 +153,20 @@
 .warehouse-geocode-row { display: flex; align-items: center; gap: 8px; margin: 8px 0 2px; }
 .warehouse-geocode-row .route-action-btn { height: 30px; padding: 0 10px; font-size: 11px; }
 .warehouse-geocode-note { font-size: 11px; color: #5f6772; line-height: 1.3; }
+.warehouse-map-marker {
+  width: 82px;
+  height: 34px;
+  border-radius: 9px;
+  border: 2px solid #000;
+  background: #000;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 30px;
+  text-align: center;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
 .driver-gps-note { margin-top: 8px; font-size: 11px; color: #5f6772; line-height: 1.35; background: #f6f8fb; border: 1px solid #dce3ee; border-radius: 6px; padding: 7px 8px; white-space: pre-line; }
 .driver-gps-radio-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
 .driver-gps-radio-item {

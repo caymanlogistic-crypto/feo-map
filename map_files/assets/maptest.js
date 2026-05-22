@@ -1121,7 +1121,6 @@ function validateRequiredForFoundTransition() {
     const titleVal = String(document.getElementById('edit_comment')?.value || '').trim();
     const driverId = String(document.getElementById('edit_driver_id')?.value || '').trim();
     const fromVal = String(document.getElementById('edit_planned_start_date_from')?.value || '').trim();
-    const toVal = String(document.getElementById('edit_planned_start_date_to')?.value || '').trim();
     const costVal = String(document.getElementById('edit_cost')?.value || '').trim();
     const ids = String(document.getElementById('edit_zayavki_ids')?.value || '')
         .split(',')
@@ -1131,7 +1130,6 @@ function validateRequiredForFoundTransition() {
     if (!titleVal) errors.comment = true;
     if (!driverId) errors.driver_id = true;
     if (!fromVal) errors.planned_start_date_from = true;
-    if (!toVal) errors.planned_start_date_to = true;
     if (!costVal) errors.cost = true;
     if (ids.length === 0) errors.zayavki_ids = true;
     return errors;
@@ -2031,10 +2029,14 @@ async function saveFlightEdit() {
         .split(',')
         .map(v => v.trim())
         .filter(v => /^\d+$/.test(v));
+    const currentStatus = String(statusInput ? statusInput.value : '');
+    const isStrictEdit = currentStatus === 'found';
     const saveErrors = {};
-    if (!commentVal) saveErrors.comment = true;
-    if (!driverId) saveErrors.driver_id = true;
-    if (idsForSave.length === 0) saveErrors.zayavki_ids = true;
+    if (isStrictEdit) {
+        if (!commentVal) saveErrors.comment = true;
+        if (!driverId) saveErrors.driver_id = true;
+        if (idsForSave.length === 0) saveErrors.zayavki_ids = true;
+    }
     if (Object.keys(saveErrors).length > 0) {
         showFlightValidationErrors(saveErrors, UI.msgSaveValidationTitle);
         return;
@@ -2238,19 +2240,20 @@ function renderWarehousesLayer() {
         const coordsText = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
         const placemark = new ymaps.Placemark([lat, lon], {
             hintContent: name,
-            iconContent: UI.labelWarehouseMarker,
+            warehouseLabel: UI.labelWarehouseMarker,
             balloonContent: `<div style="padding:8px;max-width:320px;">
                 <div><strong>${UI.labelWarehouseName}:</strong> ${escapeHtml(name)}</div>
                 <div><strong>${UI.labelWarehouseAddress}:</strong> ${escapeHtml(address || TXT.notSpecified)}</div>
                 <div><strong>${UI.labelWarehouseCoordinates}:</strong> ${escapeHtml(coordsText)}</div>
             </div>`
         }, {
-            iconLayout: 'default#imageWithContent',
-            iconImageHref: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="82" height="34"><rect x="1" y="1" width="80" height="32" rx="9" ry="9" fill="%23000000" stroke="%23000000" stroke-width="2"/></svg>',
-            iconImageSize: [82, 34],
-            iconImageOffset: [-41, -34],
-            iconContentOffset: [0, -8],
-            iconContentLayout: ymaps.templateLayoutFactory.createClass('<div style="width:82px;text-align:center;color:#fff;font-weight:700;font-size:12px;line-height:34px;font-family:Arial,sans-serif;">$[properties.iconContent]</div>'),
+            iconLayout: ymaps.templateLayoutFactory.createClass(
+                '<div class="warehouse-map-marker">$[properties.warehouseLabel]</div>'
+            ),
+            iconShape: {
+                type: 'Rectangle',
+                coordinates: [[-41, -34], [41, 0]]
+            },
             zIndex: 520
         });
         warehousesCollection.add(placemark);
