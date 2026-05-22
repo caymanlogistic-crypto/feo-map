@@ -649,6 +649,21 @@ function buildAddedRemovedIds(array $beforeIds, array $afterIds): array
     return [$removed, $added];
 }
 
+function buildRouteTypeLabel(array $flight): string
+{
+    $routeType = normalizeRouteType($flight['route_type'] ?? '', $flight['unload_type'] ?? 'OO');
+    if ($routeType === ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE) {
+        return 'Склад → Склад';
+    }
+    if ($routeType === ROUTE_TYPE_GENERATOR_TO_WAREHOUSE) {
+        return 'Отходообразователь → Склад';
+    }
+    if ($routeType === ROUTE_TYPE_WAREHOUSE_TO_UTILIZER) {
+        return 'Склад → Утилизатор';
+    }
+    return 'Отходообразователь → Утилизатор';
+}
+
 function buildRouteDiffContext(PDO $pdo, array $before, array $after, int $flightId): array
 {
     $beforeIds = splitIds((string)($before['zayavki_ids'] ?? ''));
@@ -703,10 +718,7 @@ function buildRouteEventContext(PDO $pdo, array $route, int $flightId, array $ex
 {
     $manager = getManagerDisplayNameById($pdo, $route['assigned_manager_id'] ?? 0);
     $driver = compactDriverLabel((string)($route['_driver_label'] ?? ''));
-    $routeTypeLine = buildRouteTypeLine($pdo, $route);
-    if (trim($routeTypeLine) === '') {
-        $routeTypeLine = 'Тип рейса: не задан';
-    }
+    $routeTypeLine = 'Тип рейса: ' . buildRouteTypeLabel($route);
     $ctx = [
         'route_id' => (string)$flightId,
         'route_title' => buildRouteTitle($route, $flightId),
@@ -717,7 +729,7 @@ function buildRouteEventContext(PDO $pdo, array $route, int $flightId, array $ex
         'responsible' => $manager !== '' ? $manager : 'не назначен',
         'route_type' => (string)($route['route_type'] ?? ''),
         'route_type_line' => $routeTypeLine,
-        'meta_line' => buildCompactMetaLine($route),
+        'meta_line' => (trim(buildCompactMetaLine($route)) !== '' ? trim(buildCompactMetaLine($route)) : 'Параметры рейса: не заданы'),
         'requests_count' => (string)((int)($route['_count'] ?? 0)),
         'weight' => formatKgFromTons((float)($route['_sum_tons'] ?? 0)),
         'cost' => formatMoneyRu($route['cost'] ?? null),
@@ -846,7 +858,7 @@ function buildFoundDiffMessage(PDO $pdo, array $before, array $after, int $fligh
     }
 
     if ((string)($before['route_type'] ?? '') !== (string)($after['route_type'] ?? '')) {
-        $changes[] = 'Тип рейса: ' . trim(buildRouteTypeLine($pdo, $before)) . ' → ' . trim(buildRouteTypeLine($pdo, $after));
+        $changes[] = 'Тип рейса: ' . buildRouteTypeLabel($before) . ' → ' . buildRouteTypeLabel($after);
     }
     if ((int)($before['source_warehouse_id'] ?? 0) !== (int)($after['source_warehouse_id'] ?? 0)) {
         $fromOld = getWarehouseNameById($pdo, $before['source_warehouse_id'] ?? 0);
@@ -912,7 +924,7 @@ function buildStartedDiffMessage(PDO $pdo, array $before, array $after, int $fli
     }
 
     if ((string)($before['route_type'] ?? '') !== (string)($after['route_type'] ?? '')) {
-        $changes[] = 'Тип рейса: ' . trim(buildRouteTypeLine($pdo, $before)) . ' → ' . trim(buildRouteTypeLine($pdo, $after));
+        $changes[] = 'Тип рейса: ' . buildRouteTypeLabel($before) . ' → ' . buildRouteTypeLabel($after);
     }
     if ((int)($before['source_warehouse_id'] ?? 0) !== (int)($after['source_warehouse_id'] ?? 0)) {
         $fromOld = getWarehouseNameById($pdo, $before['source_warehouse_id'] ?? 0);

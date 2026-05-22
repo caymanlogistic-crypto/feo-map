@@ -229,25 +229,25 @@
 .flight-modal-footer { margin-top: 10px; display: flex; justify-content: flex-end; }
 
 :root {
-  --wf-purple: #7f5e97;
-  --wf-purple-hover: #724f8d;
-  --wf-cyan: #4e8f8a;
-  --wf-cyan-hover: #447f7b;
-  --wf-green: #4f8360;
-  --wf-green-hover: #447452;
-  --wf-red: #9b6262;
-  --wf-red-hover: #8b5555;
+  --wf-purple: #8d78a3;
+  --wf-purple-hover: #7f6995;
+  --wf-cyan: #5f9a96;
+  --wf-cyan-hover: #558b87;
+  --wf-green: #648c71;
+  --wf-green-hover: #5a7e66;
+  --wf-red: #a17373;
+  --wf-red-hover: #936767;
 }
 #flightEditSaveBtn.route-edit-btn { color: #fff; border-color: var(--wf-purple); background: var(--wf-purple); }
-#flightEditSaveBtn.route-edit-btn:hover, #flightEditSaveBtn.route-edit-btn:focus-visible { color: #fff; border-color: var(--wf-purple-hover); background: var(--wf-purple-hover); box-shadow: 0 0 0 2px rgba(127,94,151,0.18); }
+#flightEditSaveBtn.route-edit-btn:hover, #flightEditSaveBtn.route-edit-btn:focus-visible { color: #fff; border-color: var(--wf-purple-hover); background: var(--wf-purple-hover); box-shadow: 0 0 0 2px rgba(127,94,151,0.12); }
 #flightEditSaveBtn.route-transfer-btn { color: #fff; border-color: var(--wf-cyan); background: var(--wf-cyan); }
-#flightEditSaveBtn.route-transfer-btn:hover, #flightEditSaveBtn.route-transfer-btn:focus-visible { color: #fff; border-color: var(--wf-cyan-hover); background: var(--wf-cyan-hover); box-shadow: 0 0 0 2px rgba(78,143,138,0.18); }
+#flightEditSaveBtn.route-transfer-btn:hover, #flightEditSaveBtn.route-transfer-btn:focus-visible { color: #fff; border-color: var(--wf-cyan-hover); background: var(--wf-cyan-hover); box-shadow: 0 0 0 2px rgba(95,154,150,0.12); }
 #flightEditTransferFoundBtn, #flightEditTransferFoundBtn:hover, #flightEditTransferFoundBtn:focus-visible { color:#fff; border-color:var(--wf-cyan); background:var(--wf-cyan); }
-#flightEditTransferFoundBtn:hover, #flightEditTransferFoundBtn:focus-visible { border-color:var(--wf-cyan-hover); background:var(--wf-cyan-hover); box-shadow:0 0 0 2px rgba(78,143,138,0.18); }
+#flightEditTransferFoundBtn:hover, #flightEditTransferFoundBtn:focus-visible { border-color:var(--wf-cyan-hover); background:var(--wf-cyan-hover); box-shadow:0 0 0 2px rgba(95,154,150,0.12); }
 #flightEditTransferStartedBtn, #flightEditToCompletedBtn { color:#fff; border-color:var(--wf-green); background:var(--wf-green); }
-#flightEditTransferStartedBtn:hover, #flightEditTransferStartedBtn:focus-visible, #flightEditToCompletedBtn:hover, #flightEditToCompletedBtn:focus-visible { color:#fff; border-color:var(--wf-green-hover); background:var(--wf-green-hover); box-shadow:0 0 0 2px rgba(79,131,96,0.20); }
+#flightEditTransferStartedBtn:hover, #flightEditTransferStartedBtn:focus-visible, #flightEditToCompletedBtn:hover, #flightEditToCompletedBtn:focus-visible { color:#fff; border-color:var(--wf-green-hover); background:var(--wf-green-hover); box-shadow:0 0 0 2px rgba(100,140,113,0.12); }
 #flightEditBackToPlannedBtn, #flightEditBackToFoundBtn, #flightEditDeleteBtn { color:#fff; border-color:var(--wf-red); background:var(--wf-red); }
-#flightEditBackToPlannedBtn:hover, #flightEditBackToPlannedBtn:focus-visible, #flightEditBackToFoundBtn:hover, #flightEditBackToFoundBtn:focus-visible, #flightEditDeleteBtn:hover, #flightEditDeleteBtn:focus-visible { color:#fff; border-color:var(--wf-red-hover); background:var(--wf-red-hover); box-shadow:0 0 0 2px rgba(155,98,98,0.18); }
+#flightEditBackToPlannedBtn:hover, #flightEditBackToPlannedBtn:focus-visible, #flightEditBackToFoundBtn:hover, #flightEditBackToFoundBtn:focus-visible, #flightEditDeleteBtn:hover, #flightEditDeleteBtn:focus-visible { color:#fff; border-color:var(--wf-red-hover); background:var(--wf-red-hover); box-shadow:0 0 0 2px rgba(161,115,115,0.12); }
 #flightEditModal .route-action-btn:active { filter: brightness(0.96); }
 #flightEditModal .route-action-btn:disabled {
   color: #8a93a1;

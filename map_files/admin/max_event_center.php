@@ -265,7 +265,9 @@ textarea{min-height:150px}
     el('evt-quiet-end').value = evt.quiet_hours_end || state.runtime.quiet_hours_end || '08:00';
     fillGroupSelect(el('evt-group'), evt.group_ref_id || 0);
     el('evt-template').value = evt.template_text || '';
-    el('evt-placeholders').textContent = evt.placeholders ? `Плейсхолдеры: ${evt.placeholders}` : 'Плейсхолдеры: {message}, {route_id}, {route_title}, {driver}, {manager}, ...';
+    el('evt-placeholders').textContent = evt.placeholders
+      ? `Плейсхолдеры: ${evt.placeholders}`
+      : 'Плейсхолдеры: {route_id}, {route_title}, {planned_range}, {actual_range}, {driver}, {manager}, {route_type_line}, {warehouse_line}, {meta_line}, {requests_count}, {weight}, {cost}, {status_from}, {status_to}, {changed_fields_text}';
     el('render-box').textContent = 'Render preview...';
     el('event-status').textContent = '';
   }

@@ -290,6 +290,26 @@ function firstNonEmptyValue(array $sources, array $keys): string
     return '';
 }
 
+function compactSourceKeysForDebug(array $sources, int $limit = 12): array
+{
+    $keys = [];
+    foreach ($sources as $source) {
+        if (!is_array($source)) {
+            continue;
+        }
+        foreach ($source as $k => $_) {
+            $ks = trim((string)$k);
+            if ($ks !== '') {
+                $keys[$ks] = true;
+            }
+            if (count($keys) >= $limit) {
+                break 2;
+            }
+        }
+    }
+    return array_keys($keys);
+}
+
 function resolveFeoParams(array $selectedTracker, ?array $renameResponse): array
 {
     $sources = [];
@@ -377,6 +397,14 @@ function resolveFeoParams(array $selectedTracker, ?array $renameResponse): array
     }
     if ($outProtocol !== '') {
         $parts[] = $outProtocol;
+    }
+
+    if (empty($parts) && function_exists('mapError')) {
+        mapError('save_driver feo params missing', [
+            'uniqueid' => (string)($selectedTracker['uniqueid'] ?? ($selectedTracker['device']['uniqueid'] ?? '')),
+            'known_keys' => compactSourceKeysForDebug($sources),
+            'has_rename_response' => is_array($renameResponse) ? 1 : 0,
+        ]);
     }
 
     return [

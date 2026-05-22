@@ -65,35 +65,35 @@ function ecDefaultCatalog(): array
             'category' => 'routes',
             'title' => 'Планируемый маршрут → Рейс сформирован',
             'when' => 'Отправляется при переводе рейса: Планируемый маршрут → Рейс сформирован',
-            'placeholders' => '{route_id}, {route_title}, {planned_range}, {meta_line}, {route_type_line}, {driver}, {manager}',
+            'placeholders' => '{route_id}, {route_title}, {planned_range}, {actual_range}, {driver}, {manager}, {responsible}, {route_type}, {route_type_line}, {warehouse_line}, {meta_line}, {requests_count}, {weight}, {cost}, {status_from}, {status_to}, {changed_fields_text}',
             'template' => "**РЕЙС СФОРМИРОВАН**\n#{route_id} {route_title}\nНачало вывоза: {planned_range}\n{meta_line}\n{route_type_line}\n{driver}\nРейс закреплен: {manager}\n> 💡 *Просим подготовить товаросопроводительные документы на заявленные дату и водителя.*",
         ],
         'route_found_to_started' => [
             'category' => 'routes',
             'title' => 'Рейс сформирован → Вывоз начался',
             'when' => 'Отправляется при начале вывоза: Рейс сформирован → Вывоз начался',
-            'placeholders' => '{route_id}, {route_title}, {route_type_line}, {driver}, {actual_start_short}, {requests_count}, {weight}, {manager}',
+            'placeholders' => '{route_id}, {route_title}, {planned_range}, {actual_range}, {driver}, {manager}, {responsible}, {route_type}, {route_type_line}, {warehouse_line}, {meta_line}, {requests_count}, {weight}, {cost}, {status_from}, {status_to}, {changed_fields_text}',
             'template' => "**✅ ВЫВОЗ НАЧАЛСЯ**\n#{route_id} {route_title}\n{route_type_line}\nВодитель: {driver}\nСтарт: {actual_start_short}\nЗаявки: {requests_count}\nВес: {weight}\nРейс закреплен: {manager}\n> 💡 *Включено слежение за состоянием трекера.*",
         ],
         'route_found_updated' => [
             'category' => 'routes',
             'title' => 'Изменения сформированного рейса',
             'when' => 'Отправляется при нажатии «Сохранить изменения» в сформированном рейсе, только если есть фактические изменения.',
-            'placeholders' => '{route_id}, {route_title}, {changed_fields}, {changed_fields_text}, {driver_old}, {driver_new}, {date_from_old}, {date_from_new}, {date_to_old}, {date_to_new}, {cost_old}, {cost_new}, {requests_old}, {requests_new}, {requests_added}, {requests_removed}, {route_type_old}, {route_type_new}, {source_warehouse_old}, {source_warehouse_new}, {destination_warehouse_old}, {destination_warehouse_new}',
+            'placeholders' => '{route_id}, {route_title}, {planned_range}, {actual_range}, {driver}, {manager}, {responsible}, {route_type}, {route_type_line}, {warehouse_line}, {meta_line}, {requests_count}, {weight}, {cost}, {status_from}, {status_to}, {changed_fields}, {changed_fields_text}, {driver_old}, {driver_new}, {date_from_old}, {date_from_new}, {date_to_old}, {date_to_new}, {cost_old}, {cost_new}, {requests_old}, {requests_new}, {requests_added}, {requests_removed}, {route_type_old}, {route_type_new}, {source_warehouse_old}, {source_warehouse_new}, {destination_warehouse_old}, {destination_warehouse_new}',
             'template' => "Изменения в сформированном рейсе\n#{route_id} {route_title}\n\n{changed_fields_text}",
         ],
         'route_started_updated' => [
             'category' => 'routes',
             'title' => 'Изменения рейса в работе',
             'when' => 'Отправляется при нажатии «Сохранить изменения» в рейсе со статусом «Вывоз начался», только если есть фактические изменения.',
-            'placeholders' => '{route_id}, {route_title}, {changed_fields}, {changed_fields_text}, {driver_old}, {driver_new}, {date_from_old}, {date_from_new}, {date_to_old}, {date_to_new}, {cost_old}, {cost_new}, {requests_old}, {requests_new}, {requests_added}, {requests_removed}, {route_type_old}, {route_type_new}, {source_warehouse_old}, {source_warehouse_new}, {destination_warehouse_old}, {destination_warehouse_new}',
+            'placeholders' => '{route_id}, {route_title}, {planned_range}, {actual_range}, {driver}, {manager}, {responsible}, {route_type}, {route_type_line}, {warehouse_line}, {meta_line}, {requests_count}, {weight}, {cost}, {status_from}, {status_to}, {changed_fields}, {changed_fields_text}, {driver_old}, {driver_new}, {date_from_old}, {date_from_new}, {date_to_old}, {date_to_new}, {cost_old}, {cost_new}, {requests_old}, {requests_new}, {requests_added}, {requests_removed}, {route_type_old}, {route_type_new}, {source_warehouse_old}, {source_warehouse_new}, {destination_warehouse_old}, {destination_warehouse_new}',
             'template' => "Изменения в рейсе «Вывоз начался»\n#{route_id} {route_title}\n\n{changed_fields_text}",
         ],
         'route_status_rollback' => [
             'category' => 'routes',
             'title' => 'Откат статуса рейса',
             'when' => 'Отправляется при возврате рейса на предыдущий статус.',
-            'placeholders' => '{route_id}, {route_title}, {status_from}, {status_to}',
+            'placeholders' => '{route_id}, {route_title}, {planned_range}, {actual_range}, {driver}, {manager}, {responsible}, {route_type}, {route_type_line}, {warehouse_line}, {meta_line}, {requests_count}, {weight}, {cost}, {status_from}, {status_to}, {changed_fields_text}',
             'template' => "Изменен статус рейса\n#{route_id} {route_title}\n{status_from} → {status_to}",
         ],
         'route_started_to_found_rollback' => [
@@ -135,8 +135,8 @@ function ecDefaultCatalog(): array
             'category' => 'drivers',
             'title' => 'Ретрансляция для водителя',
             'when' => 'Отправляется вручную при запросе ретрансляции',
-            'placeholders' => '{feo_params}',
-            'template' => "Ретрансляция для нового водителя:\n{driver}\nID трекера: {tracker_id}\nWialon: {wialon}\nОжидается ID для ретрансляции, если он отличается от ID трекера.",
+            'placeholders' => '{driver}, {tracker_uniqueid}, {feo_params}, {outID}, {outIP}, {outPort}, {outProtocol}',
+            'template' => "Настройки для нового водителя:\nОжидается id треккера для ретрансляции.\nДля ФЭО можно вносить не дожидаясь id:\n{feo_params}",
         ],
         'warehouse_created' => [
             'category' => 'warehouses',
@@ -188,6 +188,14 @@ function ecDemoContext(string $eventKey = ''): array
     return [
         'event_key' => $eventKey,
         'route_id' => '165',
+        'actual_range' => '19.05-20.05',
+        'responsible' => 'Карина',
+        'route_type' => 'warehouse_to_warehouse',
+        'warehouse_line' => 'Склады: Краснодар → КРЫМ',
+        'cost' => '15 000',
+        'status_from' => 'found',
+        'status_to' => 'started',
+        'changed_fields_text' => "Тип рейса: Отходообразователь → Утилизатор → Склад → Склад\nСклад отправления: не выбран → Краснодар\nСклад назначения: не выбран → КРЫМ",
         'route_title' => 'ТЕСТОВЫЙ МАРШРУТ',
         'planned_range' => '19.05–20.05',
         'actual_start_short' => '19.05',
@@ -286,7 +294,7 @@ function ecSeedEvents(PDO $pdo): array
     foreach ($catalog as $eventKey => $cfg) {
         if ($eventKey === 'driver_retranslation_requested') {
             $cfg['template'] = "Настройки для нового водителя:\nОжидается id треккера для ретрансляции.\nДля ФЭО можно вносить не дожидаясь id:\n{feo_params}";
-            $cfg['placeholders'] = '{feo_params}';
+            $cfg['placeholders'] = '{driver}, {tracker_uniqueid}, {feo_params}, {outID}, {outIP}, {outPort}, {outProtocol}';
         }
         $stmt = $pdo->prepare('SELECT * FROM max_event_templates WHERE event_key = :event_key LIMIT 1');
         $stmt->execute([':event_key' => $eventKey]);
@@ -332,7 +340,9 @@ function ecSeedEvents(PDO $pdo): array
         $addUpdate('description', $cfg['when']);
         $addUpdate('when_sent', $cfg['when']);
         $addUpdate('placeholders', $cfg['placeholders']);
-        if (trim((string)($row['template_text'] ?? '')) === '' && isset($cols['template_text'])) {
+        $templateCurrent = trim((string)($row['template_text'] ?? ''));
+        $defaultCurrent = trim((string)($row['default_template_text'] ?? ''));
+        if (($templateCurrent === '' || ($defaultCurrent !== '' && $templateCurrent === $defaultCurrent)) && isset($cols['template_text'])) {
             $addUpdate('template_text', $cfg['template']);
         }
         if (isset($cols['default_template_text'])) {
