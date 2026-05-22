@@ -1260,9 +1260,9 @@ try {
 
             $actualRaw = trim((string)($data['actual_start_date'] ?? ''));
             if ($actualRaw === '') {
-                $actualRaw = trim((string)($flight['planned_start_date_from'] ?? ''));
+                jsonOut(['success' => false, 'message' => 'Укажите дату начала вывоза']);
             }
-            $actualTs = $actualRaw !== '' ? strtotime($actualRaw) : time();
+            $actualTs = strtotime($actualRaw);
             if ($actualTs === false) {
                 jsonOut(['success' => false, 'message' => 'Некорректная дата начала вывоза']);
             }
@@ -1350,6 +1350,11 @@ try {
         if ($target === STATUS_FOUND) {
             [$title, $manager] = buildCompactFlightContext($pdo, $after, $routeId);
             $wasStarted = (string)($flight['status'] ?? '') === STATUS_STARTED;
+            if ($wasStarted) {
+                $clearActualStart = $pdo->prepare('UPDATE flights SET actual_start_date = NULL WHERE id = :id LIMIT 1');
+                $clearActualStart->execute([':id' => $routeId]);
+                $after = loadFlightSnapshot($pdo, $routeId) ?: $after;
+            }
             if ($wasStarted) {
                 $driver = compactDriverLabel((string)($after['_driver_label'] ?? ''));
                 $message = "**⚠️ ПРЕОСТАНОВКА ВЫПОЛНЯЕМОГО РЕЙСА ⚠️**\n" .

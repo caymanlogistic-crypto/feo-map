@@ -2067,9 +2067,7 @@ function openStartConfirmModal(routeId, targetStatus = 'started') {
             ? (metaForDate.planned_start_date_from || '')
             : (metaForDate.actual_end_date || '');
         const fromPreferred = toDateValue(preferred);
-        const now = new Date();
-        const pad = n => String(n).padStart(2, '0');
-        dateInput.value = fromPreferred || `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+        dateInput.value = fromPreferred || '';
     }
     const preview = document.getElementById('transitionConfirmPreview');
     const meta = getRouteMetaById(routeId, targetStatus === 'started' ? 'found' : 'started') || getRouteMetaById(routeId, 'planned');
