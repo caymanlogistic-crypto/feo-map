@@ -89,26 +89,19 @@ function ecDefaultCatalog(): array
             'placeholders' => '{route_id}, {route_title}, {planned_range}, {actual_range}, {driver}, {manager}, {responsible}, {route_type}, {route_type_line}, {warehouse_line}, {meta_line}, {requests_count}, {weight}, {cost}, {status_from}, {status_to}, {changed_fields}, {changed_fields_text}, {driver_old}, {driver_new}, {date_from_old}, {date_from_new}, {date_to_old}, {date_to_new}, {cost_old}, {cost_new}, {requests_old}, {requests_new}, {requests_added}, {requests_removed}, {route_type_old}, {route_type_new}, {source_warehouse_old}, {source_warehouse_new}, {destination_warehouse_old}, {destination_warehouse_new}',
             'template' => "Изменения в рейсе «Вывоз начался»\n#{route_id} {route_title}\n\n{changed_fields_text}",
         ],
-        'route_status_rollback' => [
-            'category' => 'routes',
-            'title' => 'Откат статуса рейса',
-            'when' => 'Отправляется при возврате рейса на предыдущий статус.',
-            'placeholders' => '{route_id}, {route_title}, {planned_range}, {actual_range}, {driver}, {manager}, {responsible}, {route_type}, {route_type_line}, {warehouse_line}, {meta_line}, {requests_count}, {weight}, {cost}, {status_from}, {status_to}, {changed_fields_text}',
-            'template' => "Изменен статус рейса\n#{route_id} {route_title}\n{status_from} → {status_to}",
-        ],
         'route_started_to_found_rollback' => [
             'category' => 'routes',
             'title' => 'Вывоз начался → Рейс сформирован',
             'when' => 'Отправляется при откате рейса: Вывоз начался → Рейс сформирован',
-            'placeholders' => '{route_id}, {route_title}, {driver}, {actual_start_short}, {requests_count}, {weight}, {manager}',
-            'template' => "**⚠️ ПРЕОСТАНОВКА ВЫПОЛНЯЕМОГО РЕЙСА ⚠️**\n#{route_id} {route_title}\nВодитель: {driver}\nСтарт: {actual_start_short}\nЗаявки: {requests_count}\nВес: {weight}\nРейс закреплен: {manager}\n> 💡 *ВНИМАНИЕ. Статус рейса изменён с «Выполняемые» на «Сформированные». В связи с этим вероятна корректировка перечня вывозимых заявок либо замена подрядчика.*",
+            'placeholders' => '{route_id}, {route_title}, {driver}, {planned_range}, {manager}, {status_from}, {status_to}',
+            'template' => "⚠️ ПРИОСТАНОВКА ВЫПОЛНЯЕМОГО РЕЙСА\n#{route_id} {route_title}\n\nСтатус: Вывоз начался → Рейс сформирован\nВодитель: {driver}\nПериод: {planned_range}\nРейс закреплен: {manager}",
         ],
         'route_found_to_planned_rollback' => [
             'category' => 'routes',
             'title' => 'Рейс сформирован → Планируемый маршрут',
             'when' => 'Отправляется при откате рейса: Рейс сформирован → Планируемый маршрут',
-            'placeholders' => '{route_id}, {route_title}, {manager}',
-            'template' => "**#{route_id} {route_title}**\nвозвращён в «Планируемый»\nРейс закреплен: {manager}\n> 💡 *Подготовку документов приостановить до переформирования рейса.*",
+            'placeholders' => '{route_id}, {route_title}, {driver}, {planned_range}, {manager}, {status_from}, {status_to}',
+            'template' => "⚠️ РЕЙС ВЕРНУТ В ПЛАНИРОВАНИЕ\n#{route_id} {route_title}\n\nСтатус: Рейс сформирован → Планируемый маршрут\nВодитель: {driver}\nПериод: {planned_range}\nРейс закреплен: {manager}",
         ],
         'route_deleted' => [
             'category' => 'routes',
@@ -356,6 +349,25 @@ function ecSeedEvents(PDO $pdo): array
         }
     }
 
+    $stmtLegacy = $pdo->prepare('SELECT * FROM max_event_templates WHERE event_key = :event_key LIMIT 1');
+    if ($stmtLegacy && $stmtLegacy->execute([':event_key' => 'route_status_rollback'])) {
+        $legacyRow = $stmtLegacy->fetch(PDO::FETCH_ASSOC);
+        if (is_array($legacyRow) && (int)($legacyRow['id'] ?? 0) > 0) {
+            $flags = [];
+            foreach (['enabled', 'is_enabled', 'active', 'is_active'] as $flagCol) {
+                if (isset($cols[$flagCol])) {
+                    $flags[] = "`{$flagCol}` = 0";
+                }
+            }
+            if (!empty($flags)) {
+                $updLegacy = $pdo->prepare('UPDATE max_event_templates SET ' . implode(', ', $flags) . ' WHERE id = :id');
+                if ($updLegacy) {
+                    $updLegacy->execute([':id' => (int)$legacyRow['id']]);
+                }
+            }
+        }
+    }
+
     return ['created' => $created, 'updated' => $updated];
 }
 
@@ -372,9 +384,13 @@ function ecLoadEvents(PDO $pdo): array
         if ($id <= 0) {
             continue;
         }
+        $eventKey = ecText($row, ['event_key'], '');
+        if ($eventKey === 'route_status_rollback') {
+            continue;
+        }
         $events[] = [
             'id' => $id,
-            'event_key' => ecText($row, ['event_key'], ''),
+            'event_key' => $eventKey,
             'title' => ecText($row, ['title'], ''),
             'category' => ecText($row, ['category'], 'system'),
             'description' => ecText($row, ['description', 'when_sent'], ''),

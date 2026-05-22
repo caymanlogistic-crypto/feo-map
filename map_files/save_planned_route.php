@@ -1367,7 +1367,7 @@ try {
             }
             $notifyResult = sendMaxNotification(
                 $message,
-                $wasStarted ? 'route_status_rollback' : 'route_planned_to_found',
+                $wasStarted ? 'route_started_to_found_rollback' : 'route_planned_to_found',
                 buildRouteEventContext($pdo, $after, $routeId, [
                     'status_from' => $wasStarted ? STATUS_STARTED : STATUS_PLANNED,
                     'status_to' => STATUS_FOUND,
@@ -1390,7 +1390,7 @@ try {
                 (buildRouteTypeLine($pdo, $after) !== '' ? (buildRouteTypeLine($pdo, $after) . "\n") : '') .
                 "Рейс закреплен: {$manager}\n" .
                 "> 💡 *Подготовку документов приостановить до переформирования рейса.*"
-            , 'route_status_rollback', buildRouteEventContext($pdo, $after, $routeId, [
+            , 'route_found_to_planned_rollback', buildRouteEventContext($pdo, $after, $routeId, [
                 'status_from' => STATUS_FOUND,
                 'status_to' => STATUS_PLANNED,
             ]));
