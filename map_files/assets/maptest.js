@@ -1900,6 +1900,13 @@ function applyLifecycleButtons(status) {
         startedInfo: document.getElementById('workflowStartedInfoWrap'),
         deleteWrap: document.getElementById('workflowDeleteWrap')
     };
+    if (map.updateSection) {
+        map.updateSection.classList.remove('is-cyan');
+    }
+    if (saveBtn) {
+        saveBtn.classList.remove('route-edit-btn', 'route-transfer-btn');
+        saveBtn.classList.add('route-edit-btn');
+    }
     Object.values(map).forEach(el => {
         if (el) el.style.display = 'none';
     });
@@ -1929,6 +1936,13 @@ function applyLifecycleButtons(status) {
         if (updateTitle) setSafeStaticHtml(updateTitle, uiText('route.workflow.update.title', 'Актуализация рейса'));
         if (updateDesc) setSafeStaticHtml(updateDesc, uiText('route.workflow.update.desc.found', 'Изменения автоматически фиксируются в МАКС.'));
         if (saveBtn) saveBtn.textContent = 'Сохранить изменения';
+        if (saveBtn) {
+            saveBtn.classList.remove('route-edit-btn');
+            saveBtn.classList.add('route-transfer-btn');
+        }
+        if (map.updateSection) {
+            map.updateSection.classList.add('is-cyan');
+        }
         if (map.updateSection) map.updateSection.style.display = 'block';
         if (map.toStarted) map.toStarted.style.display = 'block';
         if (map.toPlanned) map.toPlanned.style.display = 'block';

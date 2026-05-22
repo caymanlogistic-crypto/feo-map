@@ -216,16 +216,43 @@
 .workflow-action { border: 1px solid #e3e8ee; border-left-width: 3px; border-radius: 7px; padding: 8px; background: #fff; }
 .workflow-action + .workflow-action { margin-top: 6px; }
 .workflow-card-update { border-left: 3px solid #9c27b0; background: rgba(156,39,176,0.03); }
+.workflow-card-update.is-cyan { border-left-color: #0f9d90; background: rgba(15,157,144,0.06); }
 .workflow-card-lifecycle { border: 0; background: transparent; padding: 0; margin-top: 6px; }
 .workflow-card-danger { margin-top: 8px; border: 1px solid #efc8c8; border-left-width: 3px; border-left-color: #dc3545; border-radius: 8px; padding: 8px; background: rgba(220,53,69,0.035); }
 .workflow-action-found { border-left-color: #17a2b8; background: rgba(23,162,184,0.03); }
 .workflow-action-danger-soft { border-left-color: #dc3545; background: rgba(220,53,69,0.035); }
 .workflow-action-started { border-left-color: #28a745; background: rgba(40,167,69,0.03); }
 .workflow-action-completed { border-left-color: #2c8f3f; background: rgba(40,167,69,0.05); }
-.workflow-action-return { border-left-color: #d19a41; background: rgba(209,154,65,0.07); }
+.workflow-action-return { border-left-color: #dc3545; background: rgba(220,53,69,0.05); }
 .workflow-action-info { border-left-color: #28a745; background: rgba(40,167,69,0.03); }
 .danger-zone { margin-top: 8px; }
 .flight-modal-footer { margin-top: 10px; display: flex; justify-content: flex-end; }
+
+:root {
+  --wf-purple: #8e24aa;
+  --wf-purple-hover: #7b1fa2;
+  --wf-cyan: #0f9d90;
+  --wf-cyan-hover: #0b8075;
+  --wf-green: #2e7d32;
+  --wf-green-hover: #256a2a;
+  --wf-red: #c63d3d;
+  --wf-red-hover: #a93434;
+}
+#flightEditSaveBtn.route-edit-btn { color: #fff; border-color: var(--wf-purple); background: var(--wf-purple); }
+#flightEditSaveBtn.route-edit-btn:hover, #flightEditSaveBtn.route-edit-btn:focus-visible { color: #fff; border-color: var(--wf-purple-hover); background: var(--wf-purple-hover); box-shadow: 0 0 0 2px rgba(142,36,170,0.20); }
+#flightEditSaveBtn.route-transfer-btn { color: #fff; border-color: var(--wf-cyan); background: var(--wf-cyan); }
+#flightEditSaveBtn.route-transfer-btn:hover, #flightEditSaveBtn.route-transfer-btn:focus-visible { color: #fff; border-color: var(--wf-cyan-hover); background: var(--wf-cyan-hover); box-shadow: 0 0 0 2px rgba(15,157,144,0.20); }
+#flightEditTransferFoundBtn, #flightEditTransferFoundBtn:hover, #flightEditTransferFoundBtn:focus-visible { color:#fff; border-color:var(--wf-cyan); background:var(--wf-cyan); }
+#flightEditTransferFoundBtn:hover, #flightEditTransferFoundBtn:focus-visible { border-color:var(--wf-cyan-hover); background:var(--wf-cyan-hover); box-shadow:0 0 0 2px rgba(15,157,144,0.20); }
+#flightEditTransferStartedBtn, #flightEditToCompletedBtn { color:#fff; border-color:var(--wf-green); background:var(--wf-green); }
+#flightEditTransferStartedBtn:hover, #flightEditTransferStartedBtn:focus-visible, #flightEditToCompletedBtn:hover, #flightEditToCompletedBtn:focus-visible { color:#fff; border-color:var(--wf-green-hover); background:var(--wf-green-hover); box-shadow:0 0 0 2px rgba(46,125,50,0.22); }
+#flightEditBackToPlannedBtn, #flightEditBackToFoundBtn, #flightEditDeleteBtn { color:#fff; border-color:var(--wf-red); background:var(--wf-red); }
+#flightEditBackToPlannedBtn:hover, #flightEditBackToPlannedBtn:focus-visible, #flightEditBackToFoundBtn:hover, #flightEditBackToFoundBtn:focus-visible, #flightEditDeleteBtn:hover, #flightEditDeleteBtn:focus-visible { color:#fff; border-color:var(--wf-red-hover); background:var(--wf-red-hover); box-shadow:0 0 0 2px rgba(198,61,61,0.20); }
+#flightEditModal .route-action-btn:disabled { color:#f5f7fa; cursor:not-allowed; opacity:1; }
+#flightEditSaveBtn.route-edit-btn:disabled { border-color:#b88ec5; background:#b88ec5; }
+#flightEditSaveBtn.route-transfer-btn:disabled, #flightEditTransferFoundBtn:disabled { border-color:#7cbab3; background:#7cbab3; }
+#flightEditTransferStartedBtn:disabled, #flightEditToCompletedBtn:disabled { border-color:#7ea786; background:#7ea786; }
+#flightEditBackToPlannedBtn:disabled, #flightEditBackToFoundBtn:disabled, #flightEditDeleteBtn:disabled { border-color:#ca8d8d; background:#ca8d8d; }
 
 .flight-modal.is-started-readonly .flight-modal-grid input,
 .flight-modal.is-started-readonly .flight-modal-grid select,
