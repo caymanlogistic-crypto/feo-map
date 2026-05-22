@@ -75,6 +75,27 @@ function ecDefaultCatalog(): array
             'placeholders' => '{route_id}, {route_title}, {route_type_line}, {driver}, {actual_start_short}, {requests_count}, {weight}, {manager}',
             'template' => "**✅ ВЫВОЗ НАЧАЛСЯ**\n#{route_id} {route_title}\n{route_type_line}\nВодитель: {driver}\nСтарт: {actual_start_short}\nЗаявки: {requests_count}\nВес: {weight}\nРейс закреплен: {manager}\n> 💡 *Включено слежение за состоянием трекера.*",
         ],
+        'route_found_updated' => [
+            'category' => 'routes',
+            'title' => 'Изменения сформированного рейса',
+            'when' => 'Отправляется при нажатии «Сохранить изменения» в сформированном рейсе, только если есть фактические изменения.',
+            'placeholders' => '{route_id}, {route_title}, {changed_fields}, {changed_fields_text}, {driver_old}, {driver_new}, {date_from_old}, {date_from_new}, {date_to_old}, {date_to_new}, {cost_old}, {cost_new}, {requests_old}, {requests_new}, {requests_added}, {requests_removed}, {route_type_old}, {route_type_new}, {source_warehouse_old}, {source_warehouse_new}, {destination_warehouse_old}, {destination_warehouse_new}',
+            'template' => "Изменения в сформированном рейсе\n#{route_id} {route_title}\n\n{changed_fields_text}",
+        ],
+        'route_started_updated' => [
+            'category' => 'routes',
+            'title' => 'Изменения рейса в работе',
+            'when' => 'Отправляется при нажатии «Сохранить изменения» в рейсе со статусом «Вывоз начался», только если есть фактические изменения.',
+            'placeholders' => '{route_id}, {route_title}, {changed_fields}, {changed_fields_text}, {driver_old}, {driver_new}, {date_from_old}, {date_from_new}, {date_to_old}, {date_to_new}, {cost_old}, {cost_new}, {requests_old}, {requests_new}, {requests_added}, {requests_removed}, {route_type_old}, {route_type_new}, {source_warehouse_old}, {source_warehouse_new}, {destination_warehouse_old}, {destination_warehouse_new}',
+            'template' => "Изменения в рейсе «Вывоз начался»\n#{route_id} {route_title}\n\n{changed_fields_text}",
+        ],
+        'route_status_rollback' => [
+            'category' => 'routes',
+            'title' => 'Откат статуса рейса',
+            'when' => 'Отправляется при возврате рейса на предыдущий статус.',
+            'placeholders' => '{route_id}, {route_title}, {status_from}, {status_to}',
+            'template' => "Изменен статус рейса\n#{route_id} {route_title}\n{status_from} → {status_to}",
+        ],
         'route_started_to_found_rollback' => [
             'category' => 'routes',
             'title' => 'Вывоз начался → Рейс сформирован',

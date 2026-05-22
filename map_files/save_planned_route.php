@@ -646,6 +646,49 @@ function buildAddedRemovedIds(array $beforeIds, array $afterIds): array
     return [$removed, $added];
 }
 
+function buildRouteDiffContext(PDO $pdo, array $before, array $after, int $flightId): array
+{
+    $beforeIds = splitIds((string)($before['zayavki_ids'] ?? ''));
+    $afterIds = splitIds((string)($after['zayavki_ids'] ?? ''));
+    [$removed, $added] = buildAddedRemovedIds($beforeIds, $afterIds);
+    $beforeTitle = buildRouteTitle($before, $flightId);
+    $afterTitle = buildRouteTitle($after, $flightId);
+    $changedFields = [];
+    if ((int)($before['driver_id'] ?? 0) !== (int)($after['driver_id'] ?? 0)) $changedFields[] = 'driver';
+    if ((string)($before['planned_start_date_from'] ?? '') !== (string)($after['planned_start_date_from'] ?? '')) $changedFields[] = 'date_from';
+    if ((string)($before['planned_start_date_to'] ?? '') !== (string)($after['planned_start_date_to'] ?? '')) $changedFields[] = 'date_to';
+    if ((string)($before['cost'] ?? '') !== (string)($after['cost'] ?? '')) $changedFields[] = 'cost';
+    if ((string)($before['zayavki_ids'] ?? '') !== (string)($after['zayavki_ids'] ?? '')) $changedFields[] = 'requests';
+    if ((string)($before['route_type'] ?? '') !== (string)($after['route_type'] ?? '')) $changedFields[] = 'route_type';
+    if ((string)($before['source_warehouse_id'] ?? '') !== (string)($after['source_warehouse_id'] ?? '')) $changedFields[] = 'source_warehouse';
+    if ((string)($before['destination_warehouse_id'] ?? '') !== (string)($after['destination_warehouse_id'] ?? '')) $changedFields[] = 'destination_warehouse';
+    if (trim((string)($before['comment'] ?? '')) !== trim((string)($after['comment'] ?? ''))) $changedFields[] = 'route_title';
+
+    return [
+        'route_id' => (string)$flightId,
+        'route_title' => $afterTitle !== '' ? $afterTitle : $beforeTitle,
+        'driver_old' => compactDriverLabel((string)($before['_driver_label'] ?? '')),
+        'driver_new' => compactDriverLabel((string)($after['_driver_label'] ?? '')),
+        'date_from_old' => formatDateShortRu((string)($before['planned_start_date_from'] ?? '')),
+        'date_from_new' => formatDateShortRu((string)($after['planned_start_date_from'] ?? '')),
+        'date_to_old' => formatDateShortRu((string)($before['planned_start_date_to'] ?? '')),
+        'date_to_new' => formatDateShortRu((string)($after['planned_start_date_to'] ?? '')),
+        'cost_old' => (string)($before['cost'] ?? ''),
+        'cost_new' => (string)($after['cost'] ?? ''),
+        'requests_old' => implode(',', $beforeIds),
+        'requests_new' => implode(',', $afterIds),
+        'requests_added' => implode(',', $added),
+        'requests_removed' => implode(',', $removed),
+        'route_type_old' => (string)($before['route_type'] ?? ''),
+        'route_type_new' => (string)($after['route_type'] ?? ''),
+        'source_warehouse_old' => (string)($before['source_warehouse_id'] ?? ''),
+        'source_warehouse_new' => (string)($after['source_warehouse_id'] ?? ''),
+        'destination_warehouse_old' => (string)($before['destination_warehouse_id'] ?? ''),
+        'destination_warehouse_new' => (string)($after['destination_warehouse_id'] ?? ''),
+        'changed_fields' => implode(', ', $changedFields),
+    ];
+}
+
 function buildPlannedDateRangeUpdateMessage(PDO $pdo, array $before, array $after, int $flightId): string
 {
     $beforeFrom = trim((string)($before['planned_start_date_from'] ?? ''));
@@ -929,20 +972,19 @@ try {
 
             $after = loadFlightSnapshot($pdo, $routeId);
             $notifyResult = ['success' => true, 'error' => null];
-            if ($after && (string)($before['status'] ?? '') === STATUS_PLANNED) {
-                $text = buildPlannedDateRangeUpdateMessage($pdo, $before, $after, $routeId);
-                if ($text !== '') {
-                    $notifyResult = sendMaxNotification($text, 'planned_date_update');
-                }
-            } elseif ($after && (string)($before['status'] ?? '') === STATUS_FOUND) {
+            if ($after && (string)($before['status'] ?? '') === STATUS_FOUND) {
                 $text = buildFoundDiffMessage($pdo, $before, $after, $routeId);
                 if ($text !== '') {
-                    $notifyResult = sendMaxNotification($text, 'route_diff_found');
+                    $diffContext = buildRouteDiffContext($pdo, $before, $after, $routeId);
+                    $diffContext['changed_fields_text'] = $text;
+                    $notifyResult = sendMaxNotification($text, 'route_found_updated', $diffContext);
                 }
             } elseif ($after && (string)($before['status'] ?? '') === STATUS_STARTED) {
                 $text = buildStartedDiffMessage($pdo, $before, $after, $routeId);
                 if ($text !== '') {
-                    $notifyResult = sendMaxNotification($text, 'route_diff_started');
+                    $diffContext = buildRouteDiffContext($pdo, $before, $after, $routeId);
+                    $diffContext['changed_fields_text'] = $text;
+                    $notifyResult = sendMaxNotification($text, 'route_started_updated', $diffContext);
                 }
             }
 
@@ -1157,7 +1199,16 @@ try {
                     "Рейс закреплен: {$manager}",
                     '> 💡 *Включено слежение за состоянием трекера.*'
                 ], static fn($line) => $line !== ''))
-            , 'found_to_started');
+            , 'route_found_to_started', [
+                'route_id' => (string)$routeId,
+                'route_title' => $title,
+                'driver' => $driver,
+                'actual_start_short' => formatDateShortRu($afterStarted['actual_start_date'] ?? ''),
+                'requests_count' => (string)((int)($afterStarted['_count'] ?? 0)),
+                'weight' => formatKgFromTons((float)($afterStarted['_sum_tons'] ?? 0)),
+                'status_from' => STATUS_FOUND,
+                'status_to' => STATUS_STARTED,
+            ]);
             jsonOut([
                 'success' => true,
                 'message' => 'Рейс переведен в ВЫВОЗНАЧАЛСЯ',
@@ -1231,7 +1282,12 @@ try {
             } else {
                 $message = buildPlannedToFoundMessage($pdo, $after, $routeId);
             }
-            $notifyResult = sendMaxNotification($message, $wasStarted ? 'started_to_found_rollback' : 'planned_to_found');
+            $notifyResult = sendMaxNotification($message, $wasStarted ? 'route_status_rollback' : 'route_planned_to_found', [
+                'route_id' => (string)$routeId,
+                'route_title' => $title,
+                'status_from' => $wasStarted ? STATUS_STARTED : STATUS_PLANNED,
+                'status_to' => STATUS_FOUND,
+            ]);
             jsonOut([
                 'success' => true,
                 'message' => 'Рейс сформирован',
@@ -1249,7 +1305,12 @@ try {
                 (buildRouteTypeLine($pdo, $after) !== '' ? (buildRouteTypeLine($pdo, $after) . "\n") : '') .
                 "Рейс закреплен: {$manager}\n" .
                 "> 💡 *Подготовку документов приостановить до переформирования рейса.*"
-            , 'found_to_planned_rollback');
+            , 'route_status_rollback', [
+                'route_id' => (string)$routeId,
+                'route_title' => $title,
+                'status_from' => STATUS_FOUND,
+                'status_to' => STATUS_PLANNED,
+            ]);
             jsonOut([
                 'success' => true,
                 'message' => 'Рейс возвращен в ПЛАНИРУЕМЫЙ',

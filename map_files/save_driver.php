@@ -303,6 +303,11 @@ function resolveFeoParams(array $selectedTracker, ?array $renameResponse): array
         }
         if (isset($trackerOrResponse['admin_fields']) && is_array($trackerOrResponse['admin_fields'])) {
             $target[] = $trackerOrResponse['admin_fields'];
+        } elseif (isset($trackerOrResponse['admin_fields']) && is_string($trackerOrResponse['admin_fields'])) {
+            $decoded = json_decode($trackerOrResponse['admin_fields'], true);
+            if (is_array($decoded)) {
+                $target[] = $decoded;
+            }
         }
         if (isset($trackerOrResponse['adminFields']) && is_array($trackerOrResponse['adminFields'])) {
             $target[] = $trackerOrResponse['adminFields'];
@@ -318,6 +323,12 @@ function resolveFeoParams(array $selectedTracker, ?array $renameResponse): array
                 $target[] = $cfgRow;
                 if (isset($cfgRow['key']) && isset($cfgRow['value'])) {
                     $target[] = [(string)$cfgRow['key'] => (string)$cfgRow['value']];
+                }
+                if (isset($cfgRow['name']) && isset($cfgRow['value'])) {
+                    $target[] = [(string)$cfgRow['name'] => (string)$cfgRow['value']];
+                }
+                if (isset($cfgRow['field']) && isset($cfgRow['value'])) {
+                    $target[] = [(string)$cfgRow['field'] => (string)$cfgRow['value']];
                 }
             }
         }
