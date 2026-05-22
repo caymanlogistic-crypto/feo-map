@@ -1838,6 +1838,11 @@ function applyLifecycleButtons(status) {
     const updateTitle = document.getElementById('workflowUpdateTitle');
     const updateDesc = document.getElementById('workflowUpdateDesc');
     const saveBtn = document.getElementById('flightEditSaveBtn');
+    const toFoundDesc = document.querySelector('#workflowToFoundWrap .workflow-desc');
+    const toStartedDesc = document.querySelector('#workflowToStartedWrap .workflow-desc');
+    const toPlannedDesc = document.querySelector('#workflowBackToPlannedWrap .workflow-desc');
+    const toCompletedDesc = document.querySelector('#workflowToCompletedWrap .workflow-desc');
+    const toFoundBackDesc = document.querySelector('#workflowBackToFoundWrap .workflow-desc');
     const map = {
         updateSection: document.getElementById('workflowUpdateSection'),
         toFound: document.getElementById('workflowToFoundWrap'),
@@ -1851,6 +1856,21 @@ function applyLifecycleButtons(status) {
     Object.values(map).forEach(el => {
         if (el) el.style.display = 'none';
     });
+    if (toFoundDesc) {
+        setSafeStaticHtml(toFoundDesc, uiText('route.action.to_found.desc', 'После перевода рейс считается согласованным. Будут зафиксированы водитель, даты, стоимость и заявки. В MAX отправится уведомление, начнётся подготовка транспортных документов.'));
+    }
+    if (toStartedDesc) {
+        setSafeStaticHtml(toStartedDesc, uiText('route.action.to_started.desc', 'Рейс перейдёт в статус «Вывоз начался». Подключается контроль выполнения перевозки и логика трекера. В MAX будет отправлено уведомление.'));
+    }
+    if (toPlannedDesc) {
+        setSafeStaticHtml(toPlannedDesc, uiText('route.action.back_to_planned.desc', 'Рейс будет возвращён в планирование. Подготовку документов нужно проверить или приостановить. В MAX будет отправлено уведомление.'));
+    }
+    if (toCompletedDesc) {
+        setSafeStaticHtml(toCompletedDesc, uiText('route.action.to_completed.desc', 'После завершения рейс будет переведен в архив перевозок.'));
+    }
+    if (toFoundBackDesc) {
+        setSafeStaticHtml(toFoundBackDesc, uiText('route.action.back_to_found.desc', 'Рейс будет возвращён из выполнения в статус «Рейс сформирован». В MAX будет отправлено уведомление.'));
+    }
     if (status === 'planned_route') {
         if (updateTitle) setSafeStaticHtml(updateTitle, uiText('route.workflow.update.title', 'Актуализация рейса'));
         if (updateDesc) setSafeStaticHtml(updateDesc, uiText('route.workflow.update.desc', 'Изменения дат автоматически фиксируются в МАКС.'));
@@ -2293,12 +2313,11 @@ function renderWarehousesLayer() {
         }, {
             iconLayout: ymaps.templateLayoutFactory.createClass(
                 `<div style="position:relative;width:58px;height:32px;font-family:Arial,sans-serif;">
-                    <div style="position:absolute;left:0;top:0;width:58px;height:24px;border:2px solid #000;border-radius:7px;background:#000;color:#fff;font-weight:700;font-size:11px;line-height:20px;text-align:center;box-sizing:border-box;">${escapeHtml(UI.labelWarehouseMarker)}</div>
-                    <div style="position:absolute;left:23px;top:24px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid #000;"></div>
+                    <div style="position:absolute;left:0;top:0;width:58px;height:24px;border:2px solid #2f343a;border-radius:7px;background:#2f343a;color:#fff;font-weight:700;font-size:11px;line-height:20px;text-align:center;box-sizing:border-box;">${escapeHtml(UI.labelWarehouseMarker)}</div>
+                    <div style="position:absolute;left:23px;top:24px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid #2f343a;"></div>
                 </div>`
             ),
-            iconImageSize: [58, 32],
-            iconImageOffset: [-29, -32],
+            iconOffset: [-29, -32],
             iconShape: {
                 type: 'Polygon',
                 coordinates: [[-29, -32], [29, -32], [29, -8], [7, -8], [0, 0], [-7, -8], [-29, -8]]

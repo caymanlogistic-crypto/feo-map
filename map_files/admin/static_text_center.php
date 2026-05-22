@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 require_once dirname(__DIR__) . '/bootstrap.php';
 require_once __DIR__ . '/common.php';
@@ -53,6 +53,7 @@ textarea{min-height:120px}
 .kv{display:grid;grid-template-columns:200px 1fr;gap:8px}
 .sticky{position:sticky;bottom:0;background:#132334;border-top:1px solid #2f4b61;padding-top:8px}
 .preview{white-space:pre-wrap;background:#102030;border:1px dashed #3c6078;border-radius:6px;padding:8px;min-height:90px}
+.static-text-rendered{white-space:pre-wrap}
 .unsaved{color:#ffcc80;font-size:12px;font-weight:600}
 .login{max-width:420px;margin:80px auto}
 </style>
@@ -230,6 +231,27 @@ textarea{min-height:120px}
     return state.rows.find((r) => r.text_key === state.selectedKey) || null;
   }
 
+  function renderSafeStaticHtml(value) {
+    const escaped = String(value || '').replace(/[&<>"']/g, (m) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    }[m] || m));
+    return escaped
+      .replace(/&lt;br\s*\/?&gt;/gi, '<br>')
+      .replace(/&lt;strong&gt;/gi, '<strong>')
+      .replace(/&lt;\/strong&gt;/gi, '</strong>')
+      .replace(/\r\n|\r|\n/g, '<br>');
+  }
+
+  function setPreviewHtml(value) {
+    const box = el('preview-box');
+    box.classList.add('static-text-rendered');
+    box.innerHTML = renderSafeStaticHtml(value);
+  }
+
   function renderEditor() {
     const row = currentRow();
     if (!row) return;
@@ -239,7 +261,7 @@ textarea{min-height:120px}
     el('f-description').value = row.description || '';
     el('f-text').value = row.text_value || '';
     el('f-usage').value = row.usage_path || '';
-    el('preview-box').textContent = row.text_value || '';
+    setPreviewHtml(row.text_value || '');
     setEditorStatus('');
     setDirty(false);
   }
@@ -282,7 +304,7 @@ textarea{min-height:120px}
         row.text_value = el('f-text').value;
         row.usage_path = el('f-usage').value;
       }
-      el('preview-box').textContent = el('f-text').value;
+      setPreviewHtml(el('f-text').value);
       setEditorStatus(data.message || 'Сохранено');
       setDirty(false);
       renderList();
@@ -309,7 +331,7 @@ textarea{min-height:120px}
   editorIds.forEach((id) => {
     el(id).addEventListener('input', () => {
       setDirty(true);
-      el('preview-box').textContent = el('f-text').value;
+      setPreviewHtml(el('f-text').value);
     });
   });
 
