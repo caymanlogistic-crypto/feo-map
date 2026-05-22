@@ -2018,9 +2018,6 @@ async function postRouteAction(action, payload) {
 }
 
 async function saveFlightEdit() {
-    if (!validateDriverComboboxSelection()) {
-        return;
-    }
     const idInput = document.getElementById('edit_flight_id');
     const driverInput = document.getElementById('edit_driver_id');
     const fromInput = document.getElementById('edit_planned_start_date_from');
@@ -2031,6 +2028,9 @@ async function saveFlightEdit() {
     const actualFromInput = document.getElementById('edit_actual_start_date');
     const actualToInput = document.getElementById('edit_actual_end_date');
     const statusInput = document.getElementById('edit_current_status');
+    const routeTypeInput = document.getElementById('edit_route_type');
+    const sourceWarehouseInput = document.getElementById('edit_source_warehouse_id');
+    const destinationWarehouseInput = document.getElementById('edit_destination_warehouse_id');
 
     const flightId = Number(idInput ? idInput.value : 0);
     const driverId = Number(driverInput ? driverInput.value : 0);
@@ -2045,6 +2045,21 @@ async function saveFlightEdit() {
         .filter(v => /^\d+$/.test(v));
     const currentStatus = String(statusInput ? statusInput.value : '');
     const isStrictEdit = currentStatus === 'found';
+    const comboValid = validateDriverComboboxSelection();
+    if (isStrictEdit && !comboValid) {
+        showFlightValidationErrors({ driver_id: true }, UI.msgSaveValidationTitle);
+        return;
+    }
+    if (!isStrictEdit && !comboValid) {
+        const driverInputText = document.getElementById('edit_driver_input');
+        if (driverInputText) driverInputText.value = '';
+        if (driverInput) driverInput.value = '';
+        const driverError = document.getElementById('edit_driver_error');
+        if (driverError) {
+            driverError.style.display = 'none';
+            driverError.textContent = '';
+        }
+    }
     const saveErrors = {};
     if (isStrictEdit) {
         if (!commentVal) saveErrors.comment = true;
@@ -2255,22 +2270,20 @@ function renderWarehousesLayer() {
         const coordsText = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
         const placemark = new ymaps.Placemark([lat, lon], {
             hintContent: name,
-            iconContent: UI.labelWarehouseMarker,
             balloonContent: `<div style="padding:8px;max-width:320px;">
                 <div><strong>${UI.labelWarehouseName}:</strong> ${escapeHtml(name)}</div>
                 <div><strong>${UI.labelWarehouseAddress}:</strong> ${escapeHtml(address || TXT.notSpecified)}</div>
                 <div><strong>${UI.labelWarehouseCoordinates}:</strong> ${escapeHtml(coordsText)}</div>
             </div>`
         }, {
-            iconLayout: 'default#imageWithContent',
-            iconImageHref: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="34"><rect x="1" y="1" width="58" height="24" rx="7" ry="7" fill="%23000" stroke="%23000" stroke-width="2"/><path d="M30 33 L24 25 L36 25 Z" fill="%23000" stroke="%23000" stroke-width="1"/></svg>',
-            iconImageSize: [60, 34],
-            iconImageOffset: [-30, -34],
-            iconContentOffset: [0, -4],
-            iconContentLayout: ymaps.templateLayoutFactory.createClass('<div style="width:60px;text-align:center;color:#fff;font-weight:700;font-size:11px;line-height:24px;font-family:Arial,sans-serif;">$[properties.iconContent]</div>'),
+            iconLayout: ymaps.templateLayoutFactory.createClass(
+                '<div style="position:relative;width:58px;height:24px;border:2px solid #000;border-radius:7px;background:#000;color:#fff;font-weight:700;font-size:11px;line-height:20px;text-align:center;font-family:Arial,sans-serif;box-sizing:border-box;">СКЛАД</div><div style="position:relative;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid #000;left:23px;top:-1px;"></div>'
+            ),
+            iconImageSize: [58, 32],
+            iconImageOffset: [-29, -32],
             iconShape: {
                 type: 'Polygon',
-                coordinates: [[-30, -34], [30, -34], [30, -9], [7, -9], [0, 0], [-7, -9], [-30, -9]]
+                coordinates: [[-29, -32], [29, -32], [29, -8], [7, -8], [0, 0], [-7, -8], [-29, -8]]
             },
             zIndex: 520
         });
@@ -2429,7 +2442,7 @@ function loadPlannedRoutes() {
         startedContainer.innerHTML = `<div class="route-list-empty">${TXT.loading}</div>`;
     }
     const managerParam = managerScopeId ? `?manager_id=${encodeURIComponent(managerScopeId)}` : '';
-    fetch(`map_files/get_planned_routes.php${managerParam}`).then(r => r.json()).then(data => {
+    return fetch(`map_files/get_planned_routes.php${managerParam}`).then(r => r.json()).then(data => {
         if(!data.success || !data.routes || !data.routes.length) {
             container.innerHTML = managerScopeId
                 ? `<div class="route-list-empty">\u041d\u0435\u0442 \u0440\u0435\u0439\u0441\u043e\u0432 \u0434\u043b\u044f \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u043e\u0433\u043e \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430</div>`
