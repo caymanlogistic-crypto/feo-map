@@ -112,11 +112,15 @@ UI.msgTransitionValidationDriver = '\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u
 UI.msgTransitionValidationDates = '\u0434\u0430\u0442\u044b';
 UI.msgTransitionValidationCost = '\u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c';
 UI.msgTransitionValidationRequests = '\u0437\u0430\u044f\u0432\u043a\u0438';
+UI.msgTransitionValidationRouteType = '\u0442\u0438\u043f \u0440\u0435\u0439\u0441\u0430';
+UI.msgTransitionValidationWarehouseSource = '\u0441\u043a\u043b\u0430\u0434 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u044f';
+UI.msgTransitionValidationWarehouseDestination = '\u0441\u043a\u043b\u0430\u0434 \u043d\u0430\u0437\u043d\u0430\u0447\u0435\u043d\u0438\u044f';
 UI.msgSaveValidationTitle = '\u0414\u043b\u044f \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f/\u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u044f \u0437\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u0435 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u044b\u0435 \u043f\u043e\u043b\u044f.';
 UI.msgChooseManagerForRoute = '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430 \u0434\u043b\u044f \u043f\u043b\u0430\u043d\u0438\u0440\u0443\u0435\u043c\u043e\u0433\u043e \u0440\u0435\u0439\u0441\u0430.';
 UI.msgChooseManagerOption = '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430';
 UI.msgCreateRouteTitleRequired = '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u0430 \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u0431\u044b\u0442\u044c \u043f\u0443\u0441\u0442\u044b\u043c';
 UI.labelRouteType = '\u0422\u0438\u043f \u0440\u0435\u0439\u0441\u0430';
+UI.msgRouteEditLoadFreshFailed = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0430\u043a\u0442\u0443\u0430\u043b\u044c\u043d\u044b\u0435 \u0434\u0430\u043d\u043d\u044b\u0435 \u0440\u0435\u0439\u0441\u0430. \u041f\u043e\u0432\u0442\u043e\u0440\u0438\u0442\u0435 \u043f\u043e\u043f\u044b\u0442\u043a\u0443.';
 
 // === TRACKER DATA FROM PHP BOOTSTRAP ===
 const mapBootstrap = (typeof window !== 'undefined' && window.MAP_BOOTSTRAP && typeof window.MAP_BOOTSTRAP === 'object')
@@ -172,6 +176,10 @@ UI.labelWarehouseMarker = uiText('warehouse.marker.label', 'СКЛАД');
 UI.labelWarehouseName = uiText('warehouse.popup.name', 'Название');
 UI.labelWarehouseAddress = uiText('warehouse.popup.address', 'Адрес');
 UI.labelWarehouseCoordinates = uiText('warehouse.popup.coordinates', 'Координаты');
+UI.msgTransitionValidationRouteType = uiText('route.validation.required.route_type', UI.msgTransitionValidationRouteType);
+UI.msgTransitionValidationWarehouseSource = uiText('route.validation.required.warehouse_source', UI.msgTransitionValidationWarehouseSource);
+UI.msgTransitionValidationWarehouseDestination = uiText('route.validation.required.warehouse_destination', UI.msgTransitionValidationWarehouseDestination);
+UI.msgRouteEditLoadFreshFailed = uiText('route.edit.load_fresh_failed', UI.msgRouteEditLoadFreshFailed);
 UI.msgCopied = uiText('common.copied', 'Текст скопирован.');
 UI.msgCopyFailed = uiText('common.copy_failed', 'Не удалось скопировать текст.');
 UI.msgDriverGpsTypeRequired = uiText('driver.validation.gps_type', 'Выберите тип GPS подключения.');
@@ -995,6 +1003,21 @@ function getRouteMetaById(routeId, source) {
     return (routeCardsMeta && routeCardsMeta[idKey]) || foundRoutesById[idKey] || startedRoutesById[idKey] || null;
 }
 
+async function fetchRouteEditData(routeId) {
+    const response = await fetch(`map_files/get_route_edit_data.php?id=${encodeURIComponent(String(routeId || ''))}`, {
+        method: 'GET',
+        credentials: 'same-origin'
+    });
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+    const data = await response.json();
+    if (!data || !data.success || !data.route || typeof data.route !== 'object') {
+        throw new Error((data && data.error) ? data.error : UI.msgRouteEditLoadFreshFailed);
+    }
+    return data.route;
+}
+
 function normalizeRouteTitleCandidate(raw) {
     const value = String(raw || '').trim();
     if (!value) return '';
@@ -1086,7 +1109,7 @@ function clearFlightValidationErrors() {
 
 function showFlightValidationErrors(errorMap, headerText = UI.msgTransitionValidationHeader) {
     const wrap = document.getElementById('flightValidationErrors');
-    const orderedFields = ['comment', 'driver_id', 'planned_start_date_from', 'planned_start_date_to', 'actual_start_date', 'actual_end_date', 'cost', 'zayavki_ids', 'source_warehouse_id', 'destination_warehouse_id'];
+    const orderedFields = ['comment', 'driver_id', 'planned_start_date_from', 'planned_start_date_to', 'actual_start_date', 'actual_end_date', 'cost', 'zayavki_ids', 'route_type', 'source_warehouse_id', 'destination_warehouse_id'];
     const fieldToInput = {
         comment: 'edit_comment',
         driver_id: 'edit_driver_input',
@@ -1096,6 +1119,7 @@ function showFlightValidationErrors(errorMap, headerText = UI.msgTransitionValid
         actual_end_date: 'edit_actual_end_date',
         cost: 'edit_cost',
         zayavki_ids: 'edit_zayavki_ids',
+        route_type: 'edit_route_type',
         source_warehouse_id: 'edit_source_warehouse_id',
         destination_warehouse_id: 'edit_destination_warehouse_id'
     };
@@ -1108,8 +1132,9 @@ function showFlightValidationErrors(errorMap, headerText = UI.msgTransitionValid
         actual_end_date: UI.msgTransitionValidationDates,
         cost: UI.msgTransitionValidationCost,
         zayavki_ids: UI.msgTransitionValidationRequests,
-        source_warehouse_id: 'склад отправления',
-        destination_warehouse_id: 'склад назначения'
+        route_type: UI.msgTransitionValidationRouteType,
+        source_warehouse_id: UI.msgTransitionValidationWarehouseSource,
+        destination_warehouse_id: UI.msgTransitionValidationWarehouseDestination
     };
 
     clearFlightValidationErrors();
@@ -1145,22 +1170,35 @@ function showFlightValidationErrors(errorMap, headerText = UI.msgTransitionValid
     }
 }
 
-function validateRequiredForFoundTransition() {
+function validateRequiredForStrictTransition() {
     const errors = {};
-    const titleVal = String(document.getElementById('edit_comment')?.value || '').trim();
     const driverId = String(document.getElementById('edit_driver_id')?.value || '').trim();
     const fromVal = String(document.getElementById('edit_planned_start_date_from')?.value || '').trim();
     const costVal = String(document.getElementById('edit_cost')?.value || '').trim();
+    const routeTypeRaw = String(document.getElementById('edit_route_type')?.value || '').trim();
+    const routeType = normalizeRouteType(routeTypeRaw, currentEditingMeta?.unload_type || 'OO');
+    const sourceWarehouseId = String(document.getElementById('edit_source_warehouse_id')?.value || '').trim();
+    const destinationWarehouseId = String(document.getElementById('edit_destination_warehouse_id')?.value || '').trim();
     const ids = String(document.getElementById('edit_zayavki_ids')?.value || '')
         .split(',')
         .map(v => v.trim())
         .filter(v => /^\d+$/.test(v));
 
-    if (!titleVal) errors.comment = true;
     if (!driverId) errors.driver_id = true;
     if (!fromVal) errors.planned_start_date_from = true;
     if (!costVal) errors.cost = true;
     if (ids.length === 0) errors.zayavki_ids = true;
+    if (!routeTypeRaw) errors.route_type = true;
+    if (routeType === 'generator_to_warehouse' && !destinationWarehouseId) {
+        errors.destination_warehouse_id = true;
+    }
+    if (routeType === 'warehouse_to_warehouse') {
+        if (!sourceWarehouseId) errors.source_warehouse_id = true;
+        if (!destinationWarehouseId) errors.destination_warehouse_id = true;
+    }
+    if (routeType === 'warehouse_to_utilizer' && !sourceWarehouseId) {
+        errors.source_warehouse_id = true;
+    }
     return errors;
 }
 
@@ -1747,11 +1785,20 @@ async function openFlightEditModal(routeId, source) {
     const modal = document.getElementById('flightEditModal');
     if (!modal) return;
 
-    const meta = getRouteMetaById(routeId, source);
-    if (!meta) {
+    const baseMeta = getRouteMetaById(routeId, source);
+    if (!baseMeta) {
         alert(UI.msgFlightDataNotFound);
         return;
     }
+    let freshMeta;
+    try {
+        freshMeta = await fetchRouteEditData(routeId);
+    } catch (error) {
+        console.error('openFlightEditModal fresh load failed:', error);
+        alert(UI.msgRouteEditLoadFreshFailed);
+        return;
+    }
+    const meta = { ...baseMeta, ...freshMeta };
 
     const titleEl = document.getElementById('flightEditTitle');
     const idInput = document.getElementById('edit_flight_id');
@@ -2095,12 +2142,7 @@ async function saveFlightEdit() {
             driverError.textContent = '';
         }
     }
-    const saveErrors = {};
-    if (isStrictEdit) {
-        if (!commentVal) saveErrors.comment = true;
-        if (!driverId) saveErrors.driver_id = true;
-        if (idsForSave.length === 0) saveErrors.zayavki_ids = true;
-    }
+    const saveErrors = isStrictEdit ? validateRequiredForStrictTransition() : {};
     if (Object.keys(saveErrors).length > 0) {
         showFlightValidationErrors(saveErrors, UI.msgSaveValidationTitle);
         return;
@@ -2165,7 +2207,7 @@ async function transferPlannedToFound(routeId) {
     if (!validateDriverComboboxSelection()) {
         return;
     }
-    const preErrors = validateRequiredForFoundTransition();
+    const preErrors = validateRequiredForStrictTransition();
     if (Object.keys(preErrors).length > 0) {
         showFlightValidationErrors(preErrors);
         return;
@@ -2244,6 +2286,9 @@ async function confirmTransferToStarted() {
         if (result && result.success) {
             window.location.reload();
             return;
+        }
+        if (result && result.errors && typeof result.errors === 'object') {
+            showFlightValidationErrors(result.errors);
         }
         alert((result && result.message) ? result.message : UI.msgTransferFailed);
     } catch (e) {
@@ -2480,6 +2525,14 @@ function loadPlannedRoutes() {
     }
     const managerParam = managerScopeId ? `?manager_id=${encodeURIComponent(managerScopeId)}` : '';
     return fetch(`map_files/get_planned_routes.php${managerParam}`).then(r => r.json()).then(data => {
+        if (data && Array.isArray(data.routes)) {
+            data.routes.forEach((route) => {
+                if (!route || route.id === undefined || route.id === null) return;
+                const key = String(route.id);
+                const prev = (routeCardsMeta && routeCardsMeta[key]) ? routeCardsMeta[key] : {};
+                routeCardsMeta[key] = { ...prev, ...route };
+            });
+        }
         if(!data.success || !data.routes || !data.routes.length) {
             container.innerHTML = managerScopeId
                 ? `<div class="route-list-empty">\u041d\u0435\u0442 \u0440\u0435\u0439\u0441\u043e\u0432 \u0434\u043b\u044f \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u043e\u0433\u043e \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430</div>`
@@ -3020,6 +3073,11 @@ function init() {
         transferStartedBtn.addEventListener('click', () => {
             const idInput = document.getElementById('edit_flight_id');
             const routeId = Number(idInput ? idInput.value : 0);
+            const preErrors = validateRequiredForStrictTransition();
+            if (Object.keys(preErrors).length > 0) {
+                showFlightValidationErrors(preErrors);
+                return;
+            }
             if (routeId > 0) openStartConfirmModal(routeId, 'started');
         });
     }

@@ -848,14 +848,14 @@ try {
 
     if ($action === 'save') {
         $requireFull = false;
-        $requireTitle = true;
+        $requireTitle = false;
         $requireRequests = true;
         $requireWarehouses = true;
         if ($routeId > 0) {
             $current = loadFlightSnapshot($pdo, $routeId);
             $isFoundEdit = is_array($current) && (string)$current['status'] === STATUS_FOUND;
             $requireFull = $isFoundEdit;
-            $requireTitle = $isFoundEdit;
+            $requireTitle = false;
             $requireRequests = $isFoundEdit;
             $requireWarehouses = $isFoundEdit;
         }
@@ -1055,7 +1055,7 @@ try {
                 if (!array_key_exists('destination_warehouse_id', $payload)) $payload['destination_warehouse_id'] = $flight['destination_warehouse_id'] ?? null;
                 if (!isset($payload['name']) || trim((string)$payload['name']) === '') $payload['name'] = trim((string)($flight['comment'] ?? $flight['name'] ?? ''));
             }
-            $requireTitle = !$wasStarted;
+            $requireTitle = false;
             $strictFoundTransition = !$wasStarted;
             [$ok, $msg, $normalized, $errors] = validateRouteData(
                 $pdo,
@@ -1105,6 +1105,29 @@ try {
         }
 
         if ($target === STATUS_STARTED) {
+            $payload = $data;
+            if (!isset($payload['zayavki_ids']) || trim((string)$payload['zayavki_ids']) === '') $payload['zayavki_ids'] = (string)($flight['zayavki_ids'] ?? '');
+            if (!isset($payload['driver_id']) || (int)$payload['driver_id'] <= 0) $payload['driver_id'] = (int)($flight['driver_id'] ?? 0);
+            if (!isset($payload['planned_start_date_from']) || trim((string)$payload['planned_start_date_from']) === '') $payload['planned_start_date_from'] = (string)($flight['planned_start_date_from'] ?? '');
+            if (!isset($payload['planned_start_date_to']) || trim((string)$payload['planned_start_date_to']) === '') $payload['planned_start_date_to'] = (string)($flight['planned_start_date_to'] ?? '');
+            if (!array_key_exists('cost', $payload) || $payload['cost'] === '' || $payload['cost'] === null) $payload['cost'] = $flight['cost'] ?? null;
+            if (!isset($payload['unload_type']) || trim((string)$payload['unload_type']) === '') $payload['unload_type'] = (string)($flight['unload_type'] ?? 'OO');
+            if (!isset($payload['route_type']) || trim((string)$payload['route_type']) === '') $payload['route_type'] = (string)($flight['route_type'] ?? '');
+            if (!array_key_exists('source_warehouse_id', $payload)) $payload['source_warehouse_id'] = $flight['source_warehouse_id'] ?? null;
+            if (!array_key_exists('destination_warehouse_id', $payload)) $payload['destination_warehouse_id'] = $flight['destination_warehouse_id'] ?? null;
+
+            [$ok, $msg, $_normalized, $errors] = validateRouteData(
+                $pdo,
+                $payload,
+                true,
+                false,
+                true,
+                true
+            );
+            if (!$ok) {
+                jsonOut(['success' => false, 'message' => $msg, 'errors' => $errors]);
+            }
+
             $actualRaw = trim((string)($data['actual_start_date'] ?? ''));
             if ($actualRaw === '') {
                 $actualRaw = trim((string)($flight['planned_start_date_from'] ?? ''));
