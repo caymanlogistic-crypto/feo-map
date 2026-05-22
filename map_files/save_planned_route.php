@@ -125,7 +125,10 @@ function getRouteMetrics(PDO $pdo, array $idList): array
 function loadFlightSnapshot(PDO $pdo, $flightId): ?array
 {
     try {
-        $stmt = $pdo->prepare('SELECT id, status, driver_id, zayavki_ids, planned_start_date_from, planned_start_date_to, actual_start_date, actual_end_date, comment, cost, unload_type, route_type, source_warehouse_id, destination_warehouse_id, assigned_manager_id FROM flights WHERE id = ? LIMIT 1');
+        $managerColumn = resolveFlightsManagerColumn($pdo) ?? 'assigned_manager_id';
+        $sql = 'SELECT id, status, driver_id, zayavki_ids, planned_start_date_from, planned_start_date_to, actual_start_date, actual_end_date, comment, cost, unload_type, route_type, source_warehouse_id, destination_warehouse_id, '
+            . quoteIdent($managerColumn) . ' AS assigned_manager_id FROM flights WHERE id = ? LIMIT 1';
+        $stmt = $pdo->prepare($sql);
         if (!$stmt || !$stmt->execute([(int)$flightId])) {
             return null;
         }
@@ -696,6 +699,42 @@ function buildRouteDiffContext(PDO $pdo, array $before, array $after, int $fligh
     ];
 }
 
+function buildRouteEventContext(PDO $pdo, array $route, int $flightId, array $extra = []): array
+{
+    $manager = getManagerDisplayNameById($pdo, $route['assigned_manager_id'] ?? 0);
+    $driver = compactDriverLabel((string)($route['_driver_label'] ?? ''));
+    $routeTypeLine = buildRouteTypeLine($pdo, $route);
+    if (trim($routeTypeLine) === '') {
+        $routeTypeLine = 'Тип рейса: не задан';
+    }
+    $ctx = [
+        'route_id' => (string)$flightId,
+        'route_title' => buildRouteTitle($route, $flightId),
+        'planned_range' => formatDateRangeShortRu((string)($route['planned_start_date_from'] ?? ''), (string)($route['planned_start_date_to'] ?? '')),
+        'actual_range' => formatDateRangeShortRu((string)($route['actual_start_date'] ?? ''), (string)($route['actual_end_date'] ?? '')),
+        'driver' => $driver !== '' ? $driver : 'не указан',
+        'manager' => $manager !== '' ? $manager : 'не назначен',
+        'responsible' => $manager !== '' ? $manager : 'не назначен',
+        'route_type' => (string)($route['route_type'] ?? ''),
+        'route_type_line' => $routeTypeLine,
+        'meta_line' => buildCompactMetaLine($route),
+        'requests_count' => (string)((int)($route['_count'] ?? 0)),
+        'weight' => formatKgFromTons((float)($route['_sum_tons'] ?? 0)),
+        'cost' => formatMoneyRu($route['cost'] ?? null),
+        'source_warehouse' => getWarehouseNameById($pdo, $route['source_warehouse_id'] ?? 0),
+        'destination_warehouse' => getWarehouseNameById($pdo, $route['destination_warehouse_id'] ?? 0),
+    ];
+    $src = trim((string)$ctx['source_warehouse']);
+    $dst = trim((string)$ctx['destination_warehouse']);
+    $ctx['warehouse_line'] = ($src !== '' || $dst !== '')
+        ? ('Склады: ' . ($src !== '' ? $src : 'не выбран') . ' → ' . ($dst !== '' ? $dst : 'не выбран'))
+        : 'Склады: не выбраны';
+    foreach ($extra as $k => $v) {
+        $ctx[$k] = $v;
+    }
+    return $ctx;
+}
+
 function buildPlannedDateRangeUpdateMessage(PDO $pdo, array $before, array $after, int $flightId): string
 {
     $beforeFrom = trim((string)($before['planned_start_date_from'] ?? ''));
@@ -806,6 +845,20 @@ function buildFoundDiffMessage(PDO $pdo, array $before, array $after, int $fligh
         $changes[] = 'Название: ' . buildRouteTitle($before, $flightId) . ' → ' . buildRouteTitle($after, $flightId);
     }
 
+    if ((string)($before['route_type'] ?? '') !== (string)($after['route_type'] ?? '')) {
+        $changes[] = 'Тип рейса: ' . trim(buildRouteTypeLine($pdo, $before)) . ' → ' . trim(buildRouteTypeLine($pdo, $after));
+    }
+    if ((int)($before['source_warehouse_id'] ?? 0) !== (int)($after['source_warehouse_id'] ?? 0)) {
+        $fromOld = getWarehouseNameById($pdo, $before['source_warehouse_id'] ?? 0);
+        $fromNew = getWarehouseNameById($pdo, $after['source_warehouse_id'] ?? 0);
+        $changes[] = 'Склад отправления: ' . ($fromOld !== '' ? $fromOld : 'не выбран') . ' → ' . ($fromNew !== '' ? $fromNew : 'не выбран');
+    }
+    if ((int)($before['destination_warehouse_id'] ?? 0) !== (int)($after['destination_warehouse_id'] ?? 0)) {
+        $toOld = getWarehouseNameById($pdo, $before['destination_warehouse_id'] ?? 0);
+        $toNew = getWarehouseNameById($pdo, $after['destination_warehouse_id'] ?? 0);
+        $changes[] = 'Склад назначения: ' . ($toOld !== '' ? $toOld : 'не выбран') . ' → ' . ($toNew !== '' ? $toNew : 'не выбран');
+    }
+
     if (empty($changes)) {
         return '';
     }
@@ -856,6 +909,20 @@ function buildStartedDiffMessage(PDO $pdo, array $before, array $after, int $fli
     }
     if (trim((string)($before['comment'] ?? '')) !== trim((string)($after['comment'] ?? ''))) {
         $changes[] = 'Название: ' . buildRouteTitle($before, $flightId) . ' → ' . buildRouteTitle($after, $flightId);
+    }
+
+    if ((string)($before['route_type'] ?? '') !== (string)($after['route_type'] ?? '')) {
+        $changes[] = 'Тип рейса: ' . trim(buildRouteTypeLine($pdo, $before)) . ' → ' . trim(buildRouteTypeLine($pdo, $after));
+    }
+    if ((int)($before['source_warehouse_id'] ?? 0) !== (int)($after['source_warehouse_id'] ?? 0)) {
+        $fromOld = getWarehouseNameById($pdo, $before['source_warehouse_id'] ?? 0);
+        $fromNew = getWarehouseNameById($pdo, $after['source_warehouse_id'] ?? 0);
+        $changes[] = 'Склад отправления: ' . ($fromOld !== '' ? $fromOld : 'не выбран') . ' → ' . ($fromNew !== '' ? $fromNew : 'не выбран');
+    }
+    if ((int)($before['destination_warehouse_id'] ?? 0) !== (int)($after['destination_warehouse_id'] ?? 0)) {
+        $toOld = getWarehouseNameById($pdo, $before['destination_warehouse_id'] ?? 0);
+        $toNew = getWarehouseNameById($pdo, $after['destination_warehouse_id'] ?? 0);
+        $changes[] = 'Склад назначения: ' . ($toOld !== '' ? $toOld : 'не выбран') . ' → ' . ($toNew !== '' ? $toNew : 'не выбран');
     }
 
     if (empty($changes)) {
@@ -983,6 +1050,7 @@ try {
                 $text = buildFoundDiffMessage($pdo, $before, $after, $routeId);
                 if ($text !== '') {
                     $diffContext = buildRouteDiffContext($pdo, $before, $after, $routeId);
+                    $diffContext = buildRouteEventContext($pdo, $after, $routeId, $diffContext);
                     $diffContext['changed_fields_text'] = $text;
                     $notifyResult = sendMaxNotification($text, 'route_found_updated', $diffContext);
                 }
@@ -990,6 +1058,7 @@ try {
                 $text = buildStartedDiffMessage($pdo, $before, $after, $routeId);
                 if ($text !== '') {
                     $diffContext = buildRouteDiffContext($pdo, $before, $after, $routeId);
+                    $diffContext = buildRouteEventContext($pdo, $after, $routeId, $diffContext);
                     $diffContext['changed_fields_text'] = $text;
                     $notifyResult = sendMaxNotification($text, 'route_started_updated', $diffContext);
                 }
@@ -1206,16 +1275,11 @@ try {
                     "Рейс закреплен: {$manager}",
                     '> 💡 *Включено слежение за состоянием трекера.*'
                 ], static fn($line) => $line !== ''))
-            , 'route_found_to_started', [
-                'route_id' => (string)$routeId,
-                'route_title' => $title,
-                'driver' => $driver,
+            , 'route_found_to_started', buildRouteEventContext($pdo, $afterStarted, $routeId, [
                 'actual_start_short' => formatDateShortRu($afterStarted['actual_start_date'] ?? ''),
-                'requests_count' => (string)((int)($afterStarted['_count'] ?? 0)),
-                'weight' => formatKgFromTons((float)($afterStarted['_sum_tons'] ?? 0)),
                 'status_from' => STATUS_FOUND,
                 'status_to' => STATUS_STARTED,
-            ]);
+            ]));
             jsonOut([
                 'success' => true,
                 'message' => 'Рейс переведен в ВЫВОЗНАЧАЛСЯ',
@@ -1289,12 +1353,14 @@ try {
             } else {
                 $message = buildPlannedToFoundMessage($pdo, $after, $routeId);
             }
-            $notifyResult = sendMaxNotification($message, $wasStarted ? 'route_status_rollback' : 'route_planned_to_found', [
-                'route_id' => (string)$routeId,
-                'route_title' => $title,
-                'status_from' => $wasStarted ? STATUS_STARTED : STATUS_PLANNED,
-                'status_to' => STATUS_FOUND,
-            ]);
+            $notifyResult = sendMaxNotification(
+                $message,
+                $wasStarted ? 'route_status_rollback' : 'route_planned_to_found',
+                buildRouteEventContext($pdo, $after, $routeId, [
+                    'status_from' => $wasStarted ? STATUS_STARTED : STATUS_PLANNED,
+                    'status_to' => STATUS_FOUND,
+                ])
+            );
             jsonOut([
                 'success' => true,
                 'message' => 'Рейс сформирован',
@@ -1312,12 +1378,10 @@ try {
                 (buildRouteTypeLine($pdo, $after) !== '' ? (buildRouteTypeLine($pdo, $after) . "\n") : '') .
                 "Рейс закреплен: {$manager}\n" .
                 "> 💡 *Подготовку документов приостановить до переформирования рейса.*"
-            , 'route_status_rollback', [
-                'route_id' => (string)$routeId,
-                'route_title' => $title,
+            , 'route_status_rollback', buildRouteEventContext($pdo, $after, $routeId, [
                 'status_from' => STATUS_FOUND,
                 'status_to' => STATUS_PLANNED,
-            ]);
+            ]));
             jsonOut([
                 'success' => true,
                 'message' => 'Рейс возвращен в ПЛАНИРУЕМЫЙ',

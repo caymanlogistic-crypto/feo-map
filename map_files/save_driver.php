@@ -300,6 +300,14 @@ function resolveFeoParams(array $selectedTracker, ?array $renameResponse): array
         }
         if (isset($trackerOrResponse['data']) && is_array($trackerOrResponse['data'])) {
             $target[] = $trackerOrResponse['data'];
+            if (isset($trackerOrResponse['data']['device']) && is_array($trackerOrResponse['data']['device'])) {
+                $target[] = $trackerOrResponse['data']['device'];
+            }
+        }
+        foreach (['payload', 'result', 'response', 'tracker'] as $nestedKey) {
+            if (isset($trackerOrResponse[$nestedKey]) && is_array($trackerOrResponse[$nestedKey])) {
+                $target[] = $trackerOrResponse[$nestedKey];
+            }
         }
         if (isset($trackerOrResponse['admin_fields']) && is_array($trackerOrResponse['admin_fields'])) {
             $target[] = $trackerOrResponse['admin_fields'];
@@ -628,14 +636,6 @@ try {
             'outProtocol' => $feoParams['outProtocol'],
         ],
     ]);
-    if (function_exists('notifyEvent')) {
-        notifyEvent('driver_create', [
-            'driver' => $driverCompact,
-            'gps_connection_type' => $gpsType,
-            'tracker_uniqueid' => $selected['uniqueid'],
-        ], "Создан водитель: {$driverCompact}");
-    }
-
     driverOut([
         'success' => true,
         'existing' => false,
