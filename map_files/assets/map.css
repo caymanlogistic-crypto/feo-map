@@ -215,39 +215,39 @@
 .flight-status-started { color: #28a745; font-weight: 700; }
 .workflow-action { border: 1px solid #e3e8ee; border-left-width: 3px; border-radius: 7px; padding: 8px; background: #fff; }
 .workflow-action + .workflow-action { margin-top: 6px; }
-.workflow-card-update { border-left: 3px solid #8d78a3; background: #fff; }
-.workflow-card-update.is-cyan { border-left-color: #5f9a96; background: #fff; }
+.workflow-card-update { border-left: 3px solid #9c27b0; background: #fff; }
+.workflow-card-update.is-cyan { border-left-color: #17a2b8; background: #fff; }
 .workflow-card-lifecycle { border: 0; background: transparent; padding: 0; margin-top: 6px; }
-.workflow-card-danger { margin-top: 8px; border: 1px solid #e8d2d2; border-left-width: 3px; border-left-color: #a17373; border-radius: 8px; padding: 8px; background: #fff; }
-.workflow-action-found { border-left-color: #5f9a96; background: #fff; }
-.workflow-action-danger-soft { border-left-color: #a17373; background: #fff; }
-.workflow-action-started { border-left-color: #648c71; background: #fff; }
-.workflow-action-completed { border-left-color: #648c71; background: #fff; }
-.workflow-action-return { border-left-color: #a17373; background: #fff; }
-.workflow-action-info { border-left-color: #648c71; background: #fff; }
+.workflow-card-danger { margin-top: 8px; border: 1px solid #efc8c8; border-left-width: 3px; border-left-color: #dc3545; border-radius: 8px; padding: 8px; background: #fff; }
+.workflow-action-found { border-left-color: #17a2b8; background: #fff; }
+.workflow-action-danger-soft { border-left-color: #dc3545; background: #fff; }
+.workflow-action-started { border-left-color: #28a745; background: #fff; }
+.workflow-action-completed { border-left-color: #28a745; background: #fff; }
+.workflow-action-return { border-left-color: #dc3545; background: #fff; }
+.workflow-action-info { border-left-color: #28a745; background: #fff; }
 .danger-zone { margin-top: 8px; }
 .flight-modal-footer { margin-top: 10px; display: flex; justify-content: flex-end; }
 
 :root {
-  --wf-purple: #8d78a3;
-  --wf-purple-hover: #7f6995;
-  --wf-cyan: #5f9a96;
-  --wf-cyan-hover: #558b87;
-  --wf-green: #648c71;
-  --wf-green-hover: #5a7e66;
-  --wf-red: #a17373;
-  --wf-red-hover: #936767;
+  --wf-purple: #9c27b0;
+  --wf-purple-hover: #8e24aa;
+  --wf-cyan: #17a2b8;
+  --wf-cyan-hover: #138496;
+  --wf-green: #28a745;
+  --wf-green-hover: #218838;
+  --wf-red: #dc3545;
+  --wf-red-hover: #c82333;
 }
 #flightEditSaveBtn.route-edit-btn { color: var(--wf-purple); border-color: var(--wf-purple); background: #fff; }
-#flightEditSaveBtn.route-edit-btn:hover, #flightEditSaveBtn.route-edit-btn:focus-visible { color: var(--wf-purple-hover); border-color: var(--wf-purple-hover); background: rgba(141,120,163,0.10); box-shadow: 0 0 0 2px rgba(141,120,163,0.10); }
+#flightEditSaveBtn.route-edit-btn:hover, #flightEditSaveBtn.route-edit-btn:focus-visible { color: var(--wf-purple-hover); border-color: var(--wf-purple-hover); background: rgba(156,39,176,0.12); box-shadow: 0 0 0 2px rgba(156,39,176,0.14); }
 #flightEditSaveBtn.route-transfer-btn { color: var(--wf-cyan); border-color: var(--wf-cyan); background: #fff; }
-#flightEditSaveBtn.route-transfer-btn:hover, #flightEditSaveBtn.route-transfer-btn:focus-visible { color: var(--wf-cyan-hover); border-color: var(--wf-cyan-hover); background: rgba(95,154,150,0.10); box-shadow: 0 0 0 2px rgba(95,154,150,0.10); }
+#flightEditSaveBtn.route-transfer-btn:hover, #flightEditSaveBtn.route-transfer-btn:focus-visible { color: var(--wf-cyan-hover); border-color: var(--wf-cyan-hover); background: rgba(23,162,184,0.12); box-shadow: 0 0 0 2px rgba(23,162,184,0.14); }
 #flightEditTransferFoundBtn { color: var(--wf-cyan); border-color: var(--wf-cyan); background: #fff; }
-#flightEditTransferFoundBtn:hover, #flightEditTransferFoundBtn:focus-visible { color: var(--wf-cyan-hover); border-color: var(--wf-cyan-hover); background: rgba(95,154,150,0.10); box-shadow:0 0 0 2px rgba(95,154,150,0.10); }
+#flightEditTransferFoundBtn:hover, #flightEditTransferFoundBtn:focus-visible { color: var(--wf-cyan-hover); border-color: var(--wf-cyan-hover); background: rgba(23,162,184,0.12); box-shadow:0 0 0 2px rgba(23,162,184,0.14); }
 #flightEditTransferStartedBtn, #flightEditToCompletedBtn { color: var(--wf-green); border-color: var(--wf-green); background: #fff; }
-#flightEditTransferStartedBtn:hover, #flightEditTransferStartedBtn:focus-visible, #flightEditToCompletedBtn:hover, #flightEditToCompletedBtn:focus-visible { color: var(--wf-green-hover); border-color: var(--wf-green-hover); background: rgba(100,140,113,0.10); box-shadow:0 0 0 2px rgba(100,140,113,0.10); }
+#flightEditTransferStartedBtn:hover, #flightEditTransferStartedBtn:focus-visible, #flightEditToCompletedBtn:hover, #flightEditToCompletedBtn:focus-visible { color: var(--wf-green-hover); border-color: var(--wf-green-hover); background: rgba(40,167,69,0.12); box-shadow:0 0 0 2px rgba(40,167,69,0.14); }
 #flightEditBackToPlannedBtn, #flightEditBackToFoundBtn, #flightEditDeleteBtn { color: var(--wf-red); border-color: var(--wf-red); background: #fff; }
-#flightEditBackToPlannedBtn:hover, #flightEditBackToPlannedBtn:focus-visible, #flightEditBackToFoundBtn:hover, #flightEditBackToFoundBtn:focus-visible, #flightEditDeleteBtn:hover, #flightEditDeleteBtn:focus-visible { color: var(--wf-red-hover); border-color: var(--wf-red-hover); background: rgba(161,115,115,0.10); box-shadow:0 0 0 2px rgba(161,115,115,0.10); }
+#flightEditBackToPlannedBtn:hover, #flightEditBackToPlannedBtn:focus-visible, #flightEditBackToFoundBtn:hover, #flightEditBackToFoundBtn:focus-visible, #flightEditDeleteBtn:hover, #flightEditDeleteBtn:focus-visible { color: var(--wf-red-hover); border-color: var(--wf-red-hover); background: rgba(220,53,69,0.12); box-shadow:0 0 0 2px rgba(220,53,69,0.14); }
 #flightEditModal .route-action-btn:active { filter: brightness(0.96); }
 #flightEditModal .route-action-btn:disabled {
   color: #8a93a1;
