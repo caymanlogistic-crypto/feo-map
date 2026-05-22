@@ -667,6 +667,13 @@ function buildRouteDiffContext(PDO $pdo, array $before, array $after, int $fligh
     return [
         'route_id' => (string)$flightId,
         'route_title' => $afterTitle !== '' ? $afterTitle : $beforeTitle,
+        'manager' => getManagerDisplayNameById($pdo, $after['assigned_manager_id'] ?? ($before['assigned_manager_id'] ?? 0)),
+        'status_from' => (string)($before['status'] ?? ''),
+        'status_to' => (string)($after['status'] ?? ''),
+        'planned_range' => formatDateRangeShortRu((string)($after['planned_start_date_from'] ?? ''), (string)($after['planned_start_date_to'] ?? '')),
+        'actual_range' => formatDateRangeShortRu((string)($after['actual_start_date'] ?? ''), (string)($after['actual_end_date'] ?? '')),
+        'route_type_line' => buildRouteTypeLine($pdo, $after),
+        'meta_line' => buildCompactMetaLine($after),
         'driver_old' => compactDriverLabel((string)($before['_driver_label'] ?? '')),
         'driver_new' => compactDriverLabel((string)($after['_driver_label'] ?? '')),
         'date_from_old' => formatDateShortRu((string)($before['planned_start_date_from'] ?? '')),

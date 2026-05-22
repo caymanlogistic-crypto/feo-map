@@ -2140,7 +2140,7 @@ async function saveFlightEdit() {
         .map(v => v.trim())
         .filter(v => /^\d+$/.test(v));
     const currentStatus = String(statusInput ? statusInput.value : '');
-    const isStrictEdit = currentStatus === 'found';
+    const isStrictEdit = currentStatus === 'found' || currentStatus === 'started';
     const comboValid = validateDriverComboboxSelection();
     if (isStrictEdit && !comboValid) {
         showFlightValidationErrors({ driver_id: true }, UI.msgSaveValidationTitle);

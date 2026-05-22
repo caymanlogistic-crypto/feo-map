@@ -360,8 +360,12 @@ function resolveFeoParams(array $selectedTracker, ?array $renameResponse): array
     if ($outId !== '') {
         $parts[] = $outId;
     }
-    if ($outIp !== '' || $outPort !== '') {
-        $parts[] = trim($outIp . (($outIp !== '' || $outPort !== '') ? ':' : '') . $outPort, ':');
+    if ($outIp !== '' && $outPort !== '') {
+        $parts[] = $outIp . ':' . $outPort;
+    } elseif ($outIp !== '') {
+        $parts[] = $outIp;
+    } elseif ($outPort !== '') {
+        $parts[] = $outPort;
     }
     if ($outProtocol !== '') {
         $parts[] = $outProtocol;

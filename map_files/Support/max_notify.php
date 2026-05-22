@@ -346,6 +346,34 @@ function mapIsWithinQuietHours(string $start, string $end): bool
     return ($now >= $start || $now < $end);
 }
 
+function mapEventKeyCandidates(string $eventKey): array
+{
+    $eventKey = trim($eventKey);
+    if ($eventKey === '') {
+        return [''];
+    }
+    $aliases = [
+        'route_planned_to_found' => ['planned_to_found'],
+        'planned_to_found' => ['route_planned_to_found'],
+        'route_found_to_started' => ['found_to_started'],
+        'found_to_started' => ['route_found_to_started'],
+        'route_status_rollback' => ['started_to_found_rollback', 'found_to_planned_rollback'],
+        'started_to_found_rollback' => ['route_status_rollback'],
+        'found_to_planned_rollback' => ['route_status_rollback'],
+        'route_found_updated' => ['route_diff_found'],
+        'route_diff_found' => ['route_found_updated'],
+        'route_started_updated' => ['route_diff_started'],
+        'route_diff_started' => ['route_started_updated'],
+    ];
+    $result = [$eventKey];
+    foreach (($aliases[$eventKey] ?? []) as $alias) {
+        if (!in_array($alias, $result, true)) {
+            $result[] = $alias;
+        }
+    }
+    return $result;
+}
+
 function mapResolveEventCenterOverride(PDO $pdo, string $eventKey, string $fallbackMessage, string $format, array $context): ?array
 {
     if (!mapEventCenterTablesReady($pdo)) {
@@ -369,9 +397,15 @@ function mapResolveEventCenterOverride(PDO $pdo, string $eventKey, string $fallb
 
         $template = null;
         if ($eventKey !== '') {
-            $stmt = $pdo->prepare('SELECT * FROM max_event_templates WHERE event_key = :event_key LIMIT 1');
-            if ($stmt && $stmt->execute([':event_key' => $eventKey])) {
-                $template = $stmt->fetch(PDO::FETCH_ASSOC);
+            foreach (mapEventKeyCandidates($eventKey) as $candidateKey) {
+                $stmt = $pdo->prepare('SELECT * FROM max_event_templates WHERE event_key = :event_key LIMIT 1');
+                if ($stmt && $stmt->execute([':event_key' => $candidateKey])) {
+                    $template = $stmt->fetch(PDO::FETCH_ASSOC);
+                    if (is_array($template)) {
+                        $eventKey = $candidateKey;
+                        break;
+                    }
+                }
             }
         }
 
@@ -523,14 +557,18 @@ function mapAdminResolveOverride(PDO $pdo, string $eventKey, string $fallbackMes
     $templateMessage = '';
     if ($eventKey !== '') {
         try {
-            $stmtTpl = $pdo->prepare('SELECT template_text, is_enabled FROM max_message_templates WHERE event_key = :event_key LIMIT 1');
-            if ($stmtTpl && $stmtTpl->execute([':event_key' => $eventKey])) {
-                $rowTpl = $stmtTpl->fetch(PDO::FETCH_ASSOC);
-                if (is_array($rowTpl)) {
-                    if ((int)($rowTpl['is_enabled'] ?? 0) !== 1) {
-                        return ['enabled' => false, 'message' => $fallbackMessage, 'chat_id' => null];
+            foreach (mapEventKeyCandidates($eventKey) as $candidateKey) {
+                $stmtTpl = $pdo->prepare('SELECT template_text, is_enabled FROM max_message_templates WHERE event_key = :event_key LIMIT 1');
+                if ($stmtTpl && $stmtTpl->execute([':event_key' => $candidateKey])) {
+                    $rowTpl = $stmtTpl->fetch(PDO::FETCH_ASSOC);
+                    if (is_array($rowTpl)) {
+                        if ((int)($rowTpl['is_enabled'] ?? 0) !== 1) {
+                            return ['enabled' => false, 'message' => $fallbackMessage, 'chat_id' => null];
+                        }
+                        $templateMessage = trim((string)($rowTpl['template_text'] ?? ''));
+                        $eventKey = $candidateKey;
+                        break;
                     }
-                    $templateMessage = trim((string)($rowTpl['template_text'] ?? ''));
                 }
             }
         } catch (Throwable $e) {
