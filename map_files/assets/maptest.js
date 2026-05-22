@@ -363,6 +363,21 @@ function escapeHtml(str) {
     });
 }
 
+function renderSafeStaticHtml(value) {
+    const escaped = escapeHtml(String(value || ''));
+    return escaped
+        .replace(/&lt;br\s*\/?&gt;/gi, '<br>')
+        .replace(/&lt;strong&gt;/gi, '<strong>')
+        .replace(/&lt;\/strong&gt;/gi, '</strong>')
+        .replace(/\r\n|\r|\n/g, '<br>');
+}
+
+function setSafeStaticHtml(element, value) {
+    if (!element) return;
+    element.classList.add('static-text-rendered');
+    element.innerHTML = renderSafeStaticHtml(value);
+}
+
 function createTrackerBalloon(tracker) {
     const newTrackerBadge = tracker && tracker.is_new_tracker
         ? `<br><span style="display:inline-block; margin-top:6px; font-size:11px; font-weight:700; color:#0d47a1;">НОВЫЙ ТРЕКЕР</span>`
@@ -1837,15 +1852,15 @@ function applyLifecycleButtons(status) {
         if (el) el.style.display = 'none';
     });
     if (status === 'planned_route') {
-        if (updateTitle) updateTitle.textContent = uiText('route.workflow.update.title', 'Актуализация рейса');
-        if (updateDesc) updateDesc.textContent = uiText('route.workflow.update.desc', 'Изменения дат автоматически фиксируются в МАКС.');
+        if (updateTitle) setSafeStaticHtml(updateTitle, uiText('route.workflow.update.title', 'Актуализация рейса'));
+        if (updateDesc) setSafeStaticHtml(updateDesc, uiText('route.workflow.update.desc', 'Изменения дат автоматически фиксируются в МАКС.'));
         if (saveBtn) saveBtn.textContent = 'Сохранить изменения';
         if (map.updateSection) map.updateSection.style.display = 'block';
         if (map.toFound) map.toFound.style.display = 'block';
         if (map.deleteWrap) map.deleteWrap.style.display = 'block';
     } else if (status === 'found') {
-        if (updateTitle) updateTitle.textContent = uiText('route.workflow.update.title', 'Актуализация рейса');
-        if (updateDesc) updateDesc.textContent = uiText('route.workflow.update.desc.found', 'Изменения автоматически фиксируются в МАКС.');
+        if (updateTitle) setSafeStaticHtml(updateTitle, uiText('route.workflow.update.title', 'Актуализация рейса'));
+        if (updateDesc) setSafeStaticHtml(updateDesc, uiText('route.workflow.update.desc.found', 'Изменения автоматически фиксируются в МАКС.'));
         if (saveBtn) saveBtn.textContent = 'Сохранить изменения';
         if (map.updateSection) map.updateSection.style.display = 'block';
         if (map.toStarted) map.toStarted.style.display = 'block';
@@ -2277,7 +2292,10 @@ function renderWarehousesLayer() {
             </div>`
         }, {
             iconLayout: ymaps.templateLayoutFactory.createClass(
-                '<div style="position:relative;width:58px;height:24px;border:2px solid #000;border-radius:7px;background:#000;color:#fff;font-weight:700;font-size:11px;line-height:20px;text-align:center;font-family:Arial,sans-serif;box-sizing:border-box;">СКЛАД</div><div style="position:relative;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid #000;left:23px;top:-1px;"></div>'
+                `<div style="position:relative;width:58px;height:32px;font-family:Arial,sans-serif;">
+                    <div style="position:absolute;left:0;top:0;width:58px;height:24px;border:2px solid #000;border-radius:7px;background:#000;color:#fff;font-weight:700;font-size:11px;line-height:20px;text-align:center;box-sizing:border-box;">${escapeHtml(UI.labelWarehouseMarker)}</div>
+                    <div style="position:absolute;left:23px;top:24px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid #000;"></div>
+                </div>`
             ),
             iconImageSize: [58, 32],
             iconImageOffset: [-29, -32],
@@ -2285,7 +2303,7 @@ function renderWarehousesLayer() {
                 type: 'Polygon',
                 coordinates: [[-29, -32], [29, -32], [29, -8], [7, -8], [0, 0], [-7, -8], [-29, -8]]
             },
-            zIndex: 520
+            zIndex: 420
         });
         warehousesCollection.add(placemark);
     });
