@@ -348,7 +348,7 @@ function ecLoadEvents(PDO $pdo): array
             'category' => ecText($row, ['category'], 'system'),
             'description' => ecText($row, ['description', 'when_sent'], ''),
             'when_sent' => ecText($row, ['when_sent', 'description'], ''),
-            'is_enabled' => ecBool($row, ['is_enabled', 'enabled'], 1),
+            'is_enabled' => ecBool($row, ['is_enabled', 'enabled', 'is_active', 'active'], 1),
             'group_ref_id' => (int)ecText($row, ['group_ref_id', 'group_id', 'max_group_id'], '0'),
             'quiet_hours_enabled' => ecBool($row, ['quiet_hours_enabled', 'quiet_enabled'], 0),
             'quiet_hours_start' => ecText($row, ['quiet_hours_start', 'quiet_start'], ''),
@@ -441,7 +441,11 @@ function ecSaveEvent(PDO $pdo, array $input): void
     $assign('when_sent', trim((string)($input['when_sent'] ?? '')));
     $assign('category', trim((string)($input['category'] ?? 'system')));
     $assign('template_text', (string)($input['template_text'] ?? ''));
-    $assign('is_enabled', !empty($input['is_enabled']) ? 1 : 0);
+    $enabledValue = !empty($input['is_enabled']) ? 1 : 0;
+    $assign('is_enabled', $enabledValue);
+    $assign('enabled', $enabledValue);
+    $assign('is_active', $enabledValue);
+    $assign('active', $enabledValue);
     $assign('group_ref_id', (int)($input['group_ref_id'] ?? 0));
     $assign('group_id', (int)($input['group_ref_id'] ?? 0));
     $assign('max_group_id', (int)($input['group_ref_id'] ?? 0));
@@ -456,7 +460,8 @@ function ecSaveEvent(PDO $pdo, array $input): void
     if (empty($set)) {
         throw new RuntimeException('Нет полей для обновления');
     }
-    $stmt = $pdo->prepare('UPDATE max_event_templates SET ' . implode(', ', $set) . ' WHERE id = :id');
+    $idColumn = isset($cols['id']) ? 'id' : (isset($cols['event_id']) ? 'event_id' : 'id');
+    $stmt = $pdo->prepare('UPDATE max_event_templates SET ' . implode(', ', $set) . ' WHERE `' . $idColumn . '` = :id');
     $stmt->execute($params);
 }
 
