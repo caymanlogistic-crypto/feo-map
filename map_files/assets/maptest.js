@@ -1060,6 +1060,13 @@ function clearFlightValidationErrors() {
             const el = document.getElementById(id);
             if (el) el.classList.remove('field-error');
         });
+    const driverInput = document.getElementById('edit_driver_input');
+    if (driverInput) driverInput.classList.remove('field-error');
+    const driverError = document.getElementById('edit_driver_error');
+    if (driverError) {
+        driverError.style.display = 'none';
+        driverError.textContent = '';
+    }
 }
 
 function showFlightValidationErrors(errorMap, headerText = UI.msgTransitionValidationHeader) {
@@ -1067,7 +1074,7 @@ function showFlightValidationErrors(errorMap, headerText = UI.msgTransitionValid
     const orderedFields = ['comment', 'driver_id', 'planned_start_date_from', 'planned_start_date_to', 'actual_start_date', 'actual_end_date', 'cost', 'zayavki_ids', 'source_warehouse_id', 'destination_warehouse_id'];
     const fieldToInput = {
         comment: 'edit_comment',
-        driver_id: 'edit_driver_id',
+        driver_id: 'edit_driver_input',
         planned_start_date_from: 'edit_planned_start_date_from',
         planned_start_date_to: 'edit_planned_start_date_to',
         actual_start_date: 'edit_actual_start_date',
@@ -1100,6 +1107,13 @@ function showFlightValidationErrors(errorMap, headerText = UI.msgTransitionValid
         const label = fieldLabels[field];
         if (label && !labels.includes(label)) labels.push(label);
     });
+    if (errorMap.driver_id) {
+        const driverError = document.getElementById('edit_driver_error');
+        if (driverError) {
+            driverError.style.display = 'block';
+            driverError.textContent = UI.msgTransitionValidationDriver;
+        }
+    }
 
     if (wrap && labels.length > 0) {
         wrap.style.display = 'block';
@@ -2083,7 +2097,8 @@ async function saveFlightEdit() {
     try {
         const result = await postRouteAction('save', payload);
         if (result && result.success) {
-            window.location.reload();
+            await loadPlannedRoutes();
+            closeFlightEditModal();
             return;
         }
         if (result && result.errors && typeof result.errors === 'object') {
@@ -2240,19 +2255,22 @@ function renderWarehousesLayer() {
         const coordsText = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
         const placemark = new ymaps.Placemark([lat, lon], {
             hintContent: name,
-            warehouseLabel: UI.labelWarehouseMarker,
+            iconContent: UI.labelWarehouseMarker,
             balloonContent: `<div style="padding:8px;max-width:320px;">
                 <div><strong>${UI.labelWarehouseName}:</strong> ${escapeHtml(name)}</div>
                 <div><strong>${UI.labelWarehouseAddress}:</strong> ${escapeHtml(address || TXT.notSpecified)}</div>
                 <div><strong>${UI.labelWarehouseCoordinates}:</strong> ${escapeHtml(coordsText)}</div>
             </div>`
         }, {
-            iconLayout: ymaps.templateLayoutFactory.createClass(
-                '<div class="warehouse-map-marker">$[properties.warehouseLabel]</div>'
-            ),
+            iconLayout: 'default#imageWithContent',
+            iconImageHref: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="34"><rect x="1" y="1" width="58" height="24" rx="7" ry="7" fill="%23000" stroke="%23000" stroke-width="2"/><path d="M30 33 L24 25 L36 25 Z" fill="%23000" stroke="%23000" stroke-width="1"/></svg>',
+            iconImageSize: [60, 34],
+            iconImageOffset: [-30, -34],
+            iconContentOffset: [0, -4],
+            iconContentLayout: ymaps.templateLayoutFactory.createClass('<div style="width:60px;text-align:center;color:#fff;font-weight:700;font-size:11px;line-height:24px;font-family:Arial,sans-serif;">$[properties.iconContent]</div>'),
             iconShape: {
-                type: 'Rectangle',
-                coordinates: [[-41, -34], [41, 0]]
+                type: 'Polygon',
+                coordinates: [[-30, -34], [30, -34], [30, -9], [7, -9], [0, 0], [-7, -9], [-30, -9]]
             },
             zIndex: 520
         });
