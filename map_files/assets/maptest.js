@@ -2062,12 +2062,13 @@ function openStartConfirmModal(routeId, targetStatus = 'started') {
     if (idInput) idInput.value = String(routeId || '');
     if (targetInput) targetInput.value = targetStatus;
     if (dateInput) {
-        const metaForDate = getRouteMetaById(routeId, targetStatus === 'started' ? 'found' : 'started') || {};
-        const preferred = targetStatus === 'started'
-            ? (metaForDate.planned_start_date_from || '')
-            : (metaForDate.actual_end_date || '');
-        const fromPreferred = toDateValue(preferred);
-        dateInput.value = fromPreferred || '';
+        if (targetStatus === 'started') {
+            dateInput.value = '';
+        } else {
+            const metaForDate = getRouteMetaById(routeId, 'started') || {};
+            const preferred = metaForDate.actual_end_date || '';
+            dateInput.value = toDateValue(preferred) || '';
+        }
     }
     const preview = document.getElementById('transitionConfirmPreview');
     const meta = getRouteMetaById(routeId, targetStatus === 'started' ? 'found' : 'started') || getRouteMetaById(routeId, 'planned');
