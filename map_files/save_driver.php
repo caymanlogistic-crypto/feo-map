@@ -310,6 +310,24 @@ function compactSourceKeysForDebug(array $sources, int $limit = 12): array
     return array_keys($keys);
 }
 
+function appendKeyValueRowsForFeo(array $rows, array &$target): void
+{
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        if (isset($row['key']) && array_key_exists('value', $row)) {
+            $target[] = [(string)$row['key'] => (string)$row['value']];
+        }
+        if (isset($row['name']) && array_key_exists('value', $row)) {
+            $target[] = [(string)$row['name'] => (string)$row['value']];
+        }
+        if (isset($row['field']) && array_key_exists('value', $row)) {
+            $target[] = [(string)$row['field'] => (string)$row['value']];
+        }
+    }
+}
+
 function resolveFeoParams(array $selectedTracker, ?array $renameResponse): array
 {
     $sources = [];
@@ -327,41 +345,45 @@ function resolveFeoParams(array $selectedTracker, ?array $renameResponse): array
         foreach (['payload', 'result', 'response', 'tracker'] as $nestedKey) {
             if (isset($trackerOrResponse[$nestedKey]) && is_array($trackerOrResponse[$nestedKey])) {
                 $target[] = $trackerOrResponse[$nestedKey];
+                if (isset($trackerOrResponse[$nestedKey]['device']) && is_array($trackerOrResponse[$nestedKey]['device'])) {
+                    $target[] = $trackerOrResponse[$nestedKey]['device'];
+                }
+                if (isset($trackerOrResponse[$nestedKey]['data']) && is_array($trackerOrResponse[$nestedKey]['data'])) {
+                    $target[] = $trackerOrResponse[$nestedKey]['data'];
+                }
             }
         }
         if (isset($trackerOrResponse['admin_fields']) && is_array($trackerOrResponse['admin_fields'])) {
             $target[] = $trackerOrResponse['admin_fields'];
+            appendKeyValueRowsForFeo($trackerOrResponse['admin_fields'], $target);
         } elseif (isset($trackerOrResponse['admin_fields']) && is_string($trackerOrResponse['admin_fields'])) {
             $decoded = json_decode($trackerOrResponse['admin_fields'], true);
             if (is_array($decoded)) {
                 $target[] = $decoded;
+                appendKeyValueRowsForFeo($decoded, $target);
             }
         }
         if (isset($trackerOrResponse['adminFields']) && is_array($trackerOrResponse['adminFields'])) {
             $target[] = $trackerOrResponse['adminFields'];
+            appendKeyValueRowsForFeo($trackerOrResponse['adminFields'], $target);
         }
         if (isset($trackerOrResponse['admin_configs'][0]) && is_array($trackerOrResponse['admin_configs'][0])) {
             $target[] = $trackerOrResponse['admin_configs'][0];
         }
         if (isset($trackerOrResponse['admin_configs']) && is_array($trackerOrResponse['admin_configs'])) {
+            appendKeyValueRowsForFeo($trackerOrResponse['admin_configs'], $target);
             foreach ($trackerOrResponse['admin_configs'] as $cfgRow) {
                 if (!is_array($cfgRow)) {
                     continue;
                 }
                 $target[] = $cfgRow;
-                if (isset($cfgRow['key']) && isset($cfgRow['value'])) {
-                    $target[] = [(string)$cfgRow['key'] => (string)$cfgRow['value']];
-                }
-                if (isset($cfgRow['name']) && isset($cfgRow['value'])) {
-                    $target[] = [(string)$cfgRow['name'] => (string)$cfgRow['value']];
-                }
-                if (isset($cfgRow['field']) && isset($cfgRow['value'])) {
-                    $target[] = [(string)$cfgRow['field'] => (string)$cfgRow['value']];
-                }
             }
         }
         if (isset($trackerOrResponse['adminConfigs'][0]) && is_array($trackerOrResponse['adminConfigs'][0])) {
             $target[] = $trackerOrResponse['adminConfigs'][0];
+        }
+        if (isset($trackerOrResponse['adminConfigs']) && is_array($trackerOrResponse['adminConfigs'])) {
+            appendKeyValueRowsForFeo($trackerOrResponse['adminConfigs'], $target);
         }
     };
 
@@ -404,7 +426,18 @@ function resolveFeoParams(array $selectedTracker, ?array $renameResponse): array
             'uniqueid' => (string)($selectedTracker['uniqueid'] ?? ($selectedTracker['device']['uniqueid'] ?? '')),
             'known_keys' => compactSourceKeysForDebug($sources),
             'has_rename_response' => is_array($renameResponse) ? 1 : 0,
+            'selected_top_keys' => array_slice(array_keys($selectedTracker), 0, 20),
+            'rename_top_keys' => is_array($renameResponse) ? array_slice(array_keys($renameResponse), 0, 20) : [],
+            'candidate_out_values' => [
+                'outID' => $outId,
+                'outIP' => $outIp,
+                'outPort' => $outPort,
+                'outProtocol' => $outProtocol,
+            ],
         ]);
+    }
+    if (empty($parts)) {
+        $parts[] = 'н/д';
     }
 
     return [
