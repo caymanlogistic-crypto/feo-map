@@ -18,42 +18,29 @@ function whDate(?string $v): string {
     return date('d.m.Y', strtotime($v));
 }
 
-function whDateTime(?string $v): string {
-    $v = trim((string)$v);
-    if ($v === '' || $v === '0000-00-00 00:00:00') return '—';
-    return date('d.m.Y H:i', strtotime($v));
-}
-
 function whWarehouseName(PDO $pdo, ?int $id): string {
     if (!$id || $id <= 0) return '—';
+    static $cache = [];
+    if (isset($cache[$id])) return $cache[$id];
     try {
         $stmt = $pdo->prepare('SELECT name FROM warehouses WHERE id = :id LIMIT 1');
         $stmt->execute([':id' => $id]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row ? (string)$row['name'] : "ID#$id";
+        $cache[$id] = $row ? (string)$row['name'] : "ID#$id";
     } catch (Throwable $e) {
-        return "ID#$id";
+        $cache[$id] = "ID#$id";
     }
+    return $cache[$id];
 }
 
 function whRouteTypeLabel(string $rt): string {
     $map = [
         ROUTE_TYPE_GENERATOR_TO_UTILIZER => 'ОО → Утилизатор',
-        ROUTE_TYPE_GENERATOR_TO_WAREHOUSE => 'ОО → Склад',
+        ROUTE_TYPE_GENERATOR_TO_WAREHOUSE => 'ОО → Временный склад',
         ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE => 'Склад → Склад',
         ROUTE_TYPE_WAREHOUSE_TO_UTILIZER => 'Склад → Утилизатор',
     ];
     return $map[$rt] ?? $rt;
-}
-
-function whMovementLabel(string $mt): string {
-    $map = [
-        'receipt' => 'Приход',
-        'issue' => 'Расход',
-        'transfer_out' => 'Перемещение (отправка)',
-        'transfer_in' => 'Перемещение (приёмка)',
-    ];
-    return $map[$mt] ?? $mt;
 }
 
 function whLoadAllWarehouses(PDO $pdo): array {
@@ -65,29 +52,46 @@ function whLoadAllWarehouses(PDO $pdo): array {
     }
 }
 
+function whUnloadTypeByRouteType(string $rt): string {
+    return $rt === ROUTE_TYPE_GENERATOR_TO_UTILIZER ? 'OO' : 'SKLAD';
+}
+
+function whStatusLabel(string $s): string {
+    $map = [
+        'planned_route' => 'Планируемый',
+        'found' => 'Сформирован',
+        'started' => 'Вывоз начался',
+        'completed' => 'Груз сдан',
+    ];
+    return $map[$s] ?? $s;
+}
+
 /**
- * Preview expected movements WITHOUT creating them.
- * Returns array of expected rows with 'exists' flag.
+ * Preview expected WM rows (read-only, no INSERT).
  */
 function whPreviewMovements(PDO $pdo, int $flightId, string $routeType, int $sourceWh, int $destWh): array {
     $preview = ['rows' => [], 'total' => 0, 'will_create' => 0, 'already_exist' => 0];
 
-    $stmt = $pdo->prepare('SELECT id, status, zayavki_ids, actual_end_date FROM flights WHERE id = :id LIMIT 1');
-    $stmt->execute([':id' => $flightId]);
-    $flight = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!is_array($flight)) return $preview;
-
     $zayavkiIds = [];
-    foreach (explode(',', (string)($flight['zayavki_ids'] ?? '')) as $id) {
-        $id = (int)trim($id);
-        if ($id > 0) $zayavkiIds[] = $id;
+    try {
+        $stmt = $pdo->prepare('SELECT zayavki_ids FROM flights WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => $flightId]);
+        $raw = $stmt->fetchColumn();
+        if ($raw) {
+            foreach (explode(',', (string)$raw) as $id) {
+                $id = (int)trim($id);
+                if ($id > 0) $zayavkiIds[] = $id;
+            }
+        }
+    } catch (Throwable $e) {
+        return $preview;
     }
     if (empty($zayavkiIds)) return $preview;
 
     $feoRows = [];
     try {
-        $placeholders = implode(',', array_fill(0, count($zayavkiIds), '?'));
-        $stmtFeo = $pdo->prepare("SELECT zayavka_id, naim_otkhoda_fkko, mass_netto, mass_brutto, summarnyy_obem FROM feo WHERE zayavka_id IN ({$placeholders})");
+        $ph = implode(',', array_fill(0, count($zayavkiIds), '?'));
+        $stmtFeo = $pdo->prepare("SELECT zayavka_id, naim_otkhoda_fkko, mass_netto, mass_brutto, summarnyy_obem FROM feo WHERE zayavka_id IN ({$ph})");
         $stmtFeo->execute($zayavkiIds);
         while ($row = $stmtFeo->fetch(PDO::FETCH_ASSOC)) {
             $feoRows[(int)$row['zayavka_id']] = $row;
@@ -96,116 +100,45 @@ function whPreviewMovements(PDO $pdo, int $flightId, string $routeType, int $sou
         return $preview;
     }
 
-    $movementDate = !empty($flight['actual_end_date']) ? $flight['actual_end_date'] : date('Y-m-d');
-
     foreach ($zayavkiIds as $zid) {
         $feo = $feoRows[$zid] ?? null;
-
         $rows = [];
         if ($routeType === ROUTE_TYPE_GENERATOR_TO_WAREHOUSE && $destWh > 0) {
-            $rows[] = [WM_MOVEMENT_RECEIPT, $destWh, null, null];
+            $rows[] = [WM_MOVEMENT_RECEIPT, $destWh];
         } elseif ($routeType === ROUTE_TYPE_WAREHOUSE_TO_UTILIZER && $sourceWh > 0) {
-            $rows[] = [WM_MOVEMENT_ISSUE, $sourceWh, null, null];
+            $rows[] = [WM_MOVEMENT_ISSUE, $sourceWh];
         } elseif ($routeType === ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE && $sourceWh > 0 && $destWh > 0) {
-            $rows[] = [WM_MOVEMENT_TRANSFER_OUT, $sourceWh, $sourceWh, $destWh];
-            $rows[] = [WM_MOVEMENT_TRANSFER_IN, $destWh, $sourceWh, $destWh];
+            $rows[] = [WM_MOVEMENT_TRANSFER_OUT, $sourceWh];
+            $rows[] = [WM_MOVEMENT_TRANSFER_IN, $destWh];
         }
-
-        foreach ($rows as [$movType, $whId, $srcWh, $dstWh]) {
+        foreach ($rows as [$movType, $whId]) {
             $exists = wmMovementExists($pdo, $flightId, $movType, $whId, $zid);
-            $entry = [
+            $preview['rows'][] = [
                 'movement_type' => $movType,
                 'warehouse_id' => $whId,
                 'warehouse_name' => whWarehouseName($pdo, $whId),
-                'source_warehouse_id' => $srcWh,
-                'destination_warehouse_id' => $dstWh,
-                'flight_id' => $flightId,
                 'zayavka_id' => $zid,
                 'fkko_code' => $feo ? (string)($feo['naim_otkhoda_fkko'] ?? '') : '',
-                'mass_netto' => $feo ? (float)($feo['mass_netto'] ?? 0) : 0,
-                'mass_brutto' => $feo ? (float)($feo['mass_brutto'] ?? 0) : 0,
-                'volume' => $feo ? (float)($feo['summarnyy_obem'] ?? 0) : 0,
-                'movement_date' => (string)$movementDate,
+                'mass_netto' => $feo ? round((float)($feo['mass_netto'] ?? 0), 3) : 0,
+                'mass_brutto' => $feo ? round((float)($feo['mass_brutto'] ?? 0), 3) : 0,
+                'volume' => $feo ? round((float)($feo['summarnyy_obem'] ?? 0), 3) : 0,
                 'exists' => $exists,
             ];
-            $preview['rows'][] = $entry;
             $preview['total']++;
-            if ($exists) {
-                $preview['already_exist']++;
-            } else {
-                $preview['will_create']++;
-            }
+            $exists ? $preview['already_exist']++ : $preview['will_create']++;
         }
     }
-
     return $preview;
-}
-
-/**
- * Reclassify: update flight fields AND call createWarehouseMovementsForCompletedFlight.
- */
-function whApplyReclassification(PDO $pdo, int $flightId, string $newRouteType, int $sourceWh, int $destWh, array $expectedOld): array {
-    // 1. Load current flight
-    $stmt = $pdo->prepare('SELECT * FROM flights WHERE id = :id LIMIT 1');
-    $stmt->execute([':id' => $flightId]);
-    $flight = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!is_array($flight)) {
-        return ['success' => false, 'error' => 'Рейс не найден'];
-    }
-
-    // 2. Check expected_old_values
-    $checks = [
-        'route_type' => (string)($flight['route_type'] ?? ''),
-        'source_warehouse_id' => (int)($flight['source_warehouse_id'] ?? 0),
-        'destination_warehouse_id' => (int)($flight['destination_warehouse_id'] ?? 0),
-        'status' => (string)($flight['status'] ?? ''),
-    ];
-    foreach ($expectedOld as $k => $v) {
-        if (!array_key_exists($k, $checks)) continue;
-        $actual = is_int($checks[$k]) ? (int)$v : (string)$v;
-        if ((string)$checks[$k] !== (string)$actual) {
-            return [
-                'success' => false,
-                'error' => "Контрольное значение изменилось: поле '{$k}' ожидалось '{$actual}', получено '{$checks[$k]}'. Обновите страницу.",
-            ];
-        }
-    }
-
-    // 3. Update flight fields
-    $unloadType = resolveUnloadTypeByRouteType($newRouteType);
-    try {
-        $stmtUpd = $pdo->prepare('UPDATE flights SET route_type = :rt, unload_type = :ut, source_warehouse_id = :sw, destination_warehouse_id = :dw, updated_at = NOW() WHERE id = :id');
-        $stmtUpd->execute([
-            ':rt' => $newRouteType,
-            ':ut' => $unloadType,
-            ':sw' => $sourceWh > 0 ? $sourceWh : null,
-            ':dw' => $destWh > 0 ? $destWh : null,
-            ':id' => $flightId,
-        ]);
-    } catch (Throwable $e) {
-        return ['success' => false, 'error' => 'Ошибка обновления рейса: ' . $e->getMessage()];
-    }
-
-    // 4. Call warehouse movements service
-    $wmResult = createWarehouseMovementsForCompletedFlight($pdo, $flightId);
-
-    return [
-        'success' => $wmResult['success'],
-        'error' => !$wmResult['success'] ? implode('; ', $wmResult['errors']) : null,
-        'created' => $wmResult['created'],
-        'skipped' => $wmResult['skipped'],
-        'messages' => $wmResult['messages'],
-    ];
 }
 
 // ── State ────────────────────────────────────────────────────────────────────
 
 $flash = '';
 $flashType = 'ok';
-$searchResults = [];
-$selectedFlight = null;
-$previewResult = null;
-$applyResult = null;
+$flight = null;
+$preview = null;
+$wmResult = null;
+$wmRowsAfter = null;
 $allWarehouses = whLoadAllWarehouses($pdo);
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -232,185 +165,137 @@ if (maxAdminIsAuthed() && (string)($_GET['logout'] ?? '') === '1') {
 if (maxAdminIsAuthed() && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = (string)maxAdminPost('action');
 
-    // ── SEARCH ────────────────────────────────────────────────────────────
-    if ($action === 'search') {
-        $idFrom = (int)maxAdminPost('id_from', '0');
-        $idTo = (int)maxAdminPost('id_to', '0');
-        $dateFrom = trim((string)maxAdminPost('date_from', ''));
-        $dateTo = trim((string)maxAdminPost('date_to', ''));
-        $filterRouteType = (string)maxAdminPost('filter_route_type', '');
-        $filterWarehouse = (int)maxAdminPost('filter_warehouse', '0');
-
-        $where = ["f.status = 'completed'"];
-        $params = [];
-
-        if ($idFrom > 0) {
-            $where[] = 'f.id >= :id_from';
-            $params[':id_from'] = $idFrom;
-        }
-        if ($idTo > 0) {
-            $where[] = 'f.id <= :id_to';
-            $params[':id_to'] = $idTo;
-        }
-        if ($dateFrom !== '') {
-            $where[] = 'f.actual_end_date >= :date_from';
-            $params[':date_from'] = $dateFrom;
-        }
-        if ($dateTo !== '') {
-            $where[] = 'f.actual_end_date <= :date_to';
-            $params[':date_to'] = $dateTo . ' 23:59:59';
-        }
-        if ($filterRouteType !== '') {
-            $where[] = 'f.route_type = :filter_route_type';
-            $params[':filter_route_type'] = $filterRouteType;
-        }
-        if ($filterWarehouse > 0) {
-            $where[] = '(f.source_warehouse_id = :wh OR f.destination_warehouse_id = :wh2)';
-            $params[':wh'] = $filterWarehouse;
-            $params[':wh2'] = $filterWarehouse;
-        }
-
-        $sql = 'SELECT f.id, f.status, f.route_type, f.unload_type, f.source_warehouse_id, f.destination_warehouse_id,
-                       f.zayavki_ids, f.zayavki_count, f.actual_start_date, f.actual_end_date, f.comment,
-                       f.planned_start_date, f.planned_end_date, f.manager_id
-                FROM flights f
-                WHERE ' . implode(' AND ', $where) . '
-                ORDER BY f.id DESC
-                LIMIT 100';
-
-        try {
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-            $searchResults = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (Throwable $e) {
-            $flash = 'Ошибка поиска: ' . $e->getMessage();
-            $flashType = 'err';
-        }
-    }
-
-    // ── SELECT FLIGHT ─────────────────────────────────────────────────────
-    elseif ($action === 'select') {
+    // OPEN by ID
+    if ($action === 'open') {
         $flightId = (int)maxAdminPost('flight_id', '0');
-        if ($flightId > 0) {
+        if ($flightId <= 0) {
+            $flash = 'Введите корректный ID рейса';
+            $flashType = 'err';
+        } else {
             try {
                 $stmt = $pdo->prepare('SELECT * FROM flights WHERE id = :id LIMIT 1');
                 $stmt->execute([':id' => $flightId]);
-                $selectedFlight = $stmt->fetch(PDO::FETCH_ASSOC);
-                if (!is_array($selectedFlight)) {
+                $flight = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!is_array($flight)) {
                     $flash = 'Рейс #' . $flightId . ' не найден';
                     $flashType = 'err';
                 }
             } catch (Throwable $e) {
-                $flash = 'Ошибка загрузки: ' . $e->getMessage();
+                $flash = 'Ошибка: ' . $e->getMessage();
                 $flashType = 'err';
             }
         }
     }
 
-    // ── PREVIEW ───────────────────────────────────────────────────────────
+    // PREVIEW
     elseif ($action === 'preview') {
-        $flightId = (int)maxAdminPost('preview_flight_id', '0');
-        $newRouteType = (string)maxAdminPost('new_route_type', '');
-        $sourceWh = (int)maxAdminPost('new_source_warehouse', '0');
-        $destWh = (int)maxAdminPost('new_destination_warehouse', '0');
+        $flightId = (int)maxAdminPost('flight_id', '0');
+        $newRt = (string)maxAdminPost('new_route_type', '');
+        $srcWh = (int)maxAdminPost('new_source_warehouse', '0');
+        $dstWh = (int)maxAdminPost('new_destination_warehouse', '0');
 
-        if ($flightId <= 0) {
-            $flash = 'Укажите ID рейса';
-            $flashType = 'err';
-        } elseif ($newRouteType === '') {
-            $flash = 'Выберите новый тип маршрута';
+        if ($flightId <= 0 || $newRt === '') {
+            $flash = 'Заполните обязательные поля';
             $flashType = 'err';
         } else {
-            // Reload flight for display
+            // Reload flight
             $stmt = $pdo->prepare('SELECT * FROM flights WHERE id = :id LIMIT 1');
             $stmt->execute([':id' => $flightId]);
-            $selectedFlight = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!is_array($selectedFlight)) {
-                $flash = 'Рейс #' . $flightId . ' не найден';
+            $flight = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($flight)) {
+                $flash = 'Рейс не найден';
                 $flashType = 'err';
             } else {
-                $previewResult = whPreviewMovements($pdo, $flightId, $newRouteType, $sourceWh, $destWh);
-                if ($previewResult['total'] === 0 && $newRouteType !== ROUTE_TYPE_GENERATOR_TO_UTILIZER) {
-                    $flash = 'Предпросмотр: для данного route_type движения не требуются, либо нет заявок/данных ФЭО.';
-                    $flashType = 'ok';
-                }
+                $preview = whPreviewMovements($pdo, $flightId, $newRt, $srcWh, $dstWh);
             }
         }
     }
 
-    // ── APPLY ─────────────────────────────────────────────────────────────
+    // APPLY
     elseif ($action === 'apply') {
-        $flightId = (int)maxAdminPost('apply_flight_id', '0');
-        $newRouteType = (string)maxAdminPost('apply_route_type', '');
-        $sourceWh = (int)maxAdminPost('apply_source_warehouse', '0');
-        $destWh = (int)maxAdminPost('apply_destination_warehouse', '0');
-        $confirmed = maxAdminPost('confirm_reclassify', '0') === '1';
-        $expectedRouteType = (string)maxAdminPost('expected_route_type', '');
-        $expectedSourceWh = (int)maxAdminPost('expected_source_warehouse', '0');
-        $expectedDestWh = (int)maxAdminPost('expected_destination_warehouse', '0');
-        $expectedStatus = (string)maxAdminPost('expected_status', '');
+        $flightId = (int)maxAdminPost('flight_id', '0');
+        $newRt = (string)maxAdminPost('new_route_type', '');
+        $srcWh = (int)maxAdminPost('new_source_warehouse', '0');
+        $dstWh = (int)maxAdminPost('new_destination_warehouse', '0');
+        $confirmed = maxAdminPost('confirm_apply', '0') === '1';
 
         if (!$confirmed) {
             $flash = 'Подтвердите операцию';
             $flashType = 'err';
-        } elseif ($flightId <= 0 || $newRouteType === '') {
+        } elseif ($flightId <= 0 || $newRt === '') {
             $flash = 'Заполните обязательные поля';
             $flashType = 'err';
         } else {
-            $expectedOld = [
-                'route_type' => $expectedRouteType,
-                'source_warehouse_id' => $expectedSourceWh,
-                'destination_warehouse_id' => $expectedDestWh,
-                'status' => $expectedStatus,
-            ];
-            $applyResult = whApplyReclassification($pdo, $flightId, $newRouteType, $sourceWh, $destWh, $expectedOld);
-            if ($applyResult['success']) {
-                $flash = "Рейс #{$flightId} переквалифицирован. Движений создано: {$applyResult['created']}, пропущено (дубли): {$applyResult['skipped']}.";
-                // Reload flight
+            try {
+                // Re-read flight fresh
                 $stmt = $pdo->prepare('SELECT * FROM flights WHERE id = :id LIMIT 1');
                 $stmt->execute([':id' => $flightId]);
-                $selectedFlight = $stmt->fetch(PDO::FETCH_ASSOC);
-            } else {
-                $flash = 'Ошибка: ' . ($applyResult['error'] ?? 'Неизвестная ошибка');
+                $liveFlight = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!is_array($liveFlight)) {
+                    $flash = 'Рейс не найден';
+                    $flashType = 'err';
+                } else {
+                    $newUnload = whUnloadTypeByRouteType($newRt);
+                    $upd = $pdo->prepare('UPDATE flights SET route_type = :rt, unload_type = :ut, source_warehouse_id = :sw, destination_warehouse_id = :dw, updated_at = NOW() WHERE id = :id');
+                    $upd->execute([
+                        ':rt' => $newRt,
+                        ':ut' => $newUnload,
+                        ':sw' => $srcWh > 0 ? $srcWh : null,
+                        ':dw' => $dstWh > 0 ? $dstWh : null,
+                        ':id' => $flightId,
+                    ]);
+
+                    $flash = "Рейс #{$flightId}: разметка обновлена.";
+                    $flashType = 'ok';
+
+                    // If completed — try to create WM
+                    if ((string)$liveFlight['status'] === 'completed' && $newRt !== ROUTE_TYPE_GENERATOR_TO_UTILIZER) {
+                        $wmResult = createWarehouseMovementsForCompletedFlight($pdo, $flightId);
+                        // Read WM rows after
+                        try {
+                            $wms = $pdo->prepare('SELECT id, movement_type, warehouse_id, flight_id, zayavka_id, fkko_code, ROUND(mass_netto,3) mass_netto, ROUND(mass_brutto,3) mass_brutto, ROUND(volume,3) volume, movement_date, status FROM warehouse_movements WHERE flight_id = :fid ORDER BY id');
+                            $wms->execute([':fid' => $flightId]);
+                            $wmRowsAfter = $wms->fetchAll(PDO::FETCH_ASSOC);
+                        } catch (Throwable $e) {
+                            $wmRowsAfter = [];
+                        }
+                    }
+
+                    // Reload flight for card
+                    $stmt->execute([':id' => $flightId]);
+                    $flight = $stmt->fetch(PDO::FETCH_ASSOC);
+                }
+            } catch (Throwable $e) {
+                $flash = 'Ошибка: ' . $e->getMessage();
                 $flashType = 'err';
-                // Reload flight
-                $stmt = $pdo->prepare('SELECT * FROM flights WHERE id = :id LIMIT 1');
-                $stmt->execute([':id' => $flightId]);
-                $selectedFlight = $stmt->fetch(PDO::FETCH_ASSOC);
             }
         }
     }
 }
 
-// ── Auto-select if single result ─────────────────────────────────────────────
-if (count($searchResults) === 1 && !$selectedFlight && !$applyResult) {
-    $selectedFlight = $searchResults[0];
-}
+// ── Preserve flight_id in form ───────────────────────────────────────────────
+
+$currentFlightId = isset($flight['id']) ? (int)$flight['id'] : (int)maxAdminPost('flight_id', '0');
 
 ?><!doctype html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Переквалификация складских маршрутов</title>
+<title>Складская разметка рейса</title>
 <style>
 body{margin:0;background:#f4f6f8;color:#1e293b;font-family:Arial,sans-serif}
-.wrap{max-width:1440px;margin:0 auto;padding:12px}
+.wrap{max-width:1200px;margin:0 auto;padding:12px}
 .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap}
 .linkbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .card{background:#fff;border:1px solid #d9e0e7;border-radius:8px;padding:14px;margin-bottom:10px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-label{font-size:13px;color:#334155;white-space:nowrap}
-input[type=text],input[type=date],input[type=number],select,textarea{border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;font-size:13px;background:#fff;color:#1e293b}
-input[type=text],input[type=number]{width:120px}
-select{max-width:280px}
+label{font-size:13px;color:#334155}
+input[type=text],input[type=number],select{border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;font-size:13px;background:#fff;color:#1e293b}
 .btn{border:1px solid #94a3b8;background:#eef2f7;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;height:32px;display:inline-flex;align-items:center;text-decoration:none;color:#1e293b}
 .btn.primary{background:#0ea5b7;color:#fff;border-color:#0b7285}
-.btn.warn{background:#f59e0b;color:#fff;border-color:#d97706}
-.btn.danger{background:#fdf2f2;border-color:#f1b3b3;color:#b42318}
 .btn.success{background:#10b981;color:#fff;border-color:#059669}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .small{font-size:12px;color:#64748b}
@@ -420,21 +305,18 @@ select{max-width:280px}
 table{width:100%;border-collapse:collapse}
 th,td{font-size:12px;border-bottom:1px solid #e2e8f0;padding:6px 8px;text-align:left;vertical-align:top}
 th{background:#f8fafc;color:#475569;font-weight:600}
-tr:hover{background:#f8fafc}
 .mono{font-family:Consolas,monospace;font-size:12px}
 .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
 .badge-ok{background:#dcfce7;color:#166534}
 .badge-warn{background:#fef3c7;color:#92400e}
-.badge-err{background:#fee2e2;color:#991b1b}
 .badge-info{background:#dbeafe;color:#1e40af}
 .hint{font-size:12px;color:#334155;background:#f8fafc;border-left:3px solid #0ea5b7;padding:8px 10px;border-radius:4px;margin:6px 0}
-.field-group{margin-bottom:8px}
-.field-group label{display:block;margin-bottom:2px;font-weight:600;font-size:12px;color:#64748b}
+.field-group{margin-bottom:4px}
+.field-group label{display:block;margin-bottom:1px;font-weight:600;font-size:12px;color:#64748b}
 .field-group .value{font-size:14px}
 .login{max-width:420px;margin:80px auto}
-.preview-table td{padding:4px 6px}
 .section-title{font-size:15px;font-weight:600;color:#0f172a;margin:0 0 8px 0;padding-bottom:4px;border-bottom:2px solid #0ea5b7}
-@media(max-width:1100px){.grid,.grid-3{grid-template-columns:1fr}}
+@media(max-width:900px){.grid,.grid-3{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -442,7 +324,7 @@ tr:hover{background:#f8fafc}
 
 <div class="top">
   <div class="linkbar">
-    <h2 style="margin:0;font-size:18px">Переквалификация складских маршрутов</h2>
+    <h2 style="margin:0;font-size:18px">Складская разметка рейса</h2>
     <a class="btn" href="max_admin.php">MAX Admin</a>
     <a class="btn" href="max_event_center.php">Event Center</a>
   </div>
@@ -466,190 +348,80 @@ tr:hover{background:#f8fafc}
 
 <?php else: ?>
 
-<!-- ── FILTERS ──────────────────────────────────────────────────────────────── -->
+<!-- ── ID SEARCH ──────────────────────────────────────────────────────────── -->
 <div class="card">
-  <div class="section-title">Поиск завершённых рейсов</div>
   <form method="post">
-    <input type="hidden" name="action" value="search">
-    <div class="grid-3">
-      <div class="field-group">
-        <label>ID рейса (от)</label>
-        <input type="number" name="id_from" value="<?= maxAdminHtml(maxAdminPost('id_from', '')) ?>" placeholder="например 100" style="width:100%">
-      </div>
-      <div class="field-group">
-        <label>ID рейса (до)</label>
-        <input type="number" name="id_to" value="<?= maxAdminHtml(maxAdminPost('id_to', '')) ?>" placeholder="например 200" style="width:100%">
-      </div>
-      <div class="field-group">
-        <label>Текущий тип маршрута</label>
-        <select name="filter_route_type" style="width:100%">
-          <option value="">— Все типы —</option>
-          <option value="<?= ROUTE_TYPE_GENERATOR_TO_UTILIZER ?>" <?= maxAdminPost('filter_route_type') === ROUTE_TYPE_GENERATOR_TO_UTILIZER ? 'selected' : '' ?>>ОО → Утилизатор</option>
-          <option value="<?= ROUTE_TYPE_GENERATOR_TO_WAREHOUSE ?>" <?= maxAdminPost('filter_route_type') === ROUTE_TYPE_GENERATOR_TO_WAREHOUSE ? 'selected' : '' ?>>ОО → Склад</option>
-          <option value="<?= ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE ?>" <?= maxAdminPost('filter_route_type') === ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE ? 'selected' : '' ?>>Склад → Склад</option>
-          <option value="<?= ROUTE_TYPE_WAREHOUSE_TO_UTILIZER ?>" <?= maxAdminPost('filter_route_type') === ROUTE_TYPE_WAREHOUSE_TO_UTILIZER ? 'selected' : '' ?>>Склад → Утилизатор</option>
-        </select>
-      </div>
-      <div class="field-group">
-        <label>Дата завершения (от)</label>
-        <input type="date" name="date_from" value="<?= maxAdminHtml(maxAdminPost('date_from', '')) ?>" style="width:100%">
-      </div>
-      <div class="field-group">
-        <label>Дата завершения (до)</label>
-        <input type="date" name="date_to" value="<?= maxAdminHtml(maxAdminPost('date_to', '')) ?>" style="width:100%">
-      </div>
-      <div class="field-group">
-        <label>Склад (отправления или назначения)</label>
-        <select name="filter_warehouse" style="width:100%">
-          <option value="0">— Все склады —</option>
-          <?php foreach ($allWarehouses as $wh): ?>
-          <option value="<?= (int)$wh['id'] ?>" <?= (int)maxAdminPost('filter_warehouse', '0') === (int)$wh['id'] ? 'selected' : '' ?>><?= maxAdminHtml($wh['name']) ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
+    <input type="hidden" name="action" value="open">
+    <div class="row">
+      <label>ID рейса</label>
+      <input type="number" name="flight_id" value="<?= $currentFlightId > 0 ? $currentFlightId : '' ?>" placeholder="например 187" min="1" style="width:140px">
+      <button class="btn primary" type="submit">Открыть рейс</button>
     </div>
-    <div style="height:8px"></div>
-    <button class="btn primary" type="submit">Найти</button>
-    <span class="small">Показывает завершённые рейсы (статус «Груз сдан»), макс. 100</span>
   </form>
 </div>
 
-<!-- ── SEARCH RESULTS ───────────────────────────────────────────────────────── -->
-<?php if (!empty($searchResults)): ?>
+<?php if (!is_array($flight)): ?>
+<div class="card hint">
+  Введите ID рейса, чтобы открыть его складскую разметку.
+</div>
+
+<?php else: ?>
+<?php
+  $currRt = (string)($flight['route_type'] ?? '');
+  $currSrc = (int)($flight['source_warehouse_id'] ?? 0);
+  $currDst = (int)($flight['destination_warehouse_id'] ?? 0);
+  $currStatus = (string)($flight['status'] ?? '');
+  $isCompleted = $currStatus === 'completed';
+?>
+
+<!-- ── FLIGHT CARD ───────────────────────────────────────────────────────── -->
 <div class="card">
-  <div class="section-title">Результаты поиска (<?= count($searchResults) ?>)</div>
-  <div style="max-height:400px;overflow:auto">
-  <table>
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Дата зав.</th>
-        <th>Заявки</th>
-        <th>Тип маршрута</th>
-        <th>Склад отпр.</th>
-        <th>Склад назн.</th>
-        <th>Действие</th>
-      </tr>
-    </thead>
-    <tbody>
-    <?php foreach ($searchResults as $row): ?>
-      <tr>
-        <td class="mono">#<?= (int)$row['id'] ?></td>
-        <td><?= whDate($row['actual_end_date'] ?? null) ?></td>
-        <td class="mono"><?= maxAdminHtml($row['zayavki_ids'] ?? '') ?> (<?= (int)($row['zayavka_count'] ?? 0) ?>)</td>
-        <td><?= whRouteTypeLabel((string)($row['route_type'] ?? '')) ?></td>
-        <td><?= maxAdminHtml(whWarehouseName($pdo, (int)($row['source_warehouse_id'] ?? 0))) ?></td>
-        <td><?= maxAdminHtml(whWarehouseName($pdo, (int)($row['destination_warehouse_id'] ?? 0))) ?></td>
-        <td>
-          <form method="post" style="display:inline">
-            <input type="hidden" name="action" value="select">
-            <input type="hidden" name="flight_id" value="<?= (int)$row['id'] ?>">
-            <button class="btn" type="submit">Выбрать</button>
-          </form>
-        </td>
-      </tr>
-    <?php endforeach; ?>
-    </tbody>
-  </table>
+  <div class="section-title">Рейс #<?= (int)$flight['id'] ?> — <?= maxAdminHtml(whStatusLabel($currStatus)) ?></div>
+  <div class="grid-3">
+    <div class="field-group"><label>Статус</label><div class="value"><span class="badge badge-<?= $isCompleted ? 'ok' : 'info' ?>"><?= maxAdminHtml(whStatusLabel($currStatus)) ?></span></div></div>
+    <div class="field-group"><label>Маршрут груза</label><div class="value"><span class="badge badge-info"><?= whRouteTypeLabel($currRt) ?></span></div></div>
+    <div class="field-group"><label>Склад отправления</label><div class="value"><?= maxAdminHtml(whWarehouseName($pdo, $currSrc)) ?></div></div>
+    <div class="field-group"><label>Склад назначения</label><div class="value"><?= maxAdminHtml(whWarehouseName($pdo, $currDst)) ?></div></div>
+    <div class="field-group"><label>Заявки</label><div class="value mono"><?= maxAdminHtml($flight['zayavki_ids'] ?? '—') ?> (<?= (int)($flight['zayavki_count'] ?? 0) ?> шт.)</div></div>
+    <div class="field-group"><label>Масса, т</label><div class="value"><?= round((float)($flight['total_mass_tonn'] ?? 0), 3) ?></div></div>
+    <div class="field-group"><label>План. начало</label><div class="value"><?= whDate($flight['planned_start_date'] ?? null) ?></div></div>
+    <div class="field-group"><label>План. от</label><div class="value"><?= whDate($flight['planned_start_date_from'] ?? null) ?></div></div>
+    <div class="field-group"><label>План. до</label><div class="value"><?= whDate($flight['planned_start_date_to'] ?? null) ?></div></div>
+    <div class="field-group"><label>Факт. начало</label><div class="value"><?= whDate($flight['actual_start_date'] ?? null) ?></div></div>
+    <div class="field-group"><label>Факт. конец</label><div class="value"><?= whDate($flight['actual_end_date'] ?? null) ?></div></div>
+    <div class="field-group"><label>Менеджер</label><div class="value"><?= (int)($flight['assigned_manager_id'] ?? 0) > 0 ? 'ID ' . (int)$flight['assigned_manager_id'] : '—' ?></div></div>
+    <div class="field-group"><label>Водитель</label><div class="value"><?= (int)($flight['driver_id'] ?? 0) > 0 ? 'ID ' . (int)$flight['driver_id'] : '—' ?></div></div>
+    <div class="field-group"><label>Подрядчик</label><div class="value"><?= (int)($flight['contractor_id'] ?? 0) > 0 ? 'ID ' . (int)$flight['contractor_id'] : '—' ?></div></div>
+    <div class="field-group"><label>Стоимость</label><div class="value"><?= round((float)($flight['cost'] ?? 0), 2) ?> ₽</div></div>
+    <div class="field-group"><label>Комментарий</label><div class="value"><?= maxAdminHtml($flight['comment'] ?? '—') ?></div></div>
+    <div class="field-group"><label>Block date</label><div class="value mono"><?= maxAdminHtml($flight['block_date'] ?? '—') ?></div></div>
+    <div class="field-group"><label>Условия оплаты</label><div class="value"><?= maxAdminHtml($flight['payment_terms'] ?? '—') ?></div></div>
   </div>
 </div>
-<?php elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && maxAdminPost('action') === 'search'): ?>
-<div class="card warn-bg">Ничего не найдено. Попробуйте изменить фильтры.</div>
-<?php endif; ?>
 
-<!-- ── FLIGHT CARD + RECLASSIFICATION ──────────────────────────────────────── -->
-<?php if (is_array($selectedFlight)): ?>
-<?php
-  $f = $selectedFlight;
-  $currentRt = (string)($f['route_type'] ?? '');
-  $currentSrc = (int)($f['source_warehouse_id'] ?? 0);
-  $currentDst = (int)($f['destination_warehouse_id'] ?? 0);
-  $currentStatus = (string)($f['status'] ?? '');
-
-  // Count existing WM
-  $wmCount = 0;
-  try {
-      $stmtWm = $pdo->prepare('SELECT COUNT(*) FROM warehouse_movements WHERE flight_id = :fid');
-      $stmtWm->execute([':fid' => (int)$f['id']]);
-      $wmCount = (int)$stmtWm->fetchColumn();
-  } catch (Throwable $e) {}
-?>
+<!-- ── RECLASSIFICATION FORM ──────────────────────────────────────────────── -->
 <div class="grid">
-  <!-- Flight info card -->
   <div class="card">
-    <div class="section-title">Карточка рейса #<?= (int)$f['id'] ?></div>
-    <div class="grid">
-      <div class="field-group">
-        <label>Статус</label>
-        <div class="value"><span class="badge badge-<?= $currentStatus === 'completed' ? 'ok' : 'warn' ?>"><?= maxAdminHtml($currentStatus) ?></span></div>
-      </div>
-      <div class="field-group">
-        <label>Текущий тип маршрута</label>
-        <div class="value"><span class="badge badge-info"><?= whRouteTypeLabel($currentRt) ?></span></div>
-      </div>
-      <div class="field-group">
-        <label>Склад отправления</label>
-        <div class="value"><?= maxAdminHtml(whWarehouseName($pdo, $currentSrc)) ?></div>
-      </div>
-      <div class="field-group">
-        <label>Склад назначения</label>
-        <div class="value"><?= maxAdminHtml(whWarehouseName($pdo, $currentDst)) ?></div>
-      </div>
-      <div class="field-group">
-        <label>Дата завершения</label>
-        <div class="value"><?= whDateTime($f['actual_end_date'] ?? null) ?></div>
-      </div>
-      <div class="field-group">
-        <label>Дата начала</label>
-        <div class="value"><?= whDateTime($f['actual_start_date'] ?? null) ?></div>
-      </div>
-      <div class="field-group">
-        <label>Заявки</label>
-        <div class="value mono"><?= maxAdminHtml($f['zayavki_ids'] ?? '') ?> (<?= (int)($f['zayavka_count'] ?? 0) ?> шт.)</div>
-      </div>
-      <div class="field-group">
-        <label>Движений в WM</label>
-        <div class="value"><span class="badge badge-<?= $wmCount > 0 ? 'ok' : 'warn' ?>"><?= $wmCount ?> строк</span></div>
-      </div>
-      <div class="field-group">
-        <label>Комментарий</label>
-        <div class="value"><?= maxAdminHtml($f['comment'] ?? '—') ?></div>
-      </div>
-      <div class="field-group">
-        <label>unload_type</label>
-        <div class="value mono"><?= maxAdminHtml($f['unload_type'] ?? '—') ?></div>
-      </div>
-    </div>
-  </div>
+    <div class="section-title">Изменить разметку</div>
 
-  <!-- Reclassification form -->
-  <div class="card">
-    <div class="section-title">Переквалификация</div>
-
-    <?php if ($currentStatus !== 'completed'): ?>
-    <div class="hint" style="border-left-color:#f59e0b">
-      <strong>Внимание:</strong> рейс в статусе «<?= maxAdminHtml($currentStatus) ?>». Переквалификация рекомендуется только для завершённых рейсов (completed).
-    </div>
-    <?php endif; ?>
-
-    <!-- PREVIEW form -->
+    <!-- PREVIEW -->
     <form method="post" style="margin-bottom:12px">
       <input type="hidden" name="action" value="preview">
-      <input type="hidden" name="preview_flight_id" value="<?= (int)$f['id'] ?>">
+      <input type="hidden" name="flight_id" value="<?= (int)$flight['id'] ?>">
 
       <div class="field-group">
-        <label>Новый тип маршрута <span style="color:#ef4444">*</span></label>
-        <select name="new_route_type" id="preview_route_type" onchange="whToggleFields('preview')" style="width:100%">
-          <option value="">— Выберите тип —</option>
-          <option value="<?= ROUTE_TYPE_GENERATOR_TO_UTILIZER ?>">ОО → Утилизатор (без движений)</option>
-          <option value="<?= ROUTE_TYPE_GENERATOR_TO_WAREHOUSE ?>">ОО → Склад (приход)</option>
-          <option value="<?= ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE ?>">Склад → Склад (перемещение)</option>
-          <option value="<?= ROUTE_TYPE_WAREHOUSE_TO_UTILIZER ?>">Склад → Утилизатор (расход)</option>
+        <label>Маршрут груза <span style="color:#ef4444">*</span></label>
+        <select name="new_route_type" id="pv_rt" onchange="whToggle('pv')" style="width:100%">
+          <option value="">— Выберите —</option>
+          <option value="<?= ROUTE_TYPE_GENERATOR_TO_UTILIZER ?>">ОО → Утилизатор</option>
+          <option value="<?= ROUTE_TYPE_GENERATOR_TO_WAREHOUSE ?>">ОО → Временный склад</option>
+          <option value="<?= ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE ?>">Склад → Склад</option>
+          <option value="<?= ROUTE_TYPE_WAREHOUSE_TO_UTILIZER ?>">Склад → Утилизатор</option>
         </select>
       </div>
 
       <div class="grid">
-        <div class="field-group" id="preview_source_group" style="display:none">
+        <div class="field-group" id="pv_src_grp" style="display:none">
           <label>Склад отправления</label>
           <select name="new_source_warehouse" style="width:100%">
             <option value="0">— Не выбран —</option>
@@ -658,7 +430,48 @@ tr:hover{background:#f8fafc}
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="field-group" id="preview_dest_group" style="display:none">
+        <div class="field-group" id="pv_dst_grp" style="display:none">
+          <label>Склад назначения</label>
+          <select name="new_destination_warehouse" style="width:100%">
+            <option value="0">— Не выбран —</option>
+            <?php foreach ($allWarehouses as $wh): ?>
+            <option value="<?= (int)$wh['id'] ?>"><?= maxAdminHtml($wh['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn primary" type="submit">Предпросмотр</button>
+      <span class="small">Покажет ожидаемые складские движения</span>
+    </form>
+
+    <!-- APPLY -->
+    <form method="post" onsubmit="return confirm('Применить изменения разметки? Это действие нельзя отменить.')">
+      <input type="hidden" name="action" value="apply">
+      <input type="hidden" name="flight_id" value="<?= (int)$flight['id'] ?>">
+
+      <div class="field-group">
+        <label>Маршрут груза <span style="color:#ef4444">*</span></label>
+        <select name="new_route_type" id="ap_rt" onchange="whToggle('ap')" style="width:100%">
+          <option value="">— Выберите —</option>
+          <option value="<?= ROUTE_TYPE_GENERATOR_TO_UTILIZER ?>">ОО → Утилизатор</option>
+          <option value="<?= ROUTE_TYPE_GENERATOR_TO_WAREHOUSE ?>">ОО → Временный склад</option>
+          <option value="<?= ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE ?>">Склад → Склад</option>
+          <option value="<?= ROUTE_TYPE_WAREHOUSE_TO_UTILIZER ?>">Склад → Утилизатор</option>
+        </select>
+      </div>
+
+      <div class="grid">
+        <div class="field-group" id="ap_src_grp" style="display:none">
+          <label>Склад отправления</label>
+          <select name="new_source_warehouse" style="width:100%">
+            <option value="0">— Не выбран —</option>
+            <?php foreach ($allWarehouses as $wh): ?>
+            <option value="<?= (int)$wh['id'] ?>"><?= maxAdminHtml($wh['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="field-group" id="ap_dst_grp" style="display:none">
           <label>Склад назначения</label>
           <select name="new_destination_warehouse" style="width:100%">
             <option value="0">— Не выбран —</option>
@@ -670,125 +483,103 @@ tr:hover{background:#f8fafc}
       </div>
 
       <div style="height:6px"></div>
-      <button class="btn primary" type="submit">Предпросмотр движений</button>
-      <span class="small">Без сохранения — только расчёт</span>
-    </form>
-
-    <!-- APPLY form -->
-    <form method="post" onsubmit="return confirm('Вы уверены? Будут созданы складские движения и обновлён тип маршрута. Это действие нельзя отменить.')">
-      <input type="hidden" name="action" value="apply">
-      <input type="hidden" name="apply_flight_id" value="<?= (int)$f['id'] ?>">
-
-      <div class="field-group">
-        <label>Новый тип маршрута <span style="color:#ef4444">*</span></label>
-        <select name="apply_route_type" id="apply_route_type" onchange="whToggleFields('apply')" style="width:100%">
-          <option value="">— Выберите тип —</option>
-          <option value="<?= ROUTE_TYPE_GENERATOR_TO_UTILIZER ?>">ОО → Утилизатор (без движений)</option>
-          <option value="<?= ROUTE_TYPE_GENERATOR_TO_WAREHOUSE ?>">ОО → Склад (приход)</option>
-          <option value="<?= ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE ?>">Склад → Склад (перемещение)</option>
-          <option value="<?= ROUTE_TYPE_WAREHOUSE_TO_UTILIZER ?>">Склад → Утилизатор (расход)</option>
-        </select>
-      </div>
-
-      <div class="grid">
-        <div class="field-group" id="apply_source_group" style="display:none">
-          <label>Склад отправления</label>
-          <select name="apply_source_warehouse" style="width:100%">
-            <option value="0">— Не выбран —</option>
-            <?php foreach ($allWarehouses as $wh): ?>
-            <option value="<?= (int)$wh['id'] ?>"><?= maxAdminHtml($wh['name']) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="field-group" id="apply_dest_group" style="display:none">
-          <label>Склад назначения</label>
-          <select name="apply_destination_warehouse" style="width:100%">
-            <option value="0">— Не выбран —</option>
-            <?php foreach ($allWarehouses as $wh): ?>
-            <option value="<?= (int)$wh['id'] ?>"><?= maxAdminHtml($wh['name']) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-      </div>
-
-      <!-- Expected old values for safety check -->
-      <input type="hidden" name="expected_route_type" value="<?= maxAdminHtml($currentRt) ?>">
-      <input type="hidden" name="expected_source_warehouse" value="<?= $currentSrc ?>">
-      <input type="hidden" name="expected_destination_warehouse" value="<?= $currentDst ?>">
-      <input type="hidden" name="expected_status" value="<?= maxAdminHtml($currentStatus) ?>">
-
-      <div style="height:6px"></div>
       <div class="row">
-        <label><input type="checkbox" name="confirm_reclassify" value="1" required> Подтверждаю переквалификацию рейса #<?= (int)$f['id'] ?></label>
+        <label><input type="checkbox" name="confirm_apply" value="1" required> Подтверждаю изменение разметки рейса #<?= (int)$flight['id'] ?></label>
       </div>
       <div style="height:8px"></div>
-      <button class="btn success" type="submit">Применить переквалификацию</button>
-      <span class="small">Создаст движения и обновит рейс</span>
+      <button class="btn success" type="submit">Применить</button>
+      <?php if ($isCompleted): ?>
+      <span class="small">Для завершённых рейсов будут созданы складские движения</span>
+      <?php else: ?>
+      <span class="small">Рейс ещё не завершён. Складские движения будут созданы при завершении рейса.</span>
+      <?php endif; ?>
     </form>
   </div>
+
+  <!-- PREVIEW RESULT -->
+  <?php if (is_array($preview) && $preview['total'] > 0): ?>
+  <div class="card <?= $preview['already_exist'] > 0 ? 'warn-bg' : 'ok' ?>">
+    <div class="section-title">Предпросмотр складских движений</div>
+    <p class="small">
+      Всего строк: <strong><?= $preview['total'] ?></strong> &nbsp;|&nbsp;
+      Будет создано: <strong><?= $preview['will_create'] ?></strong> &nbsp;|&nbsp;
+      Уже есть (пропуск): <strong><?= $preview['already_exist'] ?></strong>
+    </p>
+    <table>
+      <thead><tr><th>Тип</th><th>Склад</th><th>Заявка</th><th>ФККО</th><th>Нетто</th><th>Брутто</th><th>Объём</th><th>Статус</th></tr></thead>
+      <tbody>
+      <?php foreach ($preview['rows'] as $r): ?>
+        <tr>
+          <td><span class="badge badge-info"><?= $r['movement_type'] === 'receipt' ? 'Приход' : ($r['movement_type'] === 'issue' ? 'Расход' : ($r['movement_type'] === 'transfer_out' ? 'Отправка' : 'Приёмка')) ?></span></td>
+          <td><?= maxAdminHtml($r['warehouse_name']) ?></td>
+          <td class="mono"><?= (int)$r['zayavka_id'] ?></td>
+          <td class="mono"><?= maxAdminHtml($r['fkko_code']) ?></td>
+          <td><?= $r['mass_netto'] ?></td>
+          <td><?= $r['mass_brutto'] ?></td>
+          <td><?= $r['volume'] ?></td>
+          <td><?= $r['exists'] ? '<span class="badge badge-warn">уже есть</span>' : '<span class="badge badge-ok">создать</span>' ?></td>
+        </tr>
+      <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+  <?php elseif (is_array($preview) && $preview['total'] === 0): ?>
+  <div class="card warn-bg">Для выбранного типа маршрута складские движения не требуются.</div>
+  <?php endif; ?>
 </div>
 
-<!-- ── PREVIEW RESULT ────────────────────────────────────────────────────── -->
-<?php if (is_array($previewResult) && !empty($previewResult['rows'])): ?>
-<div class="card <?= $previewResult['already_exist'] > 0 ? 'warn-bg' : 'ok' ?>">
-  <div class="section-title">Предпросмотр движений</div>
-  <p class="small">
-    Всего строк: <strong><?= $previewResult['total'] ?></strong> &nbsp;|&nbsp;
-    Будет создано: <strong><?= $previewResult['will_create'] ?></strong> &nbsp;|&nbsp;
-    Уже существуют (пропуск): <strong><?= $previewResult['already_exist'] ?></strong>
-  </p>
-  <div style="max-height:300px;overflow:auto">
-  <table class="preview-table">
-    <thead>
-      <tr>
-        <th>Тип</th>
-        <th>Склад</th>
-        <th>Заявка</th>
-        <th>ФККО</th>
-        <th>Нетто, т</th>
-        <th>Брутто, т</th>
-        <th>Объём, м³</th>
-        <th>Дата</th>
-        <th>Статус</th>
-      </tr>
-    </thead>
-    <tbody>
-    <?php foreach ($previewResult['rows'] as $row): ?>
-      <tr>
-        <td><span class="badge badge-info"><?= whMovementLabel($row['movement_type']) ?></span></td>
-        <td><?= maxAdminHtml($row['warehouse_name']) ?></td>
-        <td class="mono"><?= (int)$row['zayavka_id'] ?></td>
-        <td class="mono"><?= maxAdminHtml($row['fkko_code']) ?></td>
-        <td><?= number_format($row['mass_netto'], 3, '.', ' ') ?></td>
-        <td><?= number_format($row['mass_brutto'], 3, '.', ' ') ?></td>
-        <td><?= number_format($row['volume'], 3, '.', ' ') ?></td>
-        <td><?= whDate($row['movement_date']) ?></td>
-        <td><?php if ($row['exists']): ?><span class="badge badge-warn">∃ уже есть</span><?php else: ?><span class="badge badge-ok">✓ создать</span><?php endif; ?></td>
-      </tr>
-    <?php endforeach; ?>
-    </tbody>
-  </table>
-  </div>
+<!-- ── WM RESULT AFTER APPLY ──────────────────────────────────────────────── -->
+<?php if (is_array($wmResult)): ?>
+<div class="card <?= $wmResult['success'] ? 'ok' : 'err' ?>">
+  <div class="section-title">Результат создания складских движений</div>
+  <p>Создано: <strong><?= $wmResult['created'] ?></strong> &nbsp;|&nbsp; Пропущено: <strong><?= $wmResult['skipped'] ?></strong></p>
+  <?php if (!empty($wmResult['messages'])): ?>
+    <p class="small"><?= maxAdminHtml(implode('; ', $wmResult['messages'])) ?></p>
+  <?php endif; ?>
+  <?php if (!empty($wmResult['errors'])): ?>
+    <p class="small" style="color:#b42318"><?= maxAdminHtml(implode('; ', $wmResult['errors'])) ?></p>
+  <?php endif; ?>
+  <?php if (is_array($wmRowsAfter)): ?>
+    <p class="small">Строк в warehouse_movements для рейса #<?= (int)$flight['id'] ?>: <strong><?= count($wmRowsAfter) ?></strong></p>
+    <?php if (count($wmRowsAfter) > 0): ?>
+    <table>
+      <thead><tr><th>ID</th><th>Тип</th><th>Склад</th><th>Заявка</th><th>ФККО</th><th>Нетто</th><th>Брутто</th><th>Объём</th><th>Дата</th></tr></thead>
+      <tbody>
+      <?php foreach ($wmRowsAfter as $wr): ?>
+        <tr>
+          <td class="mono"><?= (int)$wr['id'] ?></td>
+          <td><?= $wr['movement_type'] === 'receipt' ? 'Приход' : ($wr['movement_type'] === 'issue' ? 'Расход' : ($wr['movement_type'] === 'transfer_out' ? 'Отправка' : 'Приёмка')) ?></td>
+          <td><?= maxAdminHtml(whWarehouseName($pdo, (int)($wr['warehouse_id'] ?? 0))) ?></td>
+          <td class="mono"><?= (int)($wr['zayavka_id'] ?? 0) ?></td>
+          <td class="mono"><?= maxAdminHtml($wr['fkko_code'] ?? '') ?></td>
+          <td><?= $wr['mass_netto'] ?? '—' ?></td>
+          <td><?= $wr['mass_brutto'] ?? '—' ?></td>
+          <td><?= $wr['volume'] ?? '—' ?></td>
+          <td><?= whDate($wr['movement_date'] ?? null) ?></td>
+        </tr>
+      <?php endforeach; ?>
+      </tbody>
+    </table>
+    <?php endif; ?>
+  <?php endif; ?>
 </div>
 <?php endif; ?>
 
-<?php endif; // selectedFlight ?>
+<?php endif; // flight ?>
 
 <?php endif; // authed ?>
 
 </div><!-- .wrap -->
 
 <script>
-function whToggleFields(prefix) {
-    var rt = document.getElementById(prefix + '_route_type');
-    var srcGrp = document.getElementById(prefix + '_source_group');
-    var dstGrp = document.getElementById(prefix + '_dest_group');
+function whToggle(prefix) {
+    var rt = document.getElementById(prefix + '_rt');
+    var srcGrp = document.getElementById(prefix + '_src_grp');
+    var dstGrp = document.getElementById(prefix + '_dst_grp');
     if (!rt || !srcGrp || !dstGrp) return;
-    var val = rt.value;
-    // source: warehouse_to_warehouse, warehouse_to_utilizer
-    // dest: generator_to_warehouse, warehouse_to_warehouse
-    srcGrp.style.display = (val === 'warehouse_to_warehouse' || val === 'warehouse_to_utilizer') ? '' : 'none';
-    dstGrp.style.display = (val === 'generator_to_warehouse' || val === 'warehouse_to_warehouse') ? '' : 'none';
+    var v = rt.value;
+    srcGrp.style.display = (v === 'warehouse_to_warehouse' || v === 'warehouse_to_utilizer') ? '' : 'none';
+    dstGrp.style.display = (v === 'generator_to_warehouse' || v === 'warehouse_to_warehouse') ? '' : 'none';
 }
 </script>
 
