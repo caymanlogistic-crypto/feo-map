@@ -3,6 +3,7 @@ error_reporting(0);
 ini_set('display_errors', 0);
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/Support/max_notify.php';
+require_once __DIR__ . '/Support/warehouse_movements.php';
 header('Content-Type: application/json; charset=utf-8');
 
 const STATUS_PLANNED = 'planned_route';
@@ -594,7 +595,7 @@ function buildRouteTypeLine(PDO $pdo, array $flight): string
     }
     if ($routeType === ROUTE_TYPE_GENERATOR_TO_WAREHOUSE) {
         $name = getWarehouseNameById($pdo, $flight['destination_warehouse_id'] ?? 0);
-        return $name !== '' ? ('Вывоз на склад: ' . $name) : 'Вывоз на склад';
+        return $name !== '' ? ('Выгрузка на склад: ' . $name) : 'Выгрузка на склад';
     }
     if ($routeType === ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE) {
         $from = getWarehouseNameById($pdo, $flight['source_warehouse_id'] ?? 0);
@@ -656,12 +657,12 @@ function buildRouteTypeLabel(array $flight): string
         return 'Склад → Склад';
     }
     if ($routeType === ROUTE_TYPE_GENERATOR_TO_WAREHOUSE) {
-        return 'Отходообразователь → Склад';
+        return 'Выгрузка на склад';
     }
     if ($routeType === ROUTE_TYPE_WAREHOUSE_TO_UTILIZER) {
         return 'Склад → Утилизатор';
     }
-    return 'Отходообразователь → Утилизатор';
+    return 'Обычная выгрузка / Утилизатор';
 }
 
 function buildRouteDiffContext(PDO $pdo, array $before, array $after, int $flightId): array
@@ -718,7 +719,9 @@ function buildRouteEventContext(PDO $pdo, array $route, int $flightId, array $ex
 {
     $manager = getManagerDisplayNameById($pdo, $route['assigned_manager_id'] ?? 0);
     $driver = compactDriverLabel((string)($route['_driver_label'] ?? ''));
+    $routeType = normalizeRouteType($route['route_type'] ?? '', $route['unload_type'] ?? 'OO');
     $routeTypeLine = 'Тип рейса: ' . buildRouteTypeLabel($route);
+    $unloadTarget = buildRouteTypeLine($pdo, $route);
     $ctx = [
         'route_id' => (string)$flightId,
         'route_title' => buildRouteTitle($route, $flightId),
@@ -727,8 +730,9 @@ function buildRouteEventContext(PDO $pdo, array $route, int $flightId, array $ex
         'driver' => $driver !== '' ? $driver : 'не указан',
         'manager' => $manager !== '' ? $manager : 'не назначен',
         'responsible' => $manager !== '' ? $manager : 'не назначен',
-        'route_type' => (string)($route['route_type'] ?? ''),
+        'route_type' => (string)$routeType,
         'route_type_line' => $routeTypeLine,
+        'unload_target_line' => $unloadTarget,
         'meta_line' => (trim(buildCompactMetaLine($route)) !== '' ? trim(buildCompactMetaLine($route)) : 'Параметры рейса: не заданы'),
         'requests_count' => (string)((int)($route['_count'] ?? 0)),
         'weight' => formatKgFromTons((float)($route['_sum_tons'] ?? 0)),
@@ -1315,6 +1319,10 @@ try {
             if (count((array)($flight['_ids'] ?? [])) === 0) {
                 jsonOut(['success' => false, 'message' => 'Для завершения рейса укажите заявки.']);
             }
+            $warehouseValidationError = validateWarehouseRequirementsForCompleted($flight);
+            if ($warehouseValidationError !== null) {
+                jsonOut(['success' => false, 'message' => $warehouseValidationError]);
+            }
             $stmt = $pdo->prepare('UPDATE flights SET status = :status, actual_end_date = :actual_end WHERE id = :id LIMIT 1');
             $stmt->execute([
                 ':status' => STATUS_COMPLETED,
@@ -1322,6 +1330,13 @@ try {
                 ':id' => $routeId,
             ]);
             $afterCompleted = loadFlightSnapshot($pdo, $routeId) ?: $flight;
+            $warehouseMovements = [];
+            try {
+                $warehouseMovements = createWarehouseMovementsForCompletedFlight($pdo, $routeId);
+            } catch (Throwable $wmError) {
+                mapError('Warehouse movements failed', ['flight_id' => $routeId, 'error' => $wmError->getMessage()]);
+                $warehouseMovements = ['success' => false, 'errors' => [$wmError->getMessage()]];
+            }
             $driver = compactDriverLabel((string)($afterCompleted['_driver_label'] ?? ''));
             $title = buildRouteTitle($afterCompleted, $routeId);
             $notifyResult = sendMaxNotification(
@@ -1339,7 +1354,8 @@ try {
                 'success' => true,
                 'message' => 'Рейс переведен в ГРУЗСДАН',
                 'notify_success' => (bool)$notifyResult['success'],
-                'notify_error' => $notifyResult['error']
+                'notify_error' => $notifyResult['error'],
+                'warehouse_movements' => $warehouseMovements,
             ]);
         }
 
@@ -1350,6 +1366,7 @@ try {
         if ($target === STATUS_FOUND) {
             [$title, $manager] = buildCompactFlightContext($pdo, $after, $routeId);
             $wasStarted = (string)($flight['status'] ?? '') === STATUS_STARTED;
+            $oldActualStartDate = $wasStarted ? ($flight['actual_start_date'] ?? null) : null;
             if ($wasStarted) {
                 $clearActualStart = $pdo->prepare('UPDATE flights SET actual_start_date = NULL WHERE id = :id LIMIT 1');
                 $clearActualStart->execute([':id' => $routeId]);
@@ -1362,7 +1379,7 @@ try {
                     (buildUnloadLine($after) !== '' ? (buildUnloadLine($after) . "\n") : '') .
                     (buildRouteTypeLine($pdo, $after) !== '' ? (buildRouteTypeLine($pdo, $after) . "\n") : '') .
                     "Водитель: {$driver}\n" .
-                    "Старт: " . formatDateShortRu($after['actual_start_date'] ?? '') . "\n" .
+                    "Старт: " . formatDateShortRu($oldActualStartDate ?? '') . "\n" .
                     "Заявки: " . (int)($after['_count'] ?? 0) . "\n" .
                     "Вес: " . formatKgFromTons((float)($after['_sum_tons'] ?? 0)) . "\n" .
                     "Рейс закреплен: {$manager}\n" .
@@ -1376,6 +1393,8 @@ try {
                 buildRouteEventContext($pdo, $after, $routeId, [
                     'status_from' => $wasStarted ? STATUS_STARTED : STATUS_PLANNED,
                     'status_to' => STATUS_FOUND,
+                    'actual_start_short' => formatDateShortRu($oldActualStartDate ?? ''),
+                    'old_actual_start_date' => $oldActualStartDate ?? '',
                 ])
             );
             jsonOut([

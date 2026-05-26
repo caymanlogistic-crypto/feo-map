@@ -489,17 +489,17 @@ function resolveUnloadTypeByRouteType(routeType) {
 
 function getRouteTypeLabel(routeTypeRaw, unloadTypeRaw = 'OO') {
     const routeType = normalizeRouteType(routeTypeRaw, unloadTypeRaw);
-    if (routeType === 'generator_to_warehouse') return 'Отходообразователь → Склад';
-    if (routeType === 'warehouse_to_warehouse') return 'Склад → Склад';
-    if (routeType === 'warehouse_to_utilizer') return 'Склад → Утилизатор';
-    return 'Отходообразователь → Утилизатор';
+    if (routeType === 'generator_to_warehouse') return '\u0412\u044b\u0433\u0440\u0443\u0437\u043a\u0430 \u043d\u0430 \u0441\u043a\u043b\u0430\u0434';
+    if (routeType === 'warehouse_to_warehouse') return '\u0421\u043a\u043b\u0430\u0434 \u2192 \u0421\u043a\u043b\u0430\u0434';
+    if (routeType === 'warehouse_to_utilizer') return '\u0421\u043a\u043b\u0430\u0434 \u2192 \u0423\u0442\u0438\u043b\u0438\u0437\u0430\u0442\u043e\u0440';
+    return '\u041e\u0431\u044b\u0447\u043d\u0430\u044f \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0430 / \u0423\u0442\u0438\u043b\u0438\u0437\u0430\u0442\u043e\u0440';
 }
 
 function getRouteTypeCompactSuffix(routeTypeRaw, unloadTypeRaw = 'OO') {
     const routeType = normalizeRouteType(routeTypeRaw, unloadTypeRaw);
-    if (routeType === 'generator_to_warehouse') return `${UI.bullet}<strong>О \u2192 С</strong>`;
-    if (routeType === 'warehouse_to_warehouse') return `${UI.bullet}<strong>С \u2192 С</strong>`;
-    if (routeType === 'warehouse_to_utilizer') return `${UI.bullet}<strong>С \u2192 У</strong>`;
+    if (routeType === 'generator_to_warehouse') return `${UI.bullet}<strong>\u2192 \u0421\u043a\u043b\u0430\u0434</strong>`;
+    if (routeType === 'warehouse_to_warehouse') return `${UI.bullet}<strong>\u0421\u043a\u043b\u0430\u0434 \u2192 \u0421\u043a\u043b\u0430\u0434</strong>`;
+    if (routeType === 'warehouse_to_utilizer') return `${UI.bullet}<strong>\u0421\u043a\u043b\u0430\u0434 \u2192 \u0423\u0442\u0438\u043b.</strong>`;
     return '';
 }
 
@@ -2284,6 +2284,14 @@ async function confirmTransferToStarted() {
         alert(UI.msgInvalidFlightId);
         return;
     }
+    if (targetStatus === 'started' && !String(dateInput ? dateInput.value : '').trim()) {
+        alert('\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u0434\u0430\u0442\u0443 \u043d\u0430\u0447\u0430\u043b\u0430 \u0432\u044b\u0432\u043e\u0437\u0430.');
+        if (dateInput) {
+            dateInput.style.borderColor = '#e74c3c';
+            dateInput.focus();
+        }
+        return;
+    }
     if (targetStatus === 'completed' && !String(dateInput ? dateInput.value : '').trim()) {
         alert(UI.msgNeedEndDate);
         return;
@@ -2516,6 +2524,23 @@ function ensureCreateRouteModal() {
         <select class="flight-modal-input" id="create_route_manager_id">
             <option value="">\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430</option>
         </select>
+        <label class="flight-modal-label" for="create_route_type">\u0422\u0438\u043f \u0440\u0435\u0439\u0441\u0430</label>
+        <select class="flight-modal-input" id="create_route_type">
+            <option value="generator_to_utilizer">\u041e\u0431\u044b\u0447\u043d\u0430\u044f \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0430 / \u0423\u0442\u0438\u043b\u0438\u0437\u0430\u0442\u043e\u0440</option>
+            <option value="generator_to_warehouse">\u0412\u044b\u0433\u0440\u0443\u0437\u043a\u0430 \u043d\u0430 \u0441\u043a\u043b\u0430\u0434</option>
+            <option value="warehouse_to_warehouse">\u041f\u0435\u0440\u0435\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0441\u043a\u043b\u0430\u0434 \u2192 \u0441\u043a\u043b\u0430\u0434</option>
+            <option value="warehouse_to_utilizer">\u0412\u044b\u0432\u043e\u0437 \u0441\u043e \u0441\u043a\u043b\u0430\u0434\u0430 \u043d\u0430 \u0443\u0442\u0438\u043b\u0438\u0437\u0430\u0442\u043e\u0440</option>
+        </select>
+        <div class="flight-warehouse-group" id="create_warehouse_group" style="display:none;">
+            <div class="flight-warehouse-wrap" id="create_source_warehouse_wrap" style="display:none;">
+                <label class="flight-modal-label" for="create_source_warehouse_id">\u0421\u043a\u043b\u0430\u0434 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u044f</label>
+                <select class="flight-modal-input" id="create_source_warehouse_id"></select>
+            </div>
+            <div class="flight-warehouse-wrap" id="create_destination_warehouse_wrap" style="display:none;">
+                <label class="flight-modal-label" for="create_destination_warehouse_id">\u0421\u043a\u043b\u0430\u0434 \u043d\u0430\u0437\u043d\u0430\u0447\u0435\u043d\u0438\u044f</label>
+                <select class="flight-modal-input" id="create_destination_warehouse_id"></select>
+            </div>
+        </div>
         <div class="flight-validation-errors" id="createRouteErrors" style="display:none;"></div>
         <div class="flight-modal-actions">
             <button class="route-action-btn route-action-main route-edit-btn" id="createRouteConfirmBtn">\u0421\u043e\u0437\u0434\u0430\u0442\u044c</button>
@@ -2676,6 +2701,7 @@ function toggleCreateRouteModal(show) {
 function openCreateRouteModal() {
     ensureCreateRouteModal();
     syncCreateRouteManagerSelect();
+    syncCreateRouteWarehouseVisibility();
     const nameInput = document.getElementById('create_route_name');
     const errors = document.getElementById('createRouteErrors');
     if (nameInput) nameInput.value = '';
@@ -2683,8 +2709,28 @@ function openCreateRouteModal() {
         errors.style.display = 'none';
         errors.innerHTML = '';
     }
+    const sourceSelect = document.getElementById('create_source_warehouse_id');
+    const destSelect = document.getElementById('create_destination_warehouse_id');
+    if (sourceSelect) sourceSelect.innerHTML = buildWarehouseOptions('', '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0441\u043a\u043b\u0430\u0434 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u044f');
+    if (destSelect) destSelect.innerHTML = buildWarehouseOptions('', '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0441\u043a\u043b\u0430\u0434 \u043d\u0430\u0437\u043d\u0430\u0447\u0435\u043d\u0438\u044f');
     toggleCreateRouteModal(true);
     if (nameInput) setTimeout(() => nameInput.focus(), 0);
+}
+
+function syncCreateRouteWarehouseVisibility() {
+    const routeTypeInput = document.getElementById('create_route_type');
+    const routeType = normalizeRouteType(routeTypeInput ? routeTypeInput.value : 'generator_to_utilizer', 'OO');
+    const sourceWrap = document.getElementById('create_source_warehouse_wrap');
+    const destWrap = document.getElementById('create_destination_warehouse_wrap');
+    const warehouseGroup = document.getElementById('create_warehouse_group');
+    const showSource = routeType === 'warehouse_to_warehouse' || routeType === 'warehouse_to_utilizer';
+    const showDest = routeType === 'generator_to_warehouse' || routeType === 'warehouse_to_warehouse';
+    if (sourceWrap) sourceWrap.style.display = showSource ? 'block' : 'none';
+    if (destWrap) destWrap.style.display = showDest ? 'block' : 'none';
+    if (warehouseGroup) {
+        const hasVisibleFields = showSource || showDest;
+        warehouseGroup.style.display = hasVisibleFields ? 'grid' : 'none';
+    }
 }
 
 function closeCreateRouteModal() {
@@ -2722,11 +2768,17 @@ function submitRoutePayload(payload, btn, restoreText) {
 function confirmCreateRoute() {
     const nameInput = document.getElementById('create_route_name');
     const managerInput = document.getElementById('create_route_manager_id');
+    const routeTypeInput = document.getElementById('create_route_type');
+    const sourceWarehouseInput = document.getElementById('create_source_warehouse_id');
+    const destinationWarehouseInput = document.getElementById('create_destination_warehouse_id');
     const errorBox = document.getElementById('createRouteErrors');
     const saveBtn = document.getElementById('saveRouteBtn');
 
     const routeName = String(nameInput?.value || '').trim();
     const managerId = String(managerInput?.value || '').trim();
+    const routeType = normalizeRouteType(routeTypeInput?.value || 'generator_to_utilizer', 'OO');
+    const sourceWarehouseId = sourceWarehouseInput?.value || '';
+    const destinationWarehouseId = destinationWarehouseInput?.value || '';
     if (errorBox) {
         errorBox.style.display = 'none';
         errorBox.innerHTML = '';
@@ -2748,13 +2800,24 @@ function confirmCreateRoute() {
         if (managerInput) managerInput.focus();
         return;
     }
+    if (routeType === 'generator_to_warehouse' && !destinationWarehouseId) {
+        if (errorBox) {
+            errorBox.style.display = 'block';
+            errorBox.textContent = '\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u0441\u043a\u043b\u0430\u0434 \u043d\u0430\u0437\u043d\u0430\u0447\u0435\u043d\u0438\u044f \u0434\u043b\u044f \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0438 \u043d\u0430 \u0441\u043a\u043b\u0430\u0434';
+        }
+        return;
+    }
 
     const costVal = document.getElementById('route-cost-input')?.value.trim() || '';
     const payload = {
         zayavki_ids: selectedOrder.join(','),
         name: routeName,
         assigned_manager_id: Number(managerId),
-        cost: (costVal !== '' && !isNaN(costVal)) ? parseFloat(costVal) : null
+        cost: (costVal !== '' && !isNaN(costVal)) ? parseFloat(costVal) : null,
+        unload_type: resolveUnloadTypeByRouteType(routeType),
+        route_type: routeType,
+        source_warehouse_id: sourceWarehouseId,
+        destination_warehouse_id: destinationWarehouseId
     };
     closeCreateRouteModal();
     submitRoutePayload(payload, saveBtn, UI.routeSave);
@@ -2768,11 +2831,23 @@ function promptSaveRoute() {
     if (editingRouteId) {
         const activeNameEl = document.querySelector('.route-item.active .route-name');
         const currentName = activeNameEl ? activeNameEl.textContent.replace(/^#\d+\s/, '') : '';
+        const activeRouteEl = document.querySelector('.route-item.active[data-route-id]');
+        const routeMetaKey = String(editingRouteId);
+        const cachedMeta = (routeCardsMeta && routeCardsMeta[routeMetaKey]) ? routeCardsMeta[routeMetaKey] : {};
+        const existingRouteType = cachedMeta.route_type || '';
+        const existingUnloadType = cachedMeta.unload_type || 'OO';
+        const existingSourceWarehouseId = cachedMeta.source_warehouse_id || '';
+        const existingDestinationWarehouseId = cachedMeta.destination_warehouse_id || '';
+        const normalizedRouteType = normalizeRouteType(existingRouteType, existingUnloadType);
         const payload = {
             id: editingRouteId,
             name: currentName,
             zayavki_ids: selectedOrder.join(','),
-            cost: (costVal !== '' && !isNaN(costVal)) ? parseFloat(costVal) : null
+            cost: (costVal !== '' && !isNaN(costVal)) ? parseFloat(costVal) : null,
+            unload_type: resolveUnloadTypeByRouteType(normalizedRouteType),
+            route_type: normalizedRouteType,
+            source_warehouse_id: existingSourceWarehouseId,
+            destination_warehouse_id: existingDestinationWarehouseId
         };
         submitRoutePayload(payload, saveBtn, UI.routeUpdate);
         return;
@@ -3128,6 +3203,12 @@ function init() {
         routeTypeInput.addEventListener('change', () => {
             syncRouteTypeFieldsVisibility(routeTypeInput.value);
             updateFlightModalSummary();
+        });
+    }
+    const createRouteTypeInput = document.getElementById('create_route_type');
+    if (createRouteTypeInput) {
+        createRouteTypeInput.addEventListener('change', () => {
+            syncCreateRouteWarehouseVisibility();
         });
     }
 
