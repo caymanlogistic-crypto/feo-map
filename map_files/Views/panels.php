@@ -155,10 +155,10 @@ $t = static function (string $key, string $fallback): string {
             <div class="flight-route-type-wrap">
                 <label class="flight-modal-label" for="edit_route_type"><?= $t('route.field.route_type', 'Тип рейса') ?></label>
                 <select class="flight-modal-input" id="edit_route_type">
-                    <option value="generator_to_utilizer"><?= $t('route.type.generator_to_utilizer', 'Отходообразователь → Утилизатор') ?></option>
-                    <option value="generator_to_warehouse"><?= $t('route.type.generator_to_warehouse', 'Отходообразователь → Склад') ?></option>
-                    <option value="warehouse_to_warehouse"><?= $t('route.type.warehouse_to_warehouse', 'Склад → Склад') ?></option>
-                    <option value="warehouse_to_utilizer"><?= $t('route.type.warehouse_to_utilizer', 'Склад → Утилизатор') ?></option>
+                    <option value="generator_to_utilizer"><?= $t('route.type.generator_to_utilizer', 'Обычная выгрузка / Утилизатор') ?></option>
+                    <option value="generator_to_warehouse"><?= $t('route.type.generator_to_warehouse', 'Выгрузка на склад') ?></option>
+                    <option value="warehouse_to_warehouse"><?= $t('route.type.warehouse_to_warehouse', 'Перемещение склад → склад') ?></option>
+                    <option value="warehouse_to_utilizer"><?= $t('route.type.warehouse_to_utilizer', 'Вывоз со склада на утилизатор') ?></option>
                 </select>
             </div>
             <div class="flight-warehouse-group" id="edit_warehouse_group" style="display:none;">

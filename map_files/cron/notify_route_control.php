@@ -85,7 +85,7 @@ function routeTypeLine(array $row): string
     $source = trim((string)($row['source_warehouse_name'] ?? ''));
     $dest = trim((string)($row['destination_warehouse_name'] ?? ''));
     if ($routeType === 'generator_to_warehouse') {
-        return $dest !== '' ? ('Вывоз на склад: ' . $dest) : 'Вывоз на склад';
+        return $dest !== '' ? ('Выгрузка на склад: ' . $dest) : 'Выгрузка на склад';
     }
     if ($routeType === 'warehouse_to_warehouse') {
         if ($source !== '' && $dest !== '') {

@@ -274,7 +274,11 @@ try {
                 comment AS direction,
                 cost,
                 planned_start_date_from,
-                planned_start_date_to
+                planned_start_date_to,
+                unload_type,
+                route_type,
+                source_warehouse_id,
+                destination_warehouse_id
             FROM flights
             WHERE status IN ('planned_route', 'found')
             ORDER BY id DESC
@@ -518,6 +522,10 @@ try {
             'planned_start_date_from' => $flight['planned_start_date_from'] ?? null,
             'planned_start_date_to' => $flight['planned_start_date_to'] ?? null,
             'status' => $status,
+            'unload_type' => (string)($flight['unload_type'] ?? 'OO'),
+            'route_type' => (string)($flight['route_type'] ?? ''),
+            'source_warehouse_id' => (int)($flight['source_warehouse_id'] ?? 0),
+            'destination_warehouse_id' => (int)($flight['destination_warehouse_id'] ?? 0),
         ];
 
         if ($status === 'planned_route') {
