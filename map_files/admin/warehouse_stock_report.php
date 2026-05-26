@@ -215,7 +215,9 @@ if($dFid>0)$dLabel.=' / Рейс #'.$dFid.' ('.moveLabel($dMove).')';if($dZid!==
   function close(){if(backdrop){backdrop.remove();backdrop=null;modalActive=false;}}
   function open(html){close();backdrop=document.createElement('div');backdrop.className='modal-backdrop';backdrop.innerHTML=html;backdrop.addEventListener('click',function(e){if(e.target===backdrop)close();});document.body.appendChild(backdrop);modalActive=true;}
   function loadDetails(url){
-    var sep=url.indexOf('?')>=0?'&':'?';var u=url+sep+'ajax=details';
+    var hash='',hashIdx=url.indexOf('#');
+    if(hashIdx>=0){hash=url.slice(hashIdx);url=url.slice(0,hashIdx);}
+    var sep=url.indexOf('?')>=0?'&':'?';var u=url+sep+'ajax=details'+hash;
     open('<div class="modal-panel"><div class="modal-body" style="text-align:center;padding:32px">Загрузка...</div></div>');
     fetch(u,{credentials:'same-origin'}).then(function(r){return r.text();}).then(function(html){
       if(html.indexOf('modal-panel')>=0){if(backdrop){backdrop.innerHTML=html;}}else{open('<div class="modal-panel"><div class="modal-header"><strong>Ошибка</strong><button class="modal-close" onclick="closeDetailsModal()">✕</button></div><div class="modal-body">'+html+'</div></div>');}
