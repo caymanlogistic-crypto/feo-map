@@ -426,7 +426,7 @@ function mapResolveEventCenterOverride(PDO $pdo, string $eventKey, string $fallb
             }
         }
 
-        $templateText = is_array($template)
+        $templateText = (is_array($template) && !empty($template))
             ? mapFirstExistingValue($template, ['template_text', 'message_template', 'body_template'], '')
             : '';
         $messageToSend = $templateText !== '' ? mapAdminRenderTemplate($templateText, $context) : $fallbackMessage;
@@ -458,15 +458,15 @@ function mapResolveEventCenterOverride(PDO $pdo, string $eventKey, string $fallb
             $groupChatId = trim((string)($stmtAny ? $stmtAny->fetchColumn() : ''));
         }
 
-        $quietEnabled = mapFirstExistingValue($template ?? [], ['quiet_hours_enabled', 'quiet_enabled'], '');
+        $quietEnabled = mapFirstExistingValue(is_array($template) ? $template : [], ['quiet_hours_enabled', 'quiet_enabled'], '');
         if ($quietEnabled === '') {
             $quietEnabled = (string)($runtime['quiet_hours_enabled'] ?? $runtime['max_quiet_hours_enabled'] ?? '0');
         }
-        $quietStart = mapFirstExistingValue($template ?? [], ['quiet_hours_start', 'quiet_start'], '');
+        $quietStart = mapFirstExistingValue(is_array($template) ? $template : [], ['quiet_hours_start', 'quiet_start'], '');
         if ($quietStart === '') {
             $quietStart = (string)($runtime['quiet_hours_start'] ?? $runtime['max_quiet_hours_start'] ?? '22:00');
         }
-        $quietEnd = mapFirstExistingValue($template ?? [], ['quiet_hours_end', 'quiet_end'], '');
+        $quietEnd = mapFirstExistingValue(is_array($template) ? $template : [], ['quiet_hours_end', 'quiet_end'], '');
         if ($quietEnd === '') {
             $quietEnd = (string)($runtime['quiet_hours_end'] ?? $runtime['max_quiet_hours_end'] ?? '08:00');
         }
