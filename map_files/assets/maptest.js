@@ -2110,10 +2110,19 @@ async function postRouteAction(action, payload) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...(payload || {}), action })
     });
+    const text = await response.text();
     if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        console.error('save_planned_route HTTP error', { status: response.status, url: 'map_files/save_planned_route.php', body: text.slice(0, 2000) });
+        throw new Error('HTTP ' + response.status + ': ' + text.slice(0, 200));
     }
-    return response.json();
+    let data;
+    try {
+        data = JSON.parse(text);
+    } catch (e) {
+        console.error('save_planned_route non-JSON', { status: response.status, body: text.slice(0, 2000) });
+        throw new Error('Сервер вернул не JSON. Подробности в консоли.');
+    }
+    return data;
 }
 
 async function saveFlightEdit() {

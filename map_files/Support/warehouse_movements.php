@@ -1,5 +1,6 @@
 <?php
 
+if (!function_exists('normalizeRouteType')) {
 function normalizeRouteType($routeTypeRaw, $unloadTypeRaw = 'OO'): string
 {
     $routeType = strtolower(trim((string)$routeTypeRaw));
@@ -18,21 +19,24 @@ function normalizeRouteType($routeTypeRaw, $unloadTypeRaw = 'OO'): string
     }
     return ROUTE_TYPE_GENERATOR_TO_UTILIZER;
 }
+} // close function_exists('normalizeRouteType')
 
-const WM_MOVEMENT_RECEIPT = 'receipt';
-const WM_MOVEMENT_ISSUE = 'issue';
-const WM_MOVEMENT_TRANSFER_OUT = 'transfer_out';
-const WM_MOVEMENT_TRANSFER_IN = 'transfer_in';
-const WM_STATUS_ACTIVE = 'active';
+if (!defined('WM_MOVEMENT_RECEIPT')) { define('WM_MOVEMENT_RECEIPT', 'receipt'); }
+if (!defined('WM_MOVEMENT_ISSUE')) { define('WM_MOVEMENT_ISSUE', 'issue'); }
+if (!defined('WM_MOVEMENT_TRANSFER_OUT')) { define('WM_MOVEMENT_TRANSFER_OUT', 'transfer_out'); }
+if (!defined('WM_MOVEMENT_TRANSFER_IN')) { define('WM_MOVEMENT_TRANSFER_IN', 'transfer_in'); }
+if (!defined('WM_STATUS_ACTIVE')) { define('WM_STATUS_ACTIVE', 'active'); }
 
-const ROUTE_TYPE_GENERATOR_TO_UTILIZER = 'generator_to_utilizer';
-const ROUTE_TYPE_GENERATOR_TO_WAREHOUSE = 'generator_to_warehouse';
-const ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE = 'warehouse_to_warehouse';
-const ROUTE_TYPE_WAREHOUSE_TO_UTILIZER = 'warehouse_to_utilizer';
+if (!defined('ROUTE_TYPE_GENERATOR_TO_UTILIZER')) { define('ROUTE_TYPE_GENERATOR_TO_UTILIZER', 'generator_to_utilizer'); }
+if (!defined('ROUTE_TYPE_GENERATOR_TO_WAREHOUSE')) { define('ROUTE_TYPE_GENERATOR_TO_WAREHOUSE', 'generator_to_warehouse'); }
+if (!defined('ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE')) { define('ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE', 'warehouse_to_warehouse'); }
+if (!defined('ROUTE_TYPE_WAREHOUSE_TO_UTILIZER')) { define('ROUTE_TYPE_WAREHOUSE_TO_UTILIZER', 'warehouse_to_utilizer'); }
 
+if (!function_exists('resolveUnloadTypeByRouteType')) {
 function resolveUnloadTypeByRouteType(string $routeType): string
 {
     return ($routeType === ROUTE_TYPE_GENERATOR_TO_UTILIZER || $routeType === ROUTE_TYPE_WAREHOUSE_TO_UTILIZER) ? 'OO' : 'SKLAD';
+}
 }
 
 function warehouseMoveTypeLabel(string $routeType): string
