@@ -280,7 +280,7 @@ textarea.tpl-text{min-height:0;height:auto}
 .tpl-actions .btn{min-width:156px;justify-content:center}
 @media (max-width:1000px){.grid{grid-template-columns:1fr}}
 </style></head><body><div class="wrap">
-<div class="top"><h2 style="margin:0">Администрирование MAX</h2><?php if (isAuthed()): ?><a class="btn" href="?logout=1">Выйти</a><?php endif; ?></div>
+<div class="top"><h2 style="margin:0">Администрирование MAX</h2><?php renderAdminNav('max_admin'); ?></div>
 
 <?php if ($flash !== ''): ?><div class="card <?= $flashType === 'err' ? 'err' : 'ok' ?>"><?= h($flash) ?></div><?php endif; ?>
 

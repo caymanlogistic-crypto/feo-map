@@ -46,3 +46,28 @@ if (!function_exists('maxAdminJsonOut')) {
         exit;
     }
 }
+
+if (!function_exists('renderAdminNav')) {
+    function renderAdminNav(string $active = ''): void
+    {
+        $pages = [
+            'max_admin'        => ['label' => 'MAX Admin',            'url' => 'max_admin.php'],
+            'max_event_center' => ['label' => 'Event Center',         'url' => 'max_event_center.php'],
+            'static_text'      => ['label' => 'Статические тексты',    'url' => 'static_text_center.php'],
+            'warehouse'        => ['label' => 'Складская разметка',    'url' => 'warehouse_route_reclassifier.php'],
+            'map'              => ['label' => 'Карта',                 'url' => '../maptest.php'],
+        ];
+        $isAuthed = maxAdminIsAuthed();
+        echo '<div class="admin-nav">';
+        foreach ($pages as $key => $page) {
+            $cls = ($key === $active) ? 'btn admin-nav-active' : 'btn';
+            $href = maxAdminHtml($page['url']);
+            $label = maxAdminHtml($page['label']);
+            echo "<a class=\"{$cls}\" href=\"{$href}\" style=\"text-decoration:none;display:inline-flex;align-items:center\">{$label}</a>\n";
+        }
+        if ($isAuthed) {
+            echo '<a class="btn" href="?logout=1" style="text-decoration:none;display:inline-flex;align-items:center">Выйти</a>';
+        }
+        echo '</div>';
+    }
+}

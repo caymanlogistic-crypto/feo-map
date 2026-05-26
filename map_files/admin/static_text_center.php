@@ -63,10 +63,8 @@ textarea{min-height:120px}
   <div class="top">
     <div class="linkbar">
       <h2 style="margin:0">Static Text Center</h2>
-      <a class="btn" href="max_event_center.php" style="text-decoration:none;display:inline-flex;align-items:center">MAX Event Center</a>
-      <a class="btn" href="max_admin.php" style="text-decoration:none;display:inline-flex;align-items:center">Legacy MAX Admin</a>
     </div>
-    <?php if (maxAdminIsAuthed()): ?><a class="btn" href="?logout=1" style="text-decoration:none;display:inline-flex;align-items:center">Выйти</a><?php endif; ?>
+    <?php renderAdminNav('static_text'); ?>
   </div>
 
   <?php if ($flash !== ''): ?><div class="panel" style="border-color:<?= $flashType === 'err' ? '#a94f4f' : '#3e7d67' ?>"><?= maxAdminHtml($flash) ?></div><?php endif; ?>
