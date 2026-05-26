@@ -1,16 +1,15 @@
 <?php
+// CLI-only acceptance test using штатный HTTP endpoint for all transitions
 if (php_sapi_name() !== 'cli') { http_response_code(403); echo "CLI only.\n"; exit(1); }
 require_once dirname(__DIR__) . '/bootstrap.php';
 require_once dirname(__DIR__) . '/Support/warehouse_movements.php';
 
 if (!isset($pdo) || !($pdo instanceof PDO)) { echo "ERROR: No PDO\n"; exit(1); }
 
-// Local helpers (avoid requiring save_planned_route.php which calls exit)
 function dbAll($pdo,$sql,$params=[]){$s=$pdo->prepare($sql);$s->execute($params);return $s->fetchAll(PDO::FETCH_ASSOC);}
 function dbExec($pdo,$sql,$params=[]){$s=$pdo->prepare($sql);return $s&&$s->execute($params);}
 function qi($s){return '`'.str_replace('`','``',$s).'`';}
 
-// resolveFlightsManagerColumn local copy
 function resolveFlightsManagerColumn2(PDO $pdo): ?string {
     $m = []; $s = $pdo->query('SHOW COLUMNS FROM flights');
     $r = $s ? $s->fetchAll(PDO::FETCH_COLUMN) : []; foreach((array)$r as $c) $m[(string)$c]=true;
@@ -18,7 +17,31 @@ function resolveFlightsManagerColumn2(PDO $pdo): ?string {
     return null;
 }
 
-echo "=== ACCEPTANCE TEST DIRECT ===\n\n";
+// Штатный HTTP endpoint
+$endpointUrl = 'http://spugovxsim.temp.swtest.ru/fregat/feo/map_files/save_planned_route.php';
+
+function штатныйApiCall(string $url, array $payload): array {
+    $json = json_encode($payload, JSON_UNESCAPED_UNICODE);
+    $ctx = stream_context_create(['http' => [
+        'method' => 'POST',
+        'header' => "Content-Type: application/json\r\nContent-Length: " . strlen($json) . "\r\n",
+        'content' => $json,
+        'timeout' => 30,
+    ]]);
+    $raw = @file_get_contents($url, false, $ctx);
+    if ($raw === false) return ['success' => false, 'message' => 'HTTP request failed'];
+    $decoded = json_decode($raw, true);
+    return is_array($decoded) ? $decoded : ['success' => false, 'message' => 'Invalid JSON'];
+}
+
+function штатныйTransition(int $flightId, string $targetStatus, string $dateKey, string $dateValue): array {
+    global $endpointUrl;
+    $payload = ['action' => 'transition', 'id' => $flightId, 'target_status' => $targetStatus];
+    if ($dateValue !== '') $payload[$dateKey] = $dateValue;
+    return штатныйApiCall($endpointUrl, $payload);
+}
+
+echo "=== ACCEPTANCE TEST (штатный HTTP endpoint) ===\n\n";
 $mcid = resolveFlightsManagerColumn2($pdo) ?? 'assigned_manager_id';
 $qm = qi($mcid);
 
@@ -46,68 +69,88 @@ if($drv<=0){
 echo "Driver: $drv\n";
 if($drv<=0){echo "FAIL\n";exit(1);}
 
-// Clean previous
+// Clean only TEST ACCEPT flights via штатный endpoint (delete action)
 $prev = dbAll($pdo,"SELECT id FROM flights WHERE comment LIKE 'TEST ACCEPT%'");
-echo "Deleting ".count($prev)." prev\n";
-foreach($prev as $p) dbExec($pdo,"DELETE FROM flights WHERE id=".(int)$p['id']);
+echo "Deleting ".count($prev)." prev TEST ACCEPT flights via штатный endpoint\n";
+foreach($prev as $p) {
+  $res = штатныйApiCall($endpointUrl, ['action' => 'delete_route', 'id' => (int)$p['id']]);
+}
 
 $tests = [
-  ['name'=>'TEST ACCEPT generator_to_utilizer','rt'=>'generator_to_utilizer','sw'=>null,'dw'=>null,'ut'=>'OO'],
-  ['name'=>'TEST ACCEPT generator_to_warehouse','rt'=>'generator_to_warehouse','sw'=>null,'dw'=>$wh1,'ut'=>'SKLAD'],
-  ['name'=>'TEST ACCEPT warehouse_to_warehouse','rt'=>'warehouse_to_warehouse','sw'=>$wh1,'dw'=>$wh2,'ut'=>'SKLAD'],
-  ['name'=>'TEST ACCEPT warehouse_to_utilizer','rt'=>'warehouse_to_utilizer','sw'=>$wh1,'dw'=>null,'ut'=>'OO'],
+  ['name'=>'TEST ACCEPT generator_to_utilizer','rt'=>'generator_to_utilizer','sw'=>null,'dw'=>null],
+  ['name'=>'TEST ACCEPT generator_to_warehouse','rt'=>'generator_to_warehouse','sw'=>null,'dw'=>$wh1],
+  ['name'=>'TEST ACCEPT warehouse_to_warehouse','rt'=>'warehouse_to_warehouse','sw'=>$wh1,'dw'=>$wh2],
+  ['name'=>'TEST ACCEPT warehouse_to_utilizer','rt'=>'warehouse_to_utilizer','sw'=>$wh1,'dw'=>null],
 ];
 
 $ids=[];
-echo "\n=== CREATE FLIGHTS ===\n";
+echo "\n=== CREATE FLIGHTS (штатный HTTP endpoint) ===\n";
 foreach($tests as $i=>$t){
-  $rt=$t['rt']; $ult=$t['rt']==='generator_to_utilizer'?'OO':'SKLAD';
-  // normalize warehouse IDs
-  $sw = ($t['sw']>0) ? $t['sw'] : null;
-  $dw = ($t['dw']>0) ? $t['dw'] : null;
   $zlist = array_slice($zids,0,2);
-  $sql = "INSERT INTO flights (status,comment,cost,unload_type,route_type,source_warehouse_id,destination_warehouse_id,zayavki_ids,zayavki_count,$qm,planned_start_date_from,planned_start_date_to,driver_id,block_date) VALUES ('planned_route',:c,1000,:ut,:rt,:sw,:dw,:zs,:zc,:mgr,:pf,:pt,:drv,NOW())";
-  $p = [':c'=>$t['name'],':ut'=>$ult,':rt'=>$rt,':sw'=>$sw,':dw'=>$dw,':zs'=>implode(',',$zlist),':zc'=>count($zlist),':mgr'=>$mgr,':pf'=>date('Y-m-d H:i:s',strtotime('+2 days')),':pt'=>date('Y-m-d H:i:s',strtotime('+3 days')),':drv'=>($i===0?$drv:0)];
-  dbExec($pdo,$sql,$p);
-  $nid = (int)$pdo->lastInsertId();
-  $ids[]=$nid;
-  echo "Created #$nid: {$t['name']}\n";
+  $payload = [
+    'action' => 'save',
+    'name' => $t['name'],
+    'comment' => $t['name'],
+    'route_type' => $t['rt'],
+    'source_warehouse_id' => $t['sw'],
+    'destination_warehouse_id' => $t['dw'],
+    'zayavki_ids' => implode(',',$zlist),
+    'driver_id' => ($i===0 ? $drv : 0),
+    'assigned_manager_id' => $mgr,
+    'planned_start_date_from' => date('Y-m-d H:i:s', strtotime('+2 days')),
+    'planned_start_date_to' => date('Y-m-d H:i:s', strtotime('+3 days')),
+    'cost' => '1000',
+  ];
+  $res = штатныйApiCall($endpointUrl, $payload);
+  $nid = $res['id'] ?? 0;
+  if ($nid > 0) { $ids[] = (int)$nid; echo "Created #$nid: {$t['name']}\n"; }
+  else { echo "FAIL create {$t['name']}: {$res['message']}\n"; }
 }
+if(count($ids)<4){echo "WARN: Only ".count($ids)."/4 flights created.\n";}
 
 echo "\n=== SELECT AFTER CREATE ===\n";
 foreach($ids as $fid){
-  $r=dbAll($pdo,"SELECT id,status,route_type,unload_type,source_warehouse_id,destination_warehouse_id,zayavki_ids,zayavki_count,actual_start_date,actual_end_date,driver_id,cost,comment FROM flights WHERE id=$fid");
+  $r=dbAll($pdo,"SELECT id,status,route_type,unload_type,source_warehouse_id,destination_warehouse_id,zayavki_ids,zayavki_count,actual_start_date,actual_end_date,driver_id,cost FROM flights WHERE id=$fid");
   if(!$r){echo "#$fid NOT FOUND\n";continue;}
   $x=$r[0];
   echo "#$fid status={$x['status']} rt={$x['route_type']} ut={$x['unload_type']} sw={$x['source_warehouse_id']} dw={$x['destination_warehouse_id']} zcnt={$x['zayavki_count']} astart=".($x['actual_start_date']??'NULL')." drv={$x['driver_id']}\n";
 }
 
-echo "\n=== TRANSITIONS ===\n";
+echo "\n=== TRANSITIONS (штатный HTTP endpoint) ===\n";
 foreach($ids as $fid){
-  dbExec($pdo,"UPDATE flights SET status='found' WHERE id=$fid");
-  echo "#$fid planned->found: " . dbAll($pdo,"SELECT status FROM flights WHERE id=$fid")[0]['status'] . "\n";
+  // planned_route → found
+  $res = штатныйTransition($fid, 'found', '', '');
+  echo "#$fid planned->found: success={$res['success']} {$res['message']}\n";
 
+  // found → started with date
   $sd = date('Y-m-d H:i:s', strtotime('-1 hour'));
-  dbExec($pdo,"UPDATE flights SET status='started',actual_start_date='$sd' WHERE id=$fid");
-  $r3 = dbAll($pdo,"SELECT status,actual_start_date FROM flights WHERE id=$fid")[0];
-  echo "#$fid found->started: status={$r3['status']} astart={$r3['actual_start_date']}\n";
+  $res = штатныйTransition($fid, 'started', 'actual_start_date', $sd);
+  echo "#$fid found->started: success={$res['success']} {$res['message']}\n";
 
-  dbExec($pdo,"UPDATE flights SET status='found',actual_start_date=NULL WHERE id=$fid");
-  $r4 = dbAll($pdo,"SELECT status,actual_start_date FROM flights WHERE id=$fid")[0];
-  echo "#$fid started->found ROLLBACK: status={$r4['status']} astart=".($r4['actual_start_date']??'NULL')."\n";
+  // started → found (rollback) — проверяем очистку даты
+  $res = штатныйTransition($fid, 'found', '', '');
+  echo "#$fid started->found ROLLBACK: success={$res['success']} {$res['message']}\n";
 
+  // found → started again
   $sd2 = date('Y-m-d H:i:s', strtotime('-2 hours'));
-  dbExec($pdo,"UPDATE flights SET status='started',actual_start_date='$sd2' WHERE id=$fid");
-  $r5 = dbAll($pdo,"SELECT status,actual_start_date FROM flights WHERE id=$fid")[0];
-  echo "#$fid found->started: status={$r5['status']} astart={$r5['actual_start_date']}\n";
+  $res = штатныйTransition($fid, 'started', 'actual_start_date', $sd2);
+  echo "#$fid found->started: success={$res['success']} {$res['message']}\n";
 
+  // started → completed
   $ed = date('Y-m-d H:i:s');
-  dbExec($pdo,"UPDATE flights SET status='completed',actual_end_date='$ed' WHERE id=$fid");
-  $r6 = dbAll($pdo,"SELECT status,actual_start_date,actual_end_date FROM flights WHERE id=$fid")[0];
-  echo "#$fid COMPLETED: status={$r6['status']} aend={$r6['actual_end_date']}\n";
+  $res = штатныйTransition($fid, 'completed', 'actual_end_date', $ed);
+  echo "#$fid COMPLETED: success={$res['success']} {$res['message']}\n";
+  if (isset($res['warehouse_movements'])) {
+    echo "#$fid WM: created={$res['warehouse_movements']['created']} skipped={$res['warehouse_movements']['skipped']}\n";
+  }
+}
 
-  $wm = createWarehouseMovementsForCompletedFlight($pdo,$fid);
-  echo "#$fid WM: created={$wm['created']} skipped={$wm['skipped']} errors=".count($wm['errors']??[])."\n";
+echo "\n=== FINAL SELECT (flights) ===\n";
+foreach($ids as $fid){
+  $r=dbAll($pdo,"SELECT id,status,route_type,unload_type,source_warehouse_id,destination_warehouse_id,zayavki_count,actual_start_date,actual_end_date,driver_id FROM flights WHERE id=$fid");
+  if(!$r) continue;
+  $x=$r[0];
+  echo "#$fid status={$x['status']} rt={$x['route_type']} ut={$x['unload_type']} sw={$x['source_warehouse_id']} dw={$x['destination_warehouse_id']} zcnt={$x['zayavki_count']} astart=".($x['actual_start_date']??'NULL')." aend=".($x['actual_end_date']??'NULL')." drv={$x['driver_id']}\n";
 }
 
 echo "\n=== WAREHOUSE MOVEMENTS ===\n";
@@ -119,14 +162,6 @@ foreach($wms as $w) echo "  flight={$w['flight_id']} type={$w['movement_type']} 
 $dups = dbAll($pdo,"SELECT flight_id,movement_type,warehouse_id,zayavka_id,COUNT(*) cnt FROM warehouse_movements WHERE flight_id IN ($idlist) GROUP BY 1,2,3,4 HAVING COUNT(*)>1");
 echo "Duplicates: ".count($dups)."\n";
 foreach($dups as $d) echo "  DUPLICATE: flight={$d['flight_id']} type={$d['movement_type']} wh={$d['warehouse_id']} zid={$d['zayavka_id']} cnt={$d['cnt']}\n";
-
-echo "\n=== FINAL FLIGHT STATE ===\n";
-foreach($ids as $fid){
-  $r=dbAll($pdo,"SELECT id,status,route_type,unload_type,source_warehouse_id,destination_warehouse_id,zayavki_count,actual_start_date,actual_end_date,driver_id FROM flights WHERE id=$fid");
-  if(!$r) continue;
-  $x=$r[0];
-  echo "#$fid status={$x['status']} rt={$x['route_type']} ut={$x['unload_type']} sw={$x['source_warehouse_id']} dw={$x['destination_warehouse_id']} zcnt={$x['zayavki_count']} astart=".($x['actual_start_date']??'NULL')." aend=".($x['actual_end_date']??'NULL')." drv={$x['driver_id']}\n";
-}
 
 echo "\n=== DRIVER CHECK ===\n";
 $df = dbAll($pdo,"SELECT id,driver_id,status FROM flights WHERE id={$ids[0]}");
