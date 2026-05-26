@@ -55,6 +55,7 @@ if (!function_exists('renderAdminNav')) {
             'max_event_center' => ['label' => 'Event Center',         'url' => 'max_event_center.php'],
             'static_text'      => ['label' => 'Статические тексты',    'url' => 'static_text_center.php'],
             'warehouse'        => ['label' => 'Складская разметка',    'url' => 'warehouse_route_reclassifier.php'],
+            'stock'            => ['label' => 'Складские остатки',     'url' => 'warehouse_stock_report.php'],
             'map'              => ['label' => 'Карта',                 'url' => '../maptest.php'],
         ];
         $isAuthed = maxAdminIsAuthed();
