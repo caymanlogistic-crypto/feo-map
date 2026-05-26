@@ -10,10 +10,7 @@ const STATUS_PLANNED = 'planned_route';
 const STATUS_FOUND = 'found';
 const STATUS_STARTED = 'started';
 const STATUS_COMPLETED = 'completed';
-const ROUTE_TYPE_GENERATOR_TO_UTILIZER = 'generator_to_utilizer';
-const ROUTE_TYPE_GENERATOR_TO_WAREHOUSE = 'generator_to_warehouse';
-const ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE = 'warehouse_to_warehouse';
-const ROUTE_TYPE_WAREHOUSE_TO_UTILIZER = 'warehouse_to_utilizer';
+// ROUTE_TYPE_* constants are inherited from warehouse_movements.php (required on line 6)
 
 function jsonOut(array $payload): void
 {
