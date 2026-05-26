@@ -5,75 +5,68 @@ require_once dirname(__DIR__) . '/Support/max_notify.php';
 
 if (!isset($pdo) || !($pdo instanceof PDO)) { echo "ERROR: No PDO\n"; exit(1); }
 
-function qAll($pdo,$sql,$params=[]){$s=$pdo->prepare($sql);$s->execute($params);return $s->fetchAll(PDO::FETCH_ASSOC);}
-function qOne($pdo,$sql,$params=[]){$r=qAll($pdo,$sql,$params);return !empty($r)?$r[0]:null;}
+function qAll($pdo,$sql,$params=[]){$s=$pdo->prepare($sql);if(!$s)return[];$s->execute($params);return $s->fetchAll(PDO::FETCH_ASSOC);}
+function colExists($pdo,$tbl,$col){static $cache=[];$k="$tbl.$col";if(isset($cache[$k]))return $cache[$k];$s=$pdo->query("SHOW COLUMNS FROM `".str_replace('`','``',$tbl)."`");$r=$s?$s->fetchAll(PDO::FETCH_COLUMN):[];$cache[$k]=in_array($col,$r);return $cache[$k];}
+function tblExists($pdo,$tbl){static $cache=[];if(isset($cache[$tbl]))return $cache[$tbl];$s=$pdo->query("SHOW TABLES LIKE '".str_replace("'","''",$tbl)."'");$cache[$tbl]=(bool)$s->fetchColumn();return $cache[$tbl];}
 
 echo "=== MAX DIAGNOSTIC ===\n\n";
 
-// Check Event Center tables
-echo "--- Event Center Tables ---\n";
-foreach (['max_event_templates','max_groups','max_logs','max_pending_queue','system_runtime_settings'] as $tbl) {
-    $exists = $pdo->query("SHOW TABLES LIKE '" . str_replace("'","''",$tbl) . "'")->fetchColumn();
-    echo "  {$tbl}: " . ($exists ? "EXISTS" : "MISSING") . "\n";
-}
-
-// Check Admin tables
-echo "\n--- Admin Tables ---\n";
-foreach (['max_settings','max_groups','max_message_templates','max_send_log'] as $tbl) {
-    $exists = $pdo->query("SHOW TABLES LIKE '" . str_replace("'","''",$tbl) . "'")->fetchColumn();
-    echo "  {$tbl}: " . ($exists ? "EXISTS" : "MISSING") . "\n";
-}
+// Tables check
+echo "--- Tables ---\n";
+$allTables = ['max_event_templates','max_groups','max_logs','max_pending_queue','system_runtime_settings','max_settings','max_message_templates','max_send_log'];
+foreach ($allTables as $tbl) echo "  {$tbl}: " . (tblExists($pdo,$tbl)?'EXISTS':'MISSING') . "\n";
 
 // Event Center templates
 echo "\n--- Event Center Templates ---\n";
-if ($pdo->query("SHOW TABLES LIKE 'max_event_templates'")->fetchColumn()) {
-    $rows = qAll($pdo, "SELECT event_key, title, category, is_enabled, template_text FROM max_event_templates ORDER BY COALESCE(category,''), event_key");
+if (tblExists($pdo,'max_event_templates')) {
+    $selCols = ['event_key','title'];
+    foreach (['category','cat'] as $c) if (colExists($pdo,'max_event_templates',$c)) { $selCols[]=$c; break; }
+    foreach (['is_enabled','enabled','active','is_active'] as $c) if (colExists($pdo,'max_event_templates',$c)) { $selCols[]=$c; break; }
+    $sel = implode(',',$selCols);
+    $rows = qAll($pdo, "SELECT {$sel} FROM max_event_templates ORDER BY event_key");
     echo "Total: " . count($rows) . "\n";
     foreach ($rows as $r) {
-        $enabled = ((int)($r['is_enabled']??0)===1) ? 'ON' : 'OFF';
-        $cat = $r['category'] ?? '?';
-        echo "  [{$enabled}] {$r['event_key']} ({$cat}): {$r['title']}\n";
+        $enabled = '?'; foreach (['is_enabled','enabled','active','is_active'] as $c) if(isset($r[$c])){$enabled=((int)$r[$c]===1?'ON':'OFF');break;}
+        $cat = ''; foreach(['category','cat'] as $c) if(isset($r[$c])){$cat=$r[$c];break;}
+        echo "  [{$enabled}] {$r['event_key']}" . ($cat?" ({$cat})":'') . ": {$r['title']}\n";
     }
-} else {
-    echo "  Table max_event_templates not found.\n";
 }
 
 // Admin templates
-echo "\n--- Admin Templates (max_message_templates) ---\n";
-if ($pdo->query("SHOW TABLES LIKE 'max_message_templates'")->fetchColumn()) {
-    $rows = qAll($pdo, "SELECT event_key, title, is_enabled FROM max_message_templates ORDER BY event_key");
+echo "\n--- Admin Templates ---\n";
+if (tblExists($pdo,'max_message_templates')) {
+    $selCols = ['event_key','title'];
+    foreach (['is_enabled','enabled'] as $c) if (colExists($pdo,'max_message_templates',$c)) { $selCols[]=$c; break; }
+    $sel = implode(',',$selCols);
+    $rows = qAll($pdo, "SELECT {$sel} FROM max_message_templates ORDER BY event_key");
     echo "Total: " . count($rows) . "\n";
     foreach ($rows as $r) {
-        $enabled = ((int)($r['is_enabled']??0)===1) ? 'ON' : 'OFF';
+        $enabled = '?'; foreach(['is_enabled','enabled'] as $c) if(isset($r[$c])){$enabled=((int)$r[$c]===1?'ON':'OFF');break;}
         echo "  [{$enabled}] {$r['event_key']}: {$r['title']}\n";
     }
-} else {
-    echo "  Table max_message_templates not found.\n";
 }
 
 // Runtime settings
 echo "\n--- Runtime Settings ---\n";
-if ($pdo->query("SHOW TABLES LIKE 'system_runtime_settings'")->fetchColumn()) {
-    $rows = qAll($pdo, "SELECT * FROM system_runtime_settings LIMIT 20");
-    foreach ($rows as $r) {
-        $keyCol = $r['setting_key'] ?? $r['key_name'] ?? $r['key'] ?? '?';
-        $valCol = $r['setting_value'] ?? $r['value'] ?? $r['setting_val'] ?? '?';
-        echo "  {$keyCol} = {$valCol}\n";
+if (tblExists($pdo,'system_runtime_settings')) {
+    $keyCol = colExists($pdo,'system_runtime_settings','setting_key')?'setting_key':(colExists($pdo,'system_runtime_settings','key_name')?'key_name':(colExists($pdo,'system_runtime_settings','key')?'key':''));
+    $valCol = colExists($pdo,'system_runtime_settings','setting_value')?'setting_value':(colExists($pdo,'system_runtime_settings','value')?'value':(colExists($pdo,'system_runtime_settings','setting_val')?'setting_val':''));
+    if ($keyCol && $valCol) {
+        $rows = qAll($pdo, "SELECT `{$keyCol}` AS k, `{$valCol}` AS v FROM system_runtime_settings LIMIT 20");
+        foreach ($rows as $r) echo "  {$r['k']} = {$r['v']}\n";
     }
 }
 
 // Global settings
-echo "\n--- Global Settings (max_settings) ---\n";
-if ($pdo->query("SHOW TABLES LIKE 'max_settings'")->fetchColumn()) {
-    $rows = qAll($pdo, "SELECT * FROM max_settings");
-    foreach ($rows as $r) {
-        echo "  {$r['setting_key']} = {$r['setting_value']}\n";
-    }
+echo "\n--- Global Settings ---\n";
+if (tblExists($pdo,'max_settings')) {
+    $rows = qAll($pdo, "SELECT setting_key, setting_value FROM max_settings");
+    foreach ($rows as $r) echo "  {$r['setting_key']} = {$r['setting_value']}\n";
 }
 
 // MAX groups
 echo "\n--- MAX Groups ---\n";
-if ($pdo->query("SHOW TABLES LIKE 'max_groups'")->fetchColumn()) {
+if (tblExists($pdo,'max_groups')) {
     $rows = qAll($pdo, "SELECT * FROM max_groups ORDER BY is_default DESC, id DESC");
     echo "Total: " . count($rows) . "\n";
     foreach ($rows as $r) {
@@ -104,7 +97,7 @@ echo "  queued: " . ($result['queued'] ?? 'false') . "\n";
 
 // Latest logs
 echo "\n--- Latest max_send_log (5) ---\n";
-if ($pdo->query("SHOW TABLES LIKE 'max_send_log'")->fetchColumn()) {
+if (tblExists($pdo,'max_send_log')) {
     $logs = qAll($pdo, "SELECT event_key, success, created_at FROM max_send_log ORDER BY id DESC LIMIT 5");
     foreach ($logs as $l) {
         $ok = (int)($l['success']??0)===1 ? 'OK' : 'ERR';
@@ -113,7 +106,7 @@ if ($pdo->query("SHOW TABLES LIKE 'max_send_log'")->fetchColumn()) {
 }
 
 echo "\n--- Latest max_logs (5) ---\n";
-if ($pdo->query("SHOW TABLES LIKE 'max_logs'")->fetchColumn()) {
+if (tblExists($pdo,'max_logs')) {
     $logs = qAll($pdo, "SELECT event_key, success, status, created_at FROM max_logs ORDER BY id DESC LIMIT 5");
     foreach ($logs as $l) {
         $ok = (int)($l['success']??0)===1 ? 'OK' : 'ERR';
