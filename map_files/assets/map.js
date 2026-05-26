@@ -857,14 +857,19 @@ function promptSaveRoute() {
 
 function deleteRoute(id) {
     if(!confirm(UI.msgDeleteRouteConfirm)) return;
-    fetch('delete_planned_route.php', {
+    fetch('map_files/save_planned_route.php', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({id})
+        body:JSON.stringify({action:'delete_route', id:id})
     }).then(r=>r.json()).then(res => {
         if(res.success) {
             window.location.reload();
+        } else {
+            alert((res && res.message) ? res.message : 'Ошибка удаления');
         }
+    }).catch(e => {
+        console.error('deleteRoute error:', e);
+        alert('Ошибка сети при удалении');
     });
 }
 

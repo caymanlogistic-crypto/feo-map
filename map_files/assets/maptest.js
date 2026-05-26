@@ -1195,6 +1195,10 @@ function validateRequiredForStrictTransition() {
     if (routeType === 'warehouse_to_warehouse') {
         if (!sourceWarehouseId) errors.source_warehouse_id = true;
         if (!destinationWarehouseId) errors.destination_warehouse_id = true;
+        if (sourceWarehouseId && destinationWarehouseId && sourceWarehouseId === destinationWarehouseId) {
+            errors.source_warehouse_id = true;
+            errors.destination_warehouse_id = true;
+        }
     }
     if (routeType === 'warehouse_to_utilizer' && !sourceWarehouseId) {
         errors.source_warehouse_id = true;
@@ -2858,14 +2862,19 @@ function promptSaveRoute() {
 
 function deleteRoute(id) {
     if(!confirm(UI.msgDeleteRouteConfirm)) return;
-    fetch('map_files/delete_planned_route.php', {
+    fetch('map_files/save_planned_route.php', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({id})
+        body:JSON.stringify({action:'delete_route', id:id})
     }).then(r=>r.json()).then(res => {
         if(res.success) {
             window.location.reload();
+        } else {
+            alert((res && res.message) ? res.message : 'Ошибка удаления');
         }
+    }).catch(e => {
+        console.error('deleteRoute error:', e);
+        alert('Ошибка сети при удалении');
     });
 }
 

@@ -60,7 +60,7 @@ function whStatusLabel(string $s): string {
 }
 
 function whUnloadTypeByRt(string $rt): string {
-    return $rt === ROUTE_TYPE_GENERATOR_TO_UTILIZER ? 'OO' : 'SKLAD';
+    return ($rt === ROUTE_TYPE_GENERATOR_TO_UTILIZER || $rt === ROUTE_TYPE_WAREHOUSE_TO_UTILIZER) ? 'OO' : 'SKLAD';
 }
 
 function whLoadWarehouses(PDO $pdo): array {
@@ -284,7 +284,7 @@ if (maxAdminIsAuthed() && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     $flashType = 'err';
                 } else {
                     $newUnload = whUnloadTypeByRt($newRt);
-                    $upd = $pdo->prepare('UPDATE flights SET route_type = :rt, unload_type = :ut, source_warehouse_id = :sw, destination_warehouse_id = :dw, updated_at = NOW() WHERE id = :id');
+                    $upd = $pdo->prepare('UPDATE flights SET route_type = :rt, unload_type = :ut, source_warehouse_id = :sw, destination_warehouse_id = :dw WHERE id = :id');
                     $upd->execute([
                         ':rt' => $newRt, ':ut' => $newUnload,
                         ':sw' => $srcWh > 0 ? $srcWh : null, ':dw' => $dstWh > 0 ? $dstWh : null,
