@@ -504,7 +504,7 @@ function normalizeRouteType($routeTypeRaw, $unloadTypeRaw = 'OO'): string
 
 function resolveUnloadTypeByRouteType(string $routeType): string
 {
-    return $routeType === ROUTE_TYPE_GENERATOR_TO_UTILIZER ? 'OO' : 'SKLAD';
+    return ($routeType === ROUTE_TYPE_GENERATOR_TO_UTILIZER || $routeType === ROUTE_TYPE_WAREHOUSE_TO_UTILIZER) ? 'OO' : 'SKLAD';
 }
 
 function normalizeWarehouseId(PDO $pdo, $idRaw): ?int

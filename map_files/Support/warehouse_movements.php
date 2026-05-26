@@ -32,7 +32,7 @@ const ROUTE_TYPE_WAREHOUSE_TO_UTILIZER = 'warehouse_to_utilizer';
 
 function resolveUnloadTypeByRouteType(string $routeType): string
 {
-    return $routeType === ROUTE_TYPE_GENERATOR_TO_UTILIZER ? 'OO' : 'SKLAD';
+    return ($routeType === ROUTE_TYPE_GENERATOR_TO_UTILIZER || $routeType === ROUTE_TYPE_WAREHOUSE_TO_UTILIZER) ? 'OO' : 'SKLAD';
 }
 
 function warehouseMoveTypeLabel(string $routeType): string
