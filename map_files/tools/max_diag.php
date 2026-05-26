@@ -107,10 +107,15 @@ if (tblExists($pdo,'max_send_log')) {
 
 echo "\n--- Latest max_logs (5) ---\n";
 if (tblExists($pdo,'max_logs')) {
-    $logs = qAll($pdo, "SELECT event_key, success, status, created_at FROM max_logs ORDER BY id DESC LIMIT 5");
+    $selCols = ['event_key','status'];
+    foreach (['success','is_success','ok'] as $c) if (colExists($pdo,'max_logs',$c)) { $selCols[]=$c; break; }
+    foreach (['created_at','created','logged_at'] as $c) if (colExists($pdo,'max_logs',$c)) { $selCols[]=$c; break; }
+    $sel = implode(',',$selCols);
+    $logs = qAll($pdo, "SELECT {$sel} FROM max_logs ORDER BY id DESC LIMIT 5");
     foreach ($logs as $l) {
-        $ok = (int)($l['success']??0)===1 ? 'OK' : 'ERR';
-        echo "  [{$ok}] [{$l['status']}] {$l['event_key']} at {$l['created_at']}\n";
+        $ok = '?'; foreach(['success','is_success','ok'] as $c) if(isset($l[$c])){$ok=((int)$l[$c]===1?'OK':'ERR');break;}
+        $ts = ''; foreach(['created_at','created','logged_at'] as $c) if(isset($l[$c])){$ts=$l[$c];break;}
+        echo "  [{$ok}] [{$l['status']}] {$l['event_key']} at {$ts}\n";
     }
 }
 
