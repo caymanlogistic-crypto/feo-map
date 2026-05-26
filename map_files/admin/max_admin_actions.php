@@ -57,6 +57,12 @@ function templateCatalog(): array {
         'route_completed' => ['title' => 'Вывоз начался → Груз сдан','description' => 'Отправляется при завершении рейса и переводе в «Груз сдан»','template' => "ТС ПРИБЫЛО НА РАЗГРУЗКУ\n───────────────────\n{route_type_line}\n{driver}\n#{route_id} — {route_title}\n> 💡 *Напоминаю: для оплаты подрядчику нужен полный пакет документов (диагностическая карта, путевой лист и т.д.). Прошу не затягивать с предоставлением.*"],
         'route_control_cron' => ['title' => 'Cron-контроль рейсов','description' => 'Отправляется cron-контролем рейсов (утро/вечер) для проблемных рейсов на сегодня','template' => '{message}'],
         'test_message' => ['title' => 'Тестовое сообщение','description' => 'Отправляется вручную из админки для проверки доставки и форматирования','template' => "Тест MAX уведомления\n> 💡 *Проверка markdown-цитаты.*"],
+        'driver_new_tracker_configured' => ['title' => 'Новый водитель с трекером','description' => 'Отправляется после успешного назначения нового SLITEX-трекера','template' => "Настройки для нового водителя:\n{driver}\nДля водителя: {tracker_uniqueid}\nДля ФЭО: {feo_params}"],
+        'driver_retranslation_requested' => ['title' => 'Ретрансляция для водителя','description' => 'Отправляется при запросе ретрансляции GPS','template' => "Настройки для нового водителя:\nОжидается id треккера для ретрансляции.\nДля ФЭО можно вносить не дожидаясь id:\n{feo_params}"],
+        'warehouse_created' => ['title' => 'Создан новый склад','description' => 'Отправляется при создании нового склада','template' => "Создан новый склад\n#{warehouse_id} {warehouse_name}\nАдрес: {warehouse_address}"],
+        'warehouse_geocode' => ['title' => 'Определение координат склада','description' => 'Отправляется при успешном геокодировании адреса склада','template' => "Координаты склада определены\nАдрес: {address}\nКоординаты: {latitude}, {longitude}"],
+        'static_text_saved' => ['title' => 'Сохранение статического текста','description' => 'Отправляется при сохранении ключа в Static Text Center','template' => "Static Text обновлён\nКлюч: {text_key}\nКатегория: {category}\nИспользование: {used_in}"],
+        'max_event_template_saved' => ['title' => 'Сохранение MAX шаблона','description' => 'Отправляется при сохранении шаблона события в MAX Event Center','template' => "MAX шаблон обновлён\nСобытие: {event_key}\nКатегория: {category}"],
     ];
 }
 
