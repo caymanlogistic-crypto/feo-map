@@ -139,8 +139,52 @@ if (maxAdminIsAuthed() && (string)($_GET['logout'] ?? '') === '1') {
 if (maxAdminIsAuthed() && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = (string)maxAdminPost('action');
 
+    // ── DELETE FLIGHT SAFELY ────────────────────────────────────────────
+    if ($action === 'delete_flight_safely') {
+        $delFlightId = (int)maxAdminPost('flight_id', '0');
+        $confirmed = maxAdminPost('confirm_delete', '0') === '1';
+        $confirmText = trim((string)maxAdminPost('confirm_text', ''));
+        if ($delFlightId <= 0) {
+            $flash = 'Некорректный ID рейса';
+            $flashType = 'err';
+        } elseif (!$confirmed) {
+            $flash = 'Подтвердите операцию чекбоксом';
+            $flashType = 'err';
+        } else {
+            try {
+                $stmt = $pdo->prepare('SELECT * FROM flights WHERE id = :id LIMIT 1');
+                $stmt->execute([':id' => $delFlightId]);
+                $delFlight = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!is_array($delFlight)) {
+                    $flash = 'Рейс не найден';
+                    $flashType = 'err';
+                } else {
+                    $comment = (string)($delFlight['comment'] ?? '');
+                    $isTest = (stripos($comment, 'TEST') !== false || stripos($comment, 'ТЕСТ') !== false);
+                    $requiredText = $isTest ? ('DELETE TEST ' . $delFlightId) : ('DELETE FLIGHT ' . $delFlightId);
+                    if ($confirmText !== $requiredText) {
+                        $flash = 'Текст подтверждения не совпадает. Ожидалось: «' . $requiredText . '»';
+                        $flashType = 'err';
+                    } else {
+                        $wmCount = whCountWM($pdo, $delFlightId);
+                        $pdo->prepare('DELETE FROM warehouse_movements WHERE flight_id = :id')->execute([':id' => $delFlightId]);
+                        $pdo->prepare('DELETE FROM flights WHERE id = :id')->execute([':id' => $delFlightId]);
+                        $wmAfter = (int)$pdo->query("SELECT COUNT(*) FROM warehouse_movements WHERE flight_id = {$delFlightId}")->fetchColumn();
+                        $flAfter = (int)$pdo->query("SELECT COUNT(*) FROM flights WHERE id = {$delFlightId}")->fetchColumn();
+                        $flash = "Рейс #{$delFlightId} удалён. Складских движений удалено: {$wmCount}. Проверка: WM={$wmAfter}, FL={$flAfter}.";
+                        $flashType = 'ok';
+                        $flight = null;
+                    }
+                }
+            } catch (Throwable $e) {
+                $flash = 'Ошибка удаления: ' . $e->getMessage();
+                $flashType = 'err';
+            }
+        }
+    }
+
     // ── OPEN BY ID ──────────────────────────────────────────────────────
-    if ($action === 'open') {
+    elseif ($action === 'open') {
         $flightId = (int)maxAdminPost('flight_id', '0');
         if ($flightId <= 0) {
             $flash = 'Введите корректный ID рейса';
@@ -334,7 +378,7 @@ if (is_array($flight)) {
 <title>Складская разметка рейсов</title>
 <style>
 body{margin:0;background:#f4f6f8;color:#1e293b;font-family:Arial,sans-serif}
-.wrap{max-width:1400px;margin:0 auto;padding:12px}
+.wrap{max-width:calc(100vw - 48px);margin:0 auto;padding:12px}
 .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap}
 .admin-nav{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .admin-nav .btn{padding:5px 10px;font-size:12px}
@@ -370,7 +414,12 @@ tr:hover{background:#f8fafc}
 .field-group .value{font-size:14px}
 .login{max-width:420px;margin:80px auto}
 .section-title{font-size:15px;font-weight:600;color:#0f172a;margin:0 0 8px 0;padding-bottom:4px;border-bottom:2px solid #0ea5b7}
-.table-wrap{max-height:500px;overflow:auto}
+.table-wrap{max-height:600px;overflow-x:auto}
+.zayavki-col{max-width:800px;min-width:360px;white-space:normal;overflow-wrap:anywhere;word-break:break-word;line-height:1.35}
+.danger-zone{border:2px solid #fecaca;background:#fff5f5;border-radius:8px;padding:16px;margin-top:12px}
+.danger-zone .section-title{color:#b42318;border-bottom-color:#fecaca}
+.danger-zone .preview-table{width:100%;border-collapse:collapse;margin:8px 0}
+.danger-zone .preview-table th,.danger-zone .preview-table td{font-size:11px;border-bottom:1px solid #fecaca;padding:4px 6px}
 @media(max-width:900px){.grid,.grid-3{grid-template-columns:1fr}}
 </style>
 </head>
@@ -457,7 +506,7 @@ tr:hover{background:#f8fafc}
         <td class="mono" style="font-size:10px;color:#94a3b8"><?= maxAdminHtml($row['unload_type'] ?? '') ?></td>
         <td><?= maxAdminHtml(whWarehouseName($pdo, (int)($row['source_warehouse_id'] ?? 0))) ?></td>
         <td><?= maxAdminHtml(whWarehouseName($pdo, (int)($row['destination_warehouse_id'] ?? 0))) ?></td>
-        <td class="mono"><?= maxAdminHtml($row['zayavki_ids'] ?? '') ?> (<?= (int)($row['zayavki_count'] ?? 0) ?>)</td>
+        <td class="zayavki-col"><?= maxAdminHtml($row['zayavki_ids'] ?? '') ?> (<?= (int)($row['zayavki_count'] ?? 0) ?>)</td>
         <td><?= round((float)($row['total_mass_tonn'] ?? 0), 3) ?></td>
         <td><?= whDate($row['planned_start_date'] ?? null) ?></td>
         <td><?= whDate($row['actual_start_date'] ?? null) ?></td>
@@ -722,6 +771,58 @@ tr:hover{background:#f8fafc}
 <?php endif; ?>
 
 <?php endif; // flight ?>
+
+<!-- ── DANGER ZONE ───────────────────────────────────────────────────────── -->
+<?php if (is_array($flight)):
+  $delFlightId = (int)$flight['id'];
+  $delComment = (string)($flight['comment'] ?? '');
+  $delIsTest = (stripos($delComment, 'TEST') !== false || stripos($delComment, 'ТЕСТ') !== false);
+  $delRequiredText = $delIsTest ? ('DELETE TEST ' . $delFlightId) : ('DELETE FLIGHT ' . $delFlightId);
+  $delWmCount = whCountWM($pdo, $delFlightId);
+  $delWmRows = whLoadWMRows($pdo, $delFlightId);
+?>
+<div class="danger-zone">
+  <div class="section-title">Опасная зона</div>
+  <p class="small">Удаление рейса и ВСЕХ его складских движений. Операция необратима.</p>
+  <table class="preview-table">
+    <tr><td><strong>ID рейса</strong></td><td>#<?= $delFlightId ?></td></tr>
+    <tr><td><strong>Статус</strong></td><td><?= whStatusLabel((string)($flight['status'] ?? '')) ?></td></tr>
+    <tr><td><strong>Маршрут груза</strong></td><td><?= whRouteTypeLabel((string)($flight['route_type'] ?? '')) ?></td></tr>
+    <tr><td><strong>Склад отпр.</strong></td><td><?= maxAdminHtml(whWarehouseName($pdo, (int)($flight['source_warehouse_id'] ?? 0))) ?></td></tr>
+    <tr><td><strong>Склад назн.</strong></td><td><?= maxAdminHtml(whWarehouseName($pdo, (int)($flight['destination_warehouse_id'] ?? 0))) ?></td></tr>
+    <tr><td><strong>Заявок</strong></td><td><?= (int)($flight['zayavki_count'] ?? 0) ?></td></tr>
+    <tr><td><strong>Складских движений (будут удалены)</strong></td><td><?= $delWmCount ?></td></tr>
+  </table>
+  <?php if (!empty($delWmRows)): ?>
+  <p class="small">Складские движения к удалению:</p>
+  <table class="preview-table">
+    <tr><th>ID</th><th>Тип</th><th>Склад</th><th>Заявка</th><th>Нетто</th></tr>
+    <?php foreach ($delWmRows as $dwr): ?>
+    <tr>
+      <td><?= (int)$dwr['id'] ?></td>
+      <td><?= $dwr['movement_type'] === 'receipt' ? 'Приход' : ($dwr['movement_type'] === 'issue' ? 'Расход' : ($dwr['movement_type'] === 'transfer_out' ? 'Отправка' : 'Приёмка')) ?></td>
+      <td><?= maxAdminHtml(whWarehouseName($pdo, (int)($dwr['warehouse_id'] ?? 0))) ?></td>
+      <td><?= (int)($dwr['zayavka_id'] ?? 0) ?></td>
+      <td><?= round((float)($dwr['mass_netto'] ?? 0), 3) ?></td>
+    </tr>
+    <?php endforeach; ?>
+  </table>
+  <?php endif; ?>
+  <?php if (!$delIsTest): ?>
+  <div class="card err" style="margin:8px 0;font-weight:600">ВНИМАНИЕ: Рейс НЕ тестовый. Удаление рабочего рейса! Подтверждение обязательно.</div>
+  <?php endif; ?>
+  <p class="small">Для подтверждения введите: <code><?= maxAdminHtml($delRequiredText) ?></code> и отметьте чекбокс.</p>
+  <form method="post" onsubmit="return confirm('Удалить рейс #<?= $delFlightId ?> безвозвратно?')">
+    <input type="hidden" name="action" value="delete_flight_safely">
+    <input type="hidden" name="flight_id" value="<?= $delFlightId ?>">
+    <div class="row">
+      <input type="text" name="confirm_text" placeholder="<?= maxAdminHtml($delRequiredText) ?>" style="width:280px" required>
+      <label><input type="checkbox" name="confirm_delete" value="1" required> Подтверждаю удаление</label>
+      <button class="btn" type="submit" style="background:#fee2e2;border-color:#fca5a5;color:#b42318;font-weight:600">Удалить рейс и складские движения</button>
+    </div>
+  </form>
+</div>
+<?php endif; ?>
 
 <?php endif; // authed ?>
 
