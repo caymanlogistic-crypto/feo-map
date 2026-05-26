@@ -2,22 +2,18 @@
 session_start();
 require_once dirname(__DIR__) . '/bootstrap.php';
 require_once __DIR__ . '/common.php';
-
 if (!isset($pdo) || !($pdo instanceof PDO)) { http_response_code(500); echo 'Database connection error'; exit; }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
 function h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES|ENT_SUBSTITUTE, 'UTF-8'); }
 function gi(string $k, $d=''){ return isset($_GET[$k])?trim((string)$_GET[$k]):$d; }
 function gint(string $k, int $d=0){ $v=gi($k); return preg_match('/^\d+$/',$v)?(int)$v:$d; }
 
-// ── Auth ─────────────────────────────────────────────────────────────────────
 if (!maxAdminIsAuthed() && ($_SERVER['REQUEST_METHOD']??'GET')==='POST' && gi('action')==='login') {
     if (hash_equals(maxAdminPasswordConst(), gi('password'))) { $_SESSION['max_admin_auth']=1; header('Location: warehouse_stock_report.php'); exit; }
     $flash='Неверный пароль'; $flashType='err';
 }
 if (maxAdminIsAuthed() && gi('logout')==='1') { unset($_SESSION['max_admin_auth']); session_destroy(); header('Location: warehouse_stock_report.php'); exit; }
 
-// ── Filters ──────────────────────────────────────────────────────────────────
 $fWh = gint('warehouse_id');
 $fFkko = gi('fkko');
 $fZid = gi('zayavka_id');
@@ -28,15 +24,14 @@ $fShow = gi('show_mode','stock'); if(!in_array($fShow,['stock','all','moves'])) 
 $fLimit = gint('limit',200); if(!in_array($fLimit,[100,200,500])) $fLimit=200;
 $fGroup = gi('group_by','flight'); if(!in_array($fGroup,['flight','request'])) $fGroup='flight';
 
-// ── Detail params ────────────────────────────────────────────────────────────
 $dWh = gint('detail_warehouse_id');
 $dFid = gint('detail_flight_id');
 $dZid = gi('detail_zayavka_id'); if($dZid!=='' && !preg_match('/^\d+$/',$dZid)) $dZid='';
 $dFkko = gi('detail_fkko');
 $dMove = gi('detail_movement_type'); if(!in_array($dMove,['receipt','transfer_out','transfer_in','issue'])) $dMove='';
 $showDetails = ($dWh > 0);
+$isAjax = (gi('ajax') === 'details');
 
-// ── Warehouse list ───────────────────────────────────────────────────────────
 $whList = [];
 try { foreach($pdo->query('SELECT id,name FROM warehouses ORDER BY name ASC')->fetchAll(PDO::FETCH_ASSOC) as $r) $whList[(int)$r['id']]=$r['name']; } catch(Throwable $e){}
 
@@ -58,7 +53,29 @@ function buildUrl(array $overrides=[]):string{
     return '?'.http_build_query($p);
 }
 
-// ── Stock Query ──────────────────────────────────────────────────────────────
+// ── AJAX details ─────────────────────────────────────────────────────────────
+if ($isAjax && maxAdminIsAuthed()) {
+    $dw=["wm.warehouse_id=:dwh"]; $dp=[':dwh'=>$dWh];
+    if($dFid>0){$dw[]='wm.flight_id=:dfid';$dp[':dfid']=$dFid;}
+    if($dZid!==''){$dw[]='wm.zayavka_id=:dzid';$dp[':dzid']=(int)$dZid;}
+    if($dMove!==''){$dw[]='wm.movement_type=:dmove';$dp[':dmove']=$dMove;}
+    if($dFkko==='__EMPTY__'){$dw[]="(wm.fkko_code IS NULL OR wm.fkko_code='')";}
+    elseif($dFkko!==''){$dw[]='wm.fkko_code=:dfkko';$dp[':dfkko']=$dFkko;}
+    $dw[]="wm.status='active'";
+    $dRows=[];
+    try{$s=$pdo->prepare("SELECT wm.*, COALESCE(feo.naim_otkhoda_fkko,'') AS feo_name FROM warehouse_movements wm LEFT JOIN feo ON feo.zayavka_id=wm.zayavka_id WHERE ".implode(' AND ',$dw)." ORDER BY wm.movement_date DESC, wm.id DESC LIMIT 200");$s->execute($dp);$dRows=$s->fetchAll(PDO::FETCH_ASSOC);}catch(Throwable $e){}
+    $dLbl=whName($whList,$dWh);
+    if($dFid>0)$dLbl.=' / Рейс #'.$dFid.' ('.moveLabel($dMove).')';
+    if($dZid!=='')$dLbl.=' / Заявка #'.$dZid;
+    if($dFkko!=='')$dLbl.=' / '.(($dFkko==='__EMPTY__')?'ФККО не указан':$dFkko);
+    echo '<div class="modal-panel"><div class="modal-header"><strong>Детали движений: '.h($dLbl).'</strong><span class="small">'.count($dRows).' записей</span><button class="modal-close" onclick="closeDetailsModal()" title="Закрыть (ESC)">✕</button></div><div class="modal-body"><div style="overflow-x:auto"><table class="detail-table"><thead><tr><th>Дата</th><th>Тип</th><th>Рейс</th><th>Действие рейса</th><th>Заявка</th><th>ФККО</th><th>Нетто</th><th>Брутто</th><th>Объём</th><th>Склад отпр.</th><th>Склад назн.</th><th>Комментарий</th></tr></thead><tbody>';
+    if(empty($dRows)) echo '<tr><td colspan="12" class="small">Нет движений.</td></tr>';
+    else foreach($dRows as $dr){$dfid=(int)$dr['flight_id'];$dmv=$dr['movement_type'];echo '<tr><td class="small">'.h($dr['movement_date']?date('d.m.Y H:i',strtotime($dr['movement_date'])):'—').'</td><td><span class="badge badge-info">'.moveLabel($dmv).'</span></td><td class="mono">'.$dfid.'</td><td class="small">'.h(flightAction($dmv,$dfid)).'</td><td class="mono">'.(int)$dr['zayavka_id'].'</td><td class="mono" style="font-size:10px">'.h($dr['fkko_code']?:'—').'</td><td>'.fmt((float)($dr['mass_netto']??0)).'</td><td>'.fmt((float)($dr['mass_brutto']??0)).'</td><td>'.fmt((float)($dr['volume']??0)).'</td><td>'.h(whName($whList,(int)($dr['source_warehouse_id']??0))).'</td><td>'.h(whName($whList,(int)($dr['destination_warehouse_id']??0))).'</td><td class="small">'.h($dr['comment']??'').'</td></tr>';}
+    echo '</tbody></table></div></div></div>';
+    exit;
+}
+
+// ── Stock query ──────────────────────────────────────────────────────────────
 $stockRows=[]; $summary=['warehouses'=>0,'rows'=>0,'netto'=>0,'brutto'=>0,'vol'=>0,'neg'=>0];
 if(maxAdminIsAuthed()){
     $where=["wm.status='active'"]; $params=[];
@@ -69,15 +86,8 @@ if(maxAdminIsAuthed()){
     if($fFrom!==''){$where[]='wm.movement_date>=:df';$params[':df']=$fFrom.' 00:00:00';}
     if($fTo!==''){$where[]='wm.movement_date<=:dt';$params[':dt']=$fTo.' 23:59:59';}
     $whereSql=implode(' AND ',$where);
-
-    if($fGroup==='flight'){
-        $groupCols='wm.warehouse_id, wm.flight_id, wm.movement_type, wm.fkko_code, wm.zayavka_id';
-        $orderCols='wm.warehouse_id, wm.flight_id, wm.movement_type, wm.fkko_code, wm.zayavka_id';
-    }else{
-        $groupCols='wm.warehouse_id, wm.fkko_code, wm.zayavka_id';
-        $orderCols='wm.warehouse_id, wm.fkko_code, wm.zayavka_id';
-    }
-
+    if($fGroup==='flight'){$groupCols='wm.warehouse_id, wm.flight_id, wm.movement_type, wm.fkko_code, wm.zayavka_id';$orderCols=$groupCols;}
+    else{$groupCols='wm.warehouse_id, wm.fkko_code, wm.zayavka_id';$orderCols=$groupCols;}
     $sql="SELECT {$groupCols},
                  SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN COALESCE(wm.mass_netto,0) ELSE 0 END) AS in_netto,
                  SUM(CASE WHEN wm.movement_type IN ('issue','transfer_out') THEN COALESCE(wm.mass_netto,0) ELSE 0 END) AS out_netto,
@@ -86,21 +96,9 @@ if(maxAdminIsAuthed()){
                  SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN COALESCE(wm.volume,0) ELSE 0 END) AS in_vol,
                  SUM(CASE WHEN wm.movement_type IN ('issue','transfer_out') THEN COALESCE(wm.volume,0) ELSE 0 END) AS out_vol,
                  MAX(wm.movement_date) AS last_move
-          FROM warehouse_movements wm
-          WHERE {$whereSql}
-          GROUP BY {$groupCols}
-          ORDER BY {$orderCols}
-          LIMIT {$fLimit}";
-    try{
-        $stmt=$pdo->prepare($sql);$stmt->execute($params);
-        foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $r){
-            $n=round((float)$r['in_netto']-(float)$r['out_netto'],4);
-            $b=round((float)$r['in_brutto']-(float)$r['out_brutto'],4);
-            $v=round((float)$r['in_vol']-(float)$r['out_vol'],4);
-            $r['stock_netto']=$n;$r['stock_brutto']=$b;$r['stock_vol']=$v;
-            if($fShow==='stock' && $n==0 && $b==0 && $v==0) continue;
-            $stockRows[]=$r;
-        }
+          FROM warehouse_movements wm WHERE {$whereSql} GROUP BY {$groupCols} ORDER BY {$orderCols} LIMIT {$fLimit}";
+    try{$stmt=$pdo->prepare($sql);$stmt->execute($params);
+        foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $r){$n=round((float)$r['in_netto']-(float)$r['out_netto'],4);$b=round((float)$r['in_brutto']-(float)$r['out_brutto'],4);$v=round((float)$r['in_vol']-(float)$r['out_vol'],4);$r['stock_netto']=$n;$r['stock_brutto']=$b;$r['stock_vol']=$v;if($fShow==='stock' && $n==0 && $b==0 && $v==0) continue;$stockRows[]=$r;}
         $whSet=[];foreach($stockRows as $r){$whSet[(int)$r['warehouse_id']]=true;}
         $summary['warehouses']=count($whSet);$summary['rows']=count($stockRows);
         foreach($stockRows as $r){$summary['netto']+=$r['stock_netto'];$summary['brutto']+=$r['stock_brutto'];$summary['vol']+=$r['stock_vol'];if($r['stock_netto']<0||$r['stock_brutto']<0||$r['stock_vol']<0)$summary['neg']++;}
@@ -108,9 +106,9 @@ if(maxAdminIsAuthed()){
     }catch(Throwable $e){$flash='Ошибка: '.$e->getMessage();$flashType='err';}
 }
 
-// ── Detail rows ──────────────────────────────────────────────────────────────
+// ── Detail rows (fallback) ───────────────────────────────────────────────────
 $detailRows=[];
-if($showDetails && maxAdminIsAuthed()){
+if($showDetails && maxAdminIsAuthed() && !$isAjax){
     $dw=["wm.warehouse_id=:dwh"]; $dp=[':dwh'=>$dWh];
     if($dFid>0){$dw[]='wm.flight_id=:dfid';$dp[':dfid']=$dFid;}
     if($dZid!==''){$dw[]='wm.zayavka_id=:dzid';$dp[':dzid']=(int)$dZid;}
@@ -118,11 +116,7 @@ if($showDetails && maxAdminIsAuthed()){
     if($dFkko==='__EMPTY__'){$dw[]="(wm.fkko_code IS NULL OR wm.fkko_code='')";}
     elseif($dFkko!==''){$dw[]='wm.fkko_code=:dfkko';$dp[':dfkko']=$dFkko;}
     $dw[]="wm.status='active'";
-    try{
-        $stmt=$pdo->prepare("SELECT wm.*, COALESCE(feo.naim_otkhoda_fkko,'') AS feo_name FROM warehouse_movements wm LEFT JOIN feo ON feo.zayavka_id=wm.zayavka_id WHERE ".implode(' AND ',$dw)." ORDER BY wm.movement_date DESC, wm.id DESC LIMIT 200");
-        $stmt->execute($dp);
-        $detailRows=$stmt->fetchAll(PDO::FETCH_ASSOC);
-    }catch(Throwable $e){}
+    try{$stmt=$pdo->prepare("SELECT wm.*, COALESCE(feo.naim_otkhoda_fkko,'') AS feo_name FROM warehouse_movements wm LEFT JOIN feo ON feo.zayavka_id=wm.zayavka_id WHERE ".implode(' AND ',$dw)." ORDER BY wm.movement_date DESC, wm.id DESC LIMIT 200");$stmt->execute($dp);$detailRows=$stmt->fetchAll(PDO::FETCH_ASSOC);}catch(Throwable $e){}
 }
 ?><!doctype html>
 <html lang="ru"><head>
@@ -159,133 +153,80 @@ tr:hover{background:#f8fafc}
 .login{max-width:420px;margin:80px auto}
 .action-col{min-width:220px;font-size:12px}
 .detail-table td,.detail-table th{font-size:11px;padding:4px 8px}
+/* Modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999;display:flex;align-items:center;justify-content:center}
+.modal-panel{background:#fff;border-radius:10px;width:min(1200px,calc(100vw - 48px));max-height:calc(100vh - 64px);display:flex;flex-direction:column;box-shadow:0 4px 24px rgba(0,0,0,.18)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #e2e8f0;gap:12px;flex-shrink:0}
+.modal-body{overflow:auto;padding:8px 16px 16px;flex:1}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#64748b;padding:4px 8px;border-radius:6px;line-height:1}
+.modal-close:hover{background:#f1f5f9;color:#1e293b}
 @media(max-width:900px){.summary-grid{grid-template-columns:1fr 1fr}}
 </style></head><body><div class="wrap">
 <div class="top"><h2 style="margin:0;font-size:18px">Складские остатки</h2><?php renderAdminNav('stock'); ?></div>
-
 <?php if(!empty($flash)): ?><div class="card <?=$flashType==='err'?'err':'ok'?>"><?=h($flash)?></div><?php endif; ?>
-
 <?php if(!maxAdminIsAuthed()): ?>
 <div class="card login"><form method="post"><input type="hidden" name="action" value="login"><label>Пароль доступа</label><input type="password" name="password" required style="width:100%"><div style="height:8px"></div><button class="btn primary" type="submit">Войти</button></form></div>
 <?php else: ?>
-
-<!-- Filters -->
-<div class="card">
-  <form method="get">
-    <div class="row" style="flex-wrap:wrap;gap:6px">
-      <label>Склад <select name="warehouse_id"><option value="0">Все склады</option><?php foreach($whList as $wid=>$wname):?><option value="<?=$wid?>" <?=$fWh===$wid?'selected':''?>><?=h($wname)?></option><?php endforeach;?></select></label>
-      <label>ФККО <input type="text" name="fkko" value="<?=h($fFkko)?>" placeholder="поиск" style="width:100px"></label>
-      <label>Заявка <input type="text" name="zayavka_id" value="<?=h($fZid)?>" placeholder="ID" style="width:80px"></label>
-      <label>Рейс <input type="number" name="flight_id" value="<?=$fFid>0?$fFid:''?>" placeholder="ID" style="width:80px"></label>
-      <label>С <input type="date" name="date_from" value="<?=h($fFrom)?>" style="width:130px"></label>
-      <label>По <input type="date" name="date_to" value="<?=h($fTo)?>" style="width:130px"></label>
-      <label>Показ <select name="show_mode"><option value="stock" <?=$fShow==='stock'?'selected':''?>>Остатки > 0</option><option value="all" <?=$fShow==='all'?'selected':''?>>Все строки</option><option value="moves" <?=$fShow==='moves'?'selected':''?>>Только движения</option></select></label>
-      <label>Групп. <select name="group_by"><option value="flight" <?=$fGroup==='flight'?'selected':''?>>По рейсам</option><option value="request" <?=$fGroup==='request'?'selected':''?>>По заявкам</option></select></label>
-      <label>Лимит <select name="limit"><option value="100" <?=$fLimit===100?'selected':''?>>100</option><option value="200" <?=$fLimit===200?'selected':''?>>200</option><option value="500" <?=$fLimit===500?'selected':''?>>500</option></select></label>
-      <button class="btn primary" type="submit">Показать</button>
-    </div>
-  </form>
-</div>
-
-<!-- Summary -->
+<div class="card"><form method="get"><div class="row" style="flex-wrap:wrap;gap:6px">
+<label>Склад <select name="warehouse_id"><option value="0">Все склады</option><?php foreach($whList as $wid=>$wname):?><option value="<?=$wid?>" <?=$fWh===$wid?'selected':''?>><?=h($wname)?></option><?php endforeach;?></select></label>
+<label>ФККО <input type="text" name="fkko" value="<?=h($fFkko)?>" placeholder="поиск" style="width:100px"></label>
+<label>Заявка <input type="text" name="zayavka_id" value="<?=h($fZid)?>" placeholder="ID" style="width:80px"></label>
+<label>Рейс <input type="number" name="flight_id" value="<?=$fFid>0?$fFid:''?>" placeholder="ID" style="width:80px"></label>
+<label>С <input type="date" name="date_from" value="<?=h($fFrom)?>" style="width:130px"></label>
+<label>По <input type="date" name="date_to" value="<?=h($fTo)?>" style="width:130px"></label>
+<label>Показ <select name="show_mode"><option value="stock" <?=$fShow==='stock'?'selected':''?>>Остатки > 0</option><option value="all" <?=$fShow==='all'?'selected':''?>>Все</option><option value="moves" <?=$fShow==='moves'?'selected':''?>>Движения</option></select></label>
+<label>Групп. <select name="group_by"><option value="flight" <?=$fGroup==='flight'?'selected':''?>>По рейсам</option><option value="request" <?=$fGroup==='request'?'selected':''?>>По заявкам</option></select></label>
+<label>Лимит <select name="limit"><option value="100" <?=$fLimit===100?'selected':''?>>100</option><option value="200" <?=$fLimit===200?'selected':''?>>200</option><option value="500" <?=$fLimit===500?'selected':''?>>500</option></select></label>
+<button class="btn primary" type="submit">Показать</button></div></form></div>
 <div class="summary-grid">
-  <div class="summary-item"><div class="num"><?=$summary['warehouses']?></div><div class="lbl">Складов с остатками</div></div>
-  <div class="summary-item"><div class="num"><?=$summary['rows']?></div><div class="lbl">Строк остатков</div></div>
-  <div class="summary-item"><div class="num"><?=fmt($summary['netto'])?></div><div class="lbl">Остаток нетто, т</div></div>
-  <div class="summary-item"><div class="num"><?=fmt($summary['brutto'])?></div><div class="lbl">Остаток брутто, т</div></div>
-  <div class="summary-item"><div class="num"><?=fmt($summary['vol'])?></div><div class="lbl">Остаток объём, м³</div></div>
-  <div class="summary-item" style="border-color:<?=$summary['neg']>0?'#fecaca':'#e2e8f0'?>"><div class="num" style="color:<?=$summary['neg']>0?'#b42318':'#1e293b'?>"><?=$summary['neg']?></div><div class="lbl">Отрицательных</div></div>
+<div class="summary-item"><div class="num"><?=$summary['warehouses']?></div><div class="lbl">Складов</div></div>
+<div class="summary-item"><div class="num"><?=$summary['rows']?></div><div class="lbl">Строк</div></div>
+<div class="summary-item"><div class="num"><?=fmt($summary['netto'])?></div><div class="lbl">Нетто, т</div></div>
+<div class="summary-item"><div class="num"><?=fmt($summary['brutto'])?></div><div class="lbl">Брутто, т</div></div>
+<div class="summary-item"><div class="num"><?=fmt($summary['vol'])?></div><div class="lbl">Объём, м³</div></div>
+<div class="summary-item" style="border-color:<?=$summary['neg']>0?'#fecaca':'#e2e8f0'?>"><div class="num" style="color:<?=$summary['neg']>0?'#b42318':'#1e293b'?>"><?=$summary['neg']?></div><div class="lbl">Отрицат.</div></div>
 </div>
-<?php if($summary['neg']>0):?><div class="card warn-bg">⚠ Внимание: есть отрицательные остатки (<?=$summary['neg']?> строк). Проверьте складские движения.</div><?php endif;?>
-
-<!-- Stock Table -->
-<div class="card">
-  <div class="row" style="justify-content:space-between;margin-bottom:8px"><strong>Остатки по складам</strong><span class="small">Группировка: <?=$fGroup==='flight'?'по рейсам':'по заявкам'?>. Статус движений: active.</span></div>
-  <?php if(empty($stockRows)):?><p class="small">Нет данных по выбранным фильтрам.</p>
-  <?php else:?>
-  <div style="overflow-x:auto">
-  <table>
-    <thead><tr>
-      <th>Склад</th>
-      <?php if($fGroup==='flight'):?><th>Рейс</th><th>Действие рейса</th><?php endif;?>
-      <th>ФККО</th><th>Заявка ID</th><th>Приход нетто</th><th>Расход нетто</th><th>Остаток нетто</th><th>Остаток брутто</th><th>Остаток объём</th><th>Последнее</th><th></th>
-    </tr></thead>
-    <tbody>
-    <?php foreach($stockRows as $r):
-      $fid=(int)($r['flight_id']??0);
-      $mv=($r['movement_type']??'');
-      $fkko=$r['fkko_code']??'';
-      $fDisplay=$fkko!==''?$fkko:'ФККО не указан';
-      $zid=(int)$r['zayavka_id'];
-      $whId=(int)$r['warehouse_id'];
-      // Detail URL params
-      $dParams=['detail_warehouse_id'=>$whId,'detail_zayavka_id'=>$zid,'detail_fkko'=>($fkko!==''?$fkko:'__EMPTY__')];
-      if($fGroup==='flight' && $fid>0){$dParams['detail_flight_id']=$fid;$dParams['detail_movement_type']=$mv;}
-    ?>
-    <tr>
-      <td><?=h(whName($whList,$whId))?></td>
-      <?php if($fGroup==='flight'):?>
-      <td class="mono">#<?=$fid?></td>
-      <td class="action-col"><?=$fid>0?h(flightAction($mv,$fid)):'—'?></td>
-      <?php endif;?>
-      <td class="mono" style="font-size:10px"><?=h($fDisplay)?></td>
-      <td class="mono"><?=$zid?></td>
-      <td><?=fmt((float)$r['in_netto'])?></td>
-      <td><?=fmt((float)$r['out_netto'])?></td>
-      <td><?=badge($r['stock_netto'])?></td>
-      <td><?=badge($r['stock_brutto'])?></td>
-      <td><?=badge($r['stock_vol'])?></td>
-      <td class="small"><?=h($r['last_move']?date('d.m.Y',strtotime($r['last_move'])):'—')?></td>
-      <td><a class="btn" style="height:26px;font-size:11px;padding:2px 8px" href="<?=h(buildUrl($showDetails && $dWh===$whId && ($dFid===0||$dFid===$fid) && $dZid===(string)$zid && $dMove===$mv ? ['detail_warehouse_id'=>null,'detail_flight_id'=>null,'detail_zayavka_id'=>null,'detail_fkko'=>null,'detail_movement_type'=>null]:$dParams))?>#details"><?=($showDetails&&$dWh===$whId)?'Закрыть':'Детали'?></a></td>
-    </tr>
-    <?php endforeach;?>
-    </tbody>
-  </table>
-  </div>
-  <?php endif;?>
-</div>
-
-<!-- Detail Table -->
-<div id="details">
-<?php if($showDetails):
-  $dLabel = whName($whList,$dWh);
-  if($dFid>0) $dLabel.=' / Рейс #'.$dFid.' ('.moveLabel($dMove).')';
-  if($dZid!=='') $dLabel.=' / Заявка #'.$dZid;
-  if($dFkko!=='') $dLabel.=' / '.(($dFkko==='__EMPTY__')?'ФККО не указан':$dFkko);
+<?php if($summary['neg']>0):?><div class="card warn-bg">⚠ Есть отрицательные остатки (<?=$summary['neg']?> строк). Проверьте складские движения.</div><?php endif;?>
+<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:8px"><strong>Остатки по складам</strong><span class="small">Группировка: <?=$fGroup==='flight'?'по рейсам':'по заявкам'?>. Статус: active.</span></div>
+<?php if(empty($stockRows)):?><p class="small">Нет данных.</p><?php else:?>
+<div style="overflow-x:auto"><table><thead><tr><th>Склад</th><?php if($fGroup==='flight'):?><th>Рейс</th><th>Действие рейса</th><?php endif;?><th>ФККО</th><th>Заявка</th><th>Приход</th><th>Расход</th><th>Ост. нетто</th><th>Ост. брутто</th><th>Ост. объём</th><th>Дата</th><th></th></tr></thead><tbody>
+<?php foreach($stockRows as $r):$fid=(int)($r['flight_id']??0);$mv=($r['movement_type']??'');$fkko=$r['fkko_code']??'';$fDisplay=$fkko!==''?$fkko:'ФККО не указан';$zid=(int)$r['zayavka_id'];$whId=(int)$r['warehouse_id'];
+$dParams=['detail_warehouse_id'=>$whId,'detail_zayavka_id'=>$zid,'detail_fkko'=>($fkko!==''?$fkko:'__EMPTY__')];
+if($fGroup==='flight' && $fid>0){$dParams['detail_flight_id']=$fid;$dParams['detail_movement_type']=$mv;}
+$isActive=($showDetails && $dWh===$whId && ($dFid===0||$dFid===$fid) && $dZid===(string)$zid && $dMove===$mv);
+$href=h(buildUrl($isActive?['detail_warehouse_id'=>null,'detail_flight_id'=>null,'detail_zayavka_id'=>null,'detail_fkko'=>null,'detail_movement_type'=>null,'ajax'=>null]:$dParams));
 ?>
-<div class="card">
-  <div class="row" style="justify-content:space-between;margin-bottom:8px"><strong>Детали движений: <?=h($dLabel)?></strong><span class="small"><?=count($detailRows)?> записей</span></div>
-  <div style="overflow-x:auto">
-  <table class="detail-table">
-    <thead><tr><th>Дата</th><th>Тип</th><th>Рейс</th><th>Действие рейса</th><th>Заявка</th><th>ФККО</th><th>Нетто</th><th>Брутто</th><th>Объём</th><th>Склад отпр.</th><th>Склад назн.</th><th>Комментарий</th></tr></thead>
-    <tbody>
-    <?php if(empty($detailRows)):?>
-    <tr><td colspan="12" class="small">Нет движений по выбранным параметрам.</td></tr>
-    <?php else: foreach($detailRows as $dr):
-      $dfid=(int)$dr['flight_id'];
-      $dmv=$dr['movement_type'];
-    ?>
-    <tr>
-      <td class="small"><?=h($dr['movement_date']?date('d.m.Y H:i',strtotime($dr['movement_date'])):'—')?></td>
-      <td><span class="badge badge-info"><?=moveLabel($dmv)?></span></td>
-      <td class="mono"><?=$dfid?></td>
-      <td class="small"><?=h(flightAction($dmv,$dfid))?></td>
-      <td class="mono"><?=(int)$dr['zayavka_id']?></td>
-      <td class="mono" style="font-size:10px"><?=h($dr['fkko_code']?:'—')?></td>
-      <td><?=fmt((float)($dr['mass_netto']??0))?></td>
-      <td><?=fmt((float)($dr['mass_brutto']??0))?></td>
-      <td><?=fmt((float)($dr['volume']??0))?></td>
-      <td><?=h(whName($whList,(int)($dr['source_warehouse_id']??0)))?></td>
-      <td><?=h(whName($whList,(int)($dr['destination_warehouse_id']??0)))?></td>
-      <td class="small"><?=h($dr['comment']??'')?></td>
-    </tr>
-    <?php endforeach; endif;?>
-    </tbody>
-  </table>
-  </div>
+<tr><td><?=h(whName($whList,$whId))?></td>
+<?php if($fGroup==='flight'):?><td class="mono">#<?=$fid?></td><td class="action-col"><?=$fid>0?h(flightAction($mv,$fid)):'—'?></td><?php endif;?>
+<td class="mono" style="font-size:10px"><?=h($fDisplay)?></td><td class="mono"><?=$zid?></td><td><?=fmt((float)$r['in_netto'])?></td><td><?=fmt((float)$r['out_netto'])?></td><td><?=badge($r['stock_netto'])?></td><td><?=badge($r['stock_brutto'])?></td><td><?=badge($r['stock_vol'])?></td><td class="small"><?=h($r['last_move']?date('d.m.Y',strtotime($r['last_move'])):'—')?></td>
+<td><a class="btn" style="height:26px;font-size:11px;padding:2px 8px" href="<?=$href?>#details" data-details-popup="1"><?=$isActive?'Закрыть':'Детали'?></a></td></tr>
+<?php endforeach;?></tbody></table></div><?php endif;?></div>
+<div id="details">
+<?php if($showDetails && !$isAjax): $dLabel=whName($whList,$dWh);
+if($dFid>0)$dLabel.=' / Рейс #'.$dFid.' ('.moveLabel($dMove).')';if($dZid!=='')$dLabel.=' / Заявка #'.$dZid;if($dFkko!=='')$dLabel.=' / '.(($dFkko==='__EMPTY__')?'ФККО не указан':$dFkko);?>
+<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:8px"><strong>Детали: <?=h($dLabel)?></strong><span class="small"><?=count($detailRows)?> записей</span></div><div style="overflow-x:auto"><table class="detail-table"><thead><tr><th>Дата</th><th>Тип</th><th>Рейс</th><th>Действие рейса</th><th>Заявка</th><th>ФККО</th><th>Нетто</th><th>Брутто</th><th>Объём</th><th>Склад отпр.</th><th>Склад назн.</th><th>Комм.</th></tr></thead><tbody>
+<?php if(empty($detailRows)):?><tr><td colspan="12" class="small">Нет движений.</td></tr><?php else: foreach($detailRows as $dr):$dfid=(int)$dr['flight_id'];$dmv=$dr['movement_type'];?>
+<tr><td class="small"><?=h($dr['movement_date']?date('d.m.Y H:i',strtotime($dr['movement_date'])):'—')?></td><td><span class="badge badge-info"><?=moveLabel($dmv)?></span></td><td class="mono"><?=$dfid?></td><td class="small"><?=h(flightAction($dmv,$dfid))?></td><td class="mono"><?=(int)$dr['zayavka_id']?></td><td class="mono" style="font-size:10px"><?=h($dr['fkko_code']?:'—')?></td><td><?=fmt((float)($dr['mass_netto']??0))?></td><td><?=fmt((float)($dr['mass_brutto']??0))?></td><td><?=fmt((float)($dr['volume']??0))?></td><td><?=h(whName($whList,(int)($dr['source_warehouse_id']??0)))?></td><td><?=h(whName($whList,(int)($dr['destination_warehouse_id']??0)))?></td><td class="small"><?=h($dr['comment']??'')?></td></tr><?php endforeach;endif;?></tbody></table></div></div><?php endif;?></div>
+<?php endif; ?>
 </div>
-<?php endif;?>
-</div>
-
-<?php endif; // authed ?>
-</div></body></html>
+<script>
+(function(){
+  var backdrop=null,modalActive=false;
+  function close(){if(backdrop){backdrop.remove();backdrop=null;modalActive=false;}}
+  function open(html){close();backdrop=document.createElement('div');backdrop.className='modal-backdrop';backdrop.innerHTML=html;backdrop.addEventListener('click',function(e){if(e.target===backdrop)close();});document.body.appendChild(backdrop);modalActive=true;}
+  function loadDetails(url){
+    var sep=url.indexOf('?')>=0?'&':'?';var u=url+sep+'ajax=details';
+    open('<div class="modal-panel"><div class="modal-body" style="text-align:center;padding:32px">Загрузка...</div></div>');
+    fetch(u,{credentials:'same-origin'}).then(function(r){return r.text();}).then(function(html){
+      if(html.indexOf('modal-panel')>=0){if(backdrop){backdrop.innerHTML=html;}}else{open('<div class="modal-panel"><div class="modal-header"><strong>Ошибка</strong><button class="modal-close" onclick="closeDetailsModal()">✕</button></div><div class="modal-body">'+html+'</div></div>');}
+    }).catch(function(){open('<div class="modal-panel"><div class="modal-header"><strong>Ошибка</strong><button class="modal-close" onclick="closeDetailsModal()">✕</button></div><div class="modal-body">Не удалось загрузить данные.</div></div>');});
+  }
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('[data-details-popup]');if(!a)return;
+    e.preventDefault();loadDetails(a.href);
+  });
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')close();});
+  window.closeDetailsModal=close;
+})();
+</script>
+</body></html>
