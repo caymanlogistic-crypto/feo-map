@@ -509,10 +509,13 @@ try {
             $uid = trim((string)$dev['uniqueid']);
             if (isset($adminFieldsByUid[$uid]) && is_array($adminFieldsByUid[$uid])) {
                 $fields = $adminFieldsByUid[$uid]['fields'] ?? $adminFieldsByUid[$uid];
-                if (is_array($fields) && isset($fields[0]) && is_array($fields[0]) && !isset($fields['outID']) && !isset($fields['outIP'])) {
+                if (is_array($fields) && isset($fields[0]) && is_array($fields[0])) {
                     $fields = $fields[0];
                 }
-                $dev['admin_fields'] = $fields;
+                if (is_array($fields)) {
+                    $dev['admin_fields'] = $fields;
+                    $dev['admin_configs'] = [$fields];
+                }
             }
         }
         unset($dev);
@@ -693,11 +696,13 @@ try {
         $uid = trim((string)$dev['uniqueid']);
         if (isset($adminFieldsByUid[$uid]) && is_array($adminFieldsByUid[$uid])) {
             $fields = $adminFieldsByUid[$uid]['fields'] ?? $adminFieldsByUid[$uid];
-            // fields may be wrapped in an array [{...}], extract first element
-            if (is_array($fields) && isset($fields[0]) && is_array($fields[0]) && !isset($fields['outID']) && !isset($fields['outIP'])) {
+            if (is_array($fields) && isset($fields[0]) && is_array($fields[0])) {
                 $fields = $fields[0];
             }
-            $dev['admin_fields'] = $fields;
+            if (is_array($fields)) {
+                $dev['admin_fields'] = $fields;
+                $dev['admin_configs'] = [$fields];
+            }
         }
     }
     unset($dev);
