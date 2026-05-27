@@ -2272,6 +2272,8 @@ async function transferPlannedToFound(routeId) {
             cost: document.getElementById('edit_cost')?.value || meta.cost || '',
             name: document.getElementById('edit_comment')?.value || resolveRouteTitle(meta) || '',
             unload_type: resolveUnloadTypeByRouteType(normalizedRouteType),
+            driver_id: existingDriverId,
+            assigned_manager_id: existingAssignedManagerId,
             route_type: normalizedRouteType,
             source_warehouse_id: sourceWarehouseInput ? sourceWarehouseInput.value : (meta.source_warehouse_id || ''),
             destination_warehouse_id: destinationWarehouseInput ? destinationWarehouseInput.value : (meta.destination_warehouse_id || '')
@@ -2851,6 +2853,8 @@ function promptSaveRoute() {
         const existingSourceWarehouseId = cachedMeta.source_warehouse_id || '';
         const existingDestinationWarehouseId = cachedMeta.destination_warehouse_id || '';
         const normalizedRouteType = normalizeRouteType(existingRouteType, existingUnloadType);
+        const existingDriverId = cachedMeta.driver_id || '';
+        const existingAssignedManagerId = cachedMeta.assigned_manager_id || '';
         const payload = {
             id: editingRouteId,
             name: currentName,
@@ -3230,6 +3234,25 @@ function init() {
     const startCancelBtn = document.getElementById('startCancelBtn');
     if (startConfirmBtn) startConfirmBtn.addEventListener('click', confirmTransferToStarted);
     if (startCancelBtn) startCancelBtn.addEventListener('click', closeStartConfirmModal);
+if (startCancelBtn) startCancelBtn.addEventListener('click', closeStartConfirmModal);
+    // Driver select triggers change event (not input) — rebuild preview explicitly
+    const driverSelectEl = document.getElementById('edit_driver_id');
+    if (driverSelectEl) {
+        driverSelectEl.addEventListener('change', () => {
+            updateFlightModalSummary();
+            const previewEl = document.getElementById('flightChangePreview');
+            const previewHtml = buildFoundChangePreview(currentEditingMeta);
+            if (previewEl) {
+                if (previewHtml) {
+                    previewEl.style.display = 'block';
+                    previewEl.innerHTML = previewHtml;
+                } else {
+                    previewEl.style.display = 'none';
+                    previewEl.innerHTML = '';
+                }
+            }
+        });
+    }
     ['edit_driver_id', 'edit_planned_start_date_from', 'edit_planned_start_date_to', 'edit_actual_start_date', 'edit_actual_end_date', 'edit_cost', 'edit_zayavki_ids', 'edit_route_type', 'edit_source_warehouse_id', 'edit_destination_warehouse_id'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) {
