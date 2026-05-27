@@ -1000,13 +1000,20 @@ try {
             $requireTitle = false;
             $requireRequests = $isFoundEdit;
             $requireWarehouses = $isFoundEdit;
-            // Fallback: if driver_id not provided, use existing flight's driver
-            if (is_array($current) && empty($data['driver_id']) && !empty($current['driver_id'])) {
-                $data['driver_id'] = (int)$current['driver_id'];
-            }
-            // Fallback: if assigned_manager_id not provided, use existing
-            if (is_array($current) && empty($data['assigned_manager_id']) && !empty($current['assigned_manager_id'])) {
-                $data['assigned_manager_id'] = (int)$current['assigned_manager_id'];
+            // Full fallback: all fields from existing flight if not in payload
+            if (is_array($current)) {
+                $fallbackFields = [
+                    'driver_id', 'assigned_manager_id', 'cost',
+                    'planned_start_date_from', 'planned_start_date_to',
+                    'route_type', 'unload_type',
+                    'source_warehouse_id', 'destination_warehouse_id',
+                    'comment',
+                ];
+                foreach ($fallbackFields as $field) {
+                    if (empty($data[$field]) && !empty($current[$field])) {
+                        $data[$field] = $current[$field];
+                    }
+                }
             }
         }
         [$ok, $msg, $normalized, $errors] = validateRouteData(
