@@ -51,12 +51,13 @@ if (!function_exists('renderAdminNav')) {
     function renderAdminNav(string $active = ''): void
     {
         $pages = [
-            'max_admin'        => ['label' => 'MAX Admin',            'url' => 'max_admin.php'],
-            'max_event_center' => ['label' => 'Event Center',         'url' => 'max_event_center.php'],
-            'static_text'      => ['label' => 'Статические тексты',    'url' => 'static_text_center.php'],
-            'warehouse'        => ['label' => 'Складская разметка',    'url' => 'warehouse_route_reclassifier.php'],
-            'stock'            => ['label' => 'Складские остатки',     'url' => 'warehouse_stock_report.php'],
-            'map'              => ['label' => 'Карта',                 'url' => '../maptest.php'],
+            'max_admin'               => ['label' => 'MAX Admin',            'url' => 'max_admin.php'],
+            'max_event_center'        => ['label' => 'Event Center',         'url' => 'max_event_center.php'],
+            'static_text'             => ['label' => 'Статические тексты',    'url' => 'static_text_center.php'],
+            'warehouse'               => ['label' => 'Складская разметка',    'url' => 'warehouse_route_reclassifier.php'],
+            'stock'                   => ['label' => 'Складские остатки',     'url' => 'warehouse_stock_report.php'],
+            'slitex_tracker_rename'   => ['label' => 'SLITEX трекеры',       'url' => 'slitex_tracker_rename.php'],
+            'map'                     => ['label' => 'Карта',                 'url' => '../maptest.php'],
         ];
         $isAuthed = maxAdminIsAuthed();
         echo '<div class="admin-nav">';
