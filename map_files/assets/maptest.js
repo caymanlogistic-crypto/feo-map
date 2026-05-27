@@ -565,9 +565,9 @@ function buildFoundChangePreview(meta) {
     const currentRouteType = normalizeRouteType(document.getElementById('edit_route_type')?.value || '', meta.unload_type || 'OO');
     const previousDriver = meta.driver_label || UI.driverMissing;
     const previousDates = isStarted
-        ? `${meta.actual_start_date || TXT.notSpecified} ${UI.emDash} ${meta.actual_end_date || TXT.notSpecified}`
-        : `${meta.planned_start_date_from || TXT.notSpecified} ${UI.emDash} ${meta.planned_start_date_to || TXT.notSpecified}`;
-    const currentDates = `${fromVal || TXT.notSpecified} ${UI.emDash} ${toVal || TXT.notSpecified}`;
+        ? `${meta.actual_start_date || TXT.notSpecified} \u2014 ${meta.actual_end_date || TXT.notSpecified}`
+        : `${meta.planned_start_date_from || TXT.notSpecified} \u2014 ${meta.planned_start_date_to || TXT.notSpecified}`;
+    const currentDates = `${fromVal || TXT.notSpecified} \u2014 ${toVal || TXT.notSpecified}`;
     const previousCost = `${formatRouteCost(meta.cost)} \u20BD`;
     const currentCost = `${formatRouteCost(costVal)} \u20BD`;
     const previousIdsArr = String(meta.zayavki_ids || '').split(',').map(v => v.trim()).filter(Boolean);
@@ -576,35 +576,37 @@ function buildFoundChangePreview(meta) {
     const currentIds = currentIdsArr.join(',');
     const previousRouteType = normalizeRouteType(meta.route_type || '', meta.unload_type || 'OO');
 
-    const changes = [];
+    const blocks = [];
     if (formatDriverCompactLabel(previousDriver) !== formatDriverCompactLabel(currentDriverText)) {
-        changes.push(`<div><strong>${UI.labelDriver}:</strong> ${escapeHtml(formatDriverCompactLabel(previousDriver))} ${UI.emDash}&gt; ${escapeHtml(formatDriverCompactLabel(currentDriverText))}</div>`);
+        blocks.push(`\u0412\u043e\u0434\u0438\u0442\u0435\u043b\u044c:\n\u0411\u044b\u043b\u043e: ${formatDriverCompactLabel(previousDriver)}\n\u0421\u0442\u0430\u043b\u043e: ${formatDriverCompactLabel(currentDriverText)}`);
     }
     if (previousDates !== currentDates) {
         const periodLabel = isStarted ? '\u0424\u0430\u043a\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0439 \u043f\u0435\u0440\u0438\u043e\u0434' : '\u041f\u0435\u0440\u0438\u043e\u0434';
-        changes.push(`<div><strong>${periodLabel}:</strong> ${escapeHtml(previousDates)} ${UI.emDash}&gt; ${escapeHtml(currentDates)}</div>`);
+        blocks.push(`${periodLabel}:\n\u0411\u044b\u043b\u043e: ${previousDates}\n\u0421\u0442\u0430\u043b\u043e: ${currentDates}`);
     }
     if (previousCost !== currentCost) {
-        changes.push(`<div><strong>${UI.modalCost}:</strong> ${escapeHtml(previousCost)} ${UI.emDash}&gt; ${escapeHtml(currentCost)}</div>`);
+        blocks.push(`\u0421\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c:\n\u0411\u044b\u043b\u043e: ${previousCost}\n\u0421\u0442\u0430\u043b\u043e: ${currentCost}`);
     }
     if (previousIds !== currentIds) {
-        changes.push(`<div><strong>${TXT.requests}:</strong> ${previousIdsArr.length} ${UI.emDash}&gt; ${currentIdsArr.length}</div>`);
         const prevSet = new Set(previousIdsArr);
         const currSet = new Set(currentIdsArr);
         const removed = previousIdsArr.filter(id => !currSet.has(id));
         const added = currentIdsArr.filter(id => !prevSet.has(id));
         if (removed.length > 0) {
-            changes.push(`<div><strong>\u0418\u0441\u043a\u043b\u044e\u0447\u0435\u043d\u043d\u044b\u0435 \u0437\u0430\u044f\u0432\u043a\u0438:</strong> ${escapeHtml(removed.join(','))}</div>`);
+            blocks.push(`\u0418\u0441\u043a\u043b\u044e\u0447\u0435\u043d\u043d\u044b\u0435 \u0437\u0430\u044f\u0432\u043a\u0438: ${removed.join(',')}`);
         }
         if (added.length > 0) {
-            changes.push(`<div><strong>\u0414\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043d\u044b\u0435 \u0437\u0430\u044f\u0432\u043a\u0438:</strong> ${escapeHtml(added.join(','))}</div>`);
+            blocks.push(`\u0414\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043d\u044b\u0435 \u0437\u0430\u044f\u0432\u043a\u0438: ${added.join(',')}`);
+        }
+        if (previousIdsArr.length !== currentIdsArr.length) {
+            blocks.push(`\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0437\u0430\u044f\u0432\u043e\u043a:\n\u0411\u044b\u043b\u043e: ${previousIdsArr.length}\n\u0421\u0442\u0430\u043b\u043e: ${currentIdsArr.length}`);
         }
     }
     if (previousRouteType !== currentRouteType) {
-        changes.push(`<div><strong>${UI.labelRouteType}:</strong> ${escapeHtml(getRouteTypeLabel(previousRouteType, meta.unload_type || 'OO'))} ${UI.emDash}&gt; ${escapeHtml(getRouteTypeLabel(currentRouteType, resolveUnloadTypeByRouteType(currentRouteType)))}</div>`);
+        blocks.push(`\u041c\u0430\u0440\u0448\u0440\u0443\u0442 \u0433\u0440\u0443\u0437\u0430:\n\u0411\u044b\u043b\u043e: ${getRouteTypeLabel(previousRouteType, meta.unload_type || 'OO')}\n\u0421\u0442\u0430\u043b\u043e: ${getRouteTypeLabel(currentRouteType, resolveUnloadTypeByRouteType(currentRouteType))}`);
     }
-    if (changes.length === 0) return '';
-    const htmlBlocks = changes.map(c => `<div style="white-space:pre-wrap;margin:4px 0">${escapeHtml(c)}</div>`);
+    if (blocks.length === 0) return '';
+    const htmlBlocks = blocks.map(b => `<div style="white-space:pre-wrap;margin:6px 0">${escapeHtml(b)}</div>`);
     return `<div><strong>\u0411\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0432 MAX:</strong></div>${htmlBlocks.join('')}`;
 }
 function addTrackerMarkers(trackers) {
