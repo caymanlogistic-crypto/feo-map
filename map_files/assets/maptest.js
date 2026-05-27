@@ -2855,11 +2855,18 @@ function promptSaveRoute() {
         const normalizedRouteType = normalizeRouteType(existingRouteType, existingUnloadType);
         const existingDriverId = cachedMeta.driver_id || '';
         const existingAssignedManagerId = cachedMeta.assigned_manager_id || '';
+        const existingCost = cachedMeta.cost ?? '';
+        const existingDatesFrom = cachedMeta.planned_start_date_from || '';
+        const existingDatesTo = cachedMeta.planned_start_date_to || '';
         const payload = {
             id: editingRouteId,
             name: currentName,
             zayavki_ids: selectedOrder.join(','),
-            cost: (costVal !== '' && !isNaN(costVal)) ? parseFloat(costVal) : null,
+            driver_id: existingDriverId,
+            assigned_manager_id: existingAssignedManagerId,
+            cost: (costVal !== '' && !isNaN(costVal)) ? parseFloat(costVal) : (existingCost !== '' ? existingCost : null),
+            planned_start_date_from: existingDatesFrom,
+            planned_start_date_to: existingDatesTo,
             unload_type: resolveUnloadTypeByRouteType(normalizedRouteType),
             route_type: normalizedRouteType,
             source_warehouse_id: existingSourceWarehouseId,

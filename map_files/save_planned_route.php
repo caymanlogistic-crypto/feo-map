@@ -347,11 +347,9 @@ function validateRouteData(
     }
     if (!$driverOk && $requireFullForFoundTransition) return [false, 'Не выбран корректный водитель', [], ['driver_id' => 'Не выбран корректный водитель']];
     if ($requireFullForFoundTransition && $plannedFrom === null) {
-        return [false, '   " "   ', [], [
-            'planned_start_date_from' => 'Обязательная дата'
-        ]];
+        return [false, 'Не указана плановая дата начала рейса', [], ['planned_start_date_from' => 'Обязательная дата']];
     }
-    if ($requireFullForFoundTransition && $cost === null) return [false, '   " "  ', [], ['cost' => ' ']];
+    if ($requireFullForFoundTransition && $cost === null) return [false, 'Не указана стоимость рейса', [], ['cost' => 'Обязательная стоимость']];
 
     return [true, '', [
         'zayavki_ids_canonical' => implode(',', $ids),
