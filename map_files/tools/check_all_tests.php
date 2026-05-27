@@ -11,4 +11,7 @@ foreach ($rows as $r) echo "  #{$r['flight_id']} {$r['movement_type']} wh={$r['w
 echo "\n=== DUPLICATES ===\n";
 $d = $pdo->query("SELECT flight_id, COUNT(*) c FROM warehouse_movements WHERE flight_id IN (187,188,189,190) GROUP BY flight_id, movement_type, warehouse_id, zayavka_id HAVING COUNT(*)>1")->fetchAll(PDO::FETCH_ASSOC);
 echo count($d) . " duplicate groups\n";
+echo "\n=== MAX LOG ROLLBACK #211 ===\n";
+$ml=$pdo->query("SELECT event_key,success,message_text,created_at FROM max_send_log WHERE message_text LIKE '%211%' ORDER BY id DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
+foreach($ml as $l){$ok=((int)($l['success']??0)===1)?'OK':'ERR';echo "[{$ok}] {$l['event_key']} at {$l['created_at']}: ".mb_substr((string)($l['message_text']??''),0,300)."\n";}
 echo "DONE\n";
