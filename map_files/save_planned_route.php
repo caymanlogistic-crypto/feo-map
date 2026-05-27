@@ -302,6 +302,12 @@ function validateRouteData(
         if ($destinationWarehouseId === null) {
             return [false, 'Укажите склад назначения', [], ['destination_warehouse_id' => 'Укажите склад назначения']];
         }
+        if ($sourceWarehouseId === $destinationWarehouseId) {
+            return [false, 'Склад отправления и назначения не могут совпадать', [], [
+                'source_warehouse_id' => 'Склад отправления и назначения не могут совпадать',
+                'destination_warehouse_id' => 'Склад отправления и назначения не могут совпадать'
+            ]];
+        }
     }
     if ($requireWarehouses && $routeType === ROUTE_TYPE_WAREHOUSE_TO_UTILIZER && $sourceWarehouseId === null) {
         return [false, 'Укажите склад отправления', [], ['source_warehouse_id' => 'Укажите склад отправления']];
@@ -1045,8 +1051,8 @@ try {
                 ':cost' => $normalized['cost'],
                 ':zayavki_ids' => $normalized['zayavki_ids_canonical'],
                 ':count' => $normalized['zayavki_count'],
-                ':planned_from' => $normalized['planned_start_date_from'],
-                ':planned_to' => $normalized['planned_start_date_to'],
+                ':planned_from' => $normalized['planned_start_date_from'] ?? $before['planned_start_date_from'] ?? null,
+                ':planned_to' => $normalized['planned_start_date_to'] ?? $before['planned_start_date_to'] ?? null,
                 ':actual_start_date' => $actualStartValue,
                 ':actual_end_date' => $actualEndValue,
                 ':unload_type' => $normalized['unload_type'],
