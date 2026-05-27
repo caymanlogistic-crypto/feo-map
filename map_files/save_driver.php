@@ -7,51 +7,325 @@ require_once __DIR__ . '/Support/max_notify.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-// ... keep existing helper functions (driverOut through buildRetranText) unchanged ...
-// The file keeps all existing functions, only resolveFeoParams is expanded
-
-function driverOut(array $payload): void { echo json_encode($payload, JSON_UNESCAPED_UNICODE); exit; }
-function readDriverInput(): array { $raw = file_get_contents('php://input'); if (is_string($raw) && trim($raw) !== '') { $decoded = json_decode($raw, true); if (is_array($decoded)) return $decoded; } return $_POST; }
-function normalizeDriverFullName(string $value): string { $value = trim(preg_replace('/\s+/u', ' ', $value)); if ($value === '') return ''; $parts = preg_split('/\s+/u', $value); $normalized = []; foreach ((array)$parts as $part) { $part = preg_replace('/[^А-Яа-яЁё-]/u', '', (string)$part); if ($part === '') continue; $hyphenParts = preg_split('/-+/u', $part); $chunks = []; foreach ((array)$hyphenParts as $hp) { $hp = trim((string)$hp); if ($hp === '') continue; $hp = mb_strtolower($hp, 'UTF-8'); $first = mb_substr($hp, 0, 1, 'UTF-8'); $rest = mb_substr($hp, 1, null, 'UTF-8'); $chunks[] = mb_strtoupper($first, 'UTF-8') . $rest; } if (!empty($chunks)) $normalized[] = implode('-', $chunks); } return trim(implode(' ', $normalized)); }
-function normalizeDriverPlate(string $value): string { $value = mb_strtoupper(trim($value), 'UTF-8'); $map = ['A'=>'А','B'=>'В','C'=>'С','E'=>'Е','H'=>'Н','K'=>'К','M'=>'М','O'=>'О','P'=>'Р','T'=>'Т','X'=>'Х','Y'=>'У']; $value = strtr($value, $map); $value = preg_replace('/[^А-Я0-9]/u', '', $value); return mb_substr((string)$value, 0, 9, 'UTF-8'); }
-function extractPlateOnly(string $value): string { $value = mb_strtoupper(trim($value), 'UTF-8'); $map = ['A'=>'А','B'=>'В','C'=>'С','E'=>'Е','H'=>'Н','K'=>'К','M'=>'М','O'=>'О','P'=>'Р','T'=>'Т','X'=>'Х','Y'=>'У']; $value = strtr($value, $map); if (preg_match('/([АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3})/u', $value, $m)) return $m[1]; return trim($value); }
-function isValidDriverName(string $name): bool { $name = trim((string)$name); if ($name === '') return false; $words = preg_split('/\s+/u', $name); if (!is_array($words) || count($words) !== 3) return false; foreach ($words as $word) { if (!preg_match('/^[А-ЯЁ][а-яё-]+$/u', (string)$word)) return false; $plain = str_replace('-', '', (string)$word); if (mb_strlen($plain, 'UTF-8') < 2) return false; } return true; }
-function isValidDriverPlate(string $plate): bool { return (bool)preg_match('/^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$/u', $plate); }
-function driverLabel(array $driver): string { $fullName = trim((string)($driver['full_name'] ?? '')); $plate = extractPlateOnly((string)($driver['vehicle_make_plate'] ?? '')); if ($fullName !== '' && $plate !== '') return $fullName . ' — ' . $plate; if ($fullName !== '') return $fullName; if ($plate !== '') return $plate; return 'Водитель #' . (int)($driver['id'] ?? 0); }
-function loadDriversColumns(PDO $pdo): array { $stmt = $pdo->query('SHOW COLUMNS FROM drivers'); $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : []; $columns = []; foreach ((array)$rows as $row) { $field = (string)($row['Field'] ?? ''); if ($field !== '') $columns[$field] = $row; } return $columns; }
-function findExistingDriver(PDO $pdo, string $fullName, string $plate): ?array { $stmt = $pdo->prepare('SELECT id, full_name, vehicle_make_plate FROM drivers WHERE full_name = :full_name AND vehicle_make_plate = :plate LIMIT 1'); if (!$stmt || !$stmt->execute([':full_name' => $fullName, ':plate' => $plate])) return null; $row = $stmt->fetch(PDO::FETCH_ASSOC); return is_array($row) ? $row : null; }
-function insertDriver(PDO $pdo, array $columns, string $fullName, string $plate, string $gpsType, ?string $trackerUniqueId): array { $fields = []; $placeholders = []; $params = []; if (isset($columns['full_name'])) { $fields[] = '`full_name`'; $placeholders[] = ':full_name'; $params[':full_name'] = $fullName; } if (isset($columns['vehicle_make_plate'])) { $fields[] = '`vehicle_make_plate`'; $placeholders[] = ':vehicle_make_plate'; $params[':vehicle_make_plate'] = $plate; } if (isset($columns['is_active'])) { $fields[] = '`is_active`'; $placeholders[] = ':is_active'; $params[':is_active'] = 1; } if ($trackerUniqueId !== null && $trackerUniqueId !== '') { if (isset($columns['tracker_uniqueid'])) { $fields[] = '`tracker_uniqueid`'; $placeholders[] = ':tracker_uniqueid'; $params[':tracker_uniqueid'] = $trackerUniqueId; } elseif (isset($columns['tracker_id'])) { $fields[] = '`tracker_id`'; $placeholders[] = ':tracker_id'; $params[':tracker_id'] = $trackerUniqueId; } } if (isset($columns['gps_connection_type'])) { $fields[] = '`gps_connection_type`'; $placeholders[] = ':gps_connection_type'; $params[':gps_connection_type'] = $gpsType; } if (empty($fields)) throw new RuntimeException('Drivers table does not support required fields'); $sql = 'INSERT INTO drivers (' . implode(', ', $fields) . ') VALUES (' . implode(', ', $placeholders) . ')'; $stmt = $pdo->prepare($sql); if (!$stmt || !$stmt->execute($params)) throw new RuntimeException('Failed to insert driver'); $driverId = (int)$pdo->lastInsertId(); if ($driverId <= 0) throw new RuntimeException('Failed to resolve created driver id'); $stmtDriver = $pdo->prepare('SELECT id, full_name, vehicle_make_plate FROM drivers WHERE id = :id LIMIT 1'); if (!$stmtDriver || !$stmtDriver->execute([':id' => $driverId])) throw new RuntimeException('Failed to fetch created driver'); $driver = $stmtDriver->fetch(PDO::FETCH_ASSOC); if (!is_array($driver)) throw new RuntimeException('Created driver record is empty'); return $driver; }
-function getSlitexConfig(): array { $baseUrl = trim((string)($GLOBALS['slitexBaseUrl'] ?? getenv('SLITEX_BASE_URL') ?: 'https://slitex.online')); $token = trim((string)($GLOBALS['slitexApiToken'] ?? getenv('SLITEX_API_TOKEN') ?: '')); return ['base_url' => rtrim($baseUrl, '/'), 'token' => $token]; }
-function slitexRequest(string $method, string $url, string $token, ?array $payload = null): array { $ch = curl_init($url); if ($ch === false) return ['success' => false, 'status' => 0, 'error' => 'curl_init failed', 'body' => '']; $headers = ['Accept: application/json', 'X-API-Token: ' . $token]; $options = [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_SSL_VERIFYPEER => true, CURLOPT_CUSTOMREQUEST => strtoupper($method)]; if ($payload !== null) { $headers[] = 'Content-Type: application/json'; $options[CURLOPT_POSTFIELDS] = json_encode($payload, JSON_UNESCAPED_UNICODE); } $options[CURLOPT_HTTPHEADER] = $headers; curl_setopt_array($ch, $options); $resp = curl_exec($ch); $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $err = (string)curl_error($ch); curl_close($ch); if ($resp === false) return ['success' => false, 'status' => $status, 'error' => $err !== '' ? $err : 'Request failed', 'body' => '']; if ($status < 200 || $status >= 300) return ['success' => false, 'status' => $status, 'error' => 'HTTP ' . $status, 'body' => (string)$resp]; return ['success' => true, 'status' => $status, 'error' => '', 'body' => (string)$resp]; }
-function buildRetranText(string $trackerId): string { $id = trim($trackerId) !== '' ? trim($trackerId) : '[ID ТРЕККЕРА УТОЧНИТЬ]'; return 'Прошу установить ретрансляцию с треккера ' . $id . ' на Wialon 31.207.74.35:5039, так же предоставьте ID для ретрансляции если он не совпадает с ID треккера.' . "\nВам должны скинуть ID, его необходимо переслать в общую группу."; }
-function firstNonEmptyValue(array $sources, array $keys): string { foreach ($sources as $source) { if (!is_array($source)) continue; foreach ($keys as $key) { if (!array_key_exists($key, $source)) continue; $value = trim((string)$source[$key]); if ($value !== '') return $value; } } return ''; }
-function compactSourceKeysForDebug(array $sources, int $limit = 12): array { $keys = []; foreach ($sources as $source) { if (!is_array($source)) continue; foreach ($source as $k => $_) { $ks = trim((string)$k); if ($ks !== '') $keys[$ks] = true; if (count($keys) >= $limit) break 2; } } return array_keys($keys); }
-function appendKeyValueRowsForFeo(array $rows, array &$target): void { foreach ($rows as $row) { if (!is_array($row)) continue; if (isset($row['key']) && array_key_exists('value', $row)) $target[] = [(string)$row['key'] => (string)$row['value']]; if (isset($row['name']) && array_key_exists('value', $row)) $target[] = [(string)$row['name'] => (string)$row['value']]; if (isset($row['field']) && array_key_exists('value', $row)) $target[] = [(string)$row['field'] => (string)$row['value']]; } }
-
-// === EXPANDED FEO PARAMS RESOLUTION ===
-
-function flatCollect(array $data, int $maxDepth = 4): array
+function driverOut(array $payload): void
 {
-    $result = [$data];
-    if ($maxDepth <= 0) return $result;
-    $nestedKeys = ['device','data','payload','result','response','tracker',
-        'admin_fields','adminFields','admin_configs','adminConfigs',
-        'out','output','external','integration','wialon','feo',
-        'retranslation','retransmission','settings','config','params','parameters',
-        'admin','admin_data','info','details'];
-    foreach ($nestedKeys as $nk) {
-        if (isset($data[$nk]) && is_array($data[$nk])) {
-            $sub = flatCollect($data[$nk], $maxDepth - 1);
-            foreach ($sub as $s) $result[] = $s;
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function readDriverInput(): array
+{
+    $raw = file_get_contents('php://input');
+    if (is_string($raw) && trim($raw) !== '') {
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            return $decoded;
         }
     }
-    foreach ($data as $v) {
-        if (is_array($v)) {
-            $sub = flatCollect($v, $maxDepth - 1);
-            foreach ($sub as $s) $result[] = $s;
+    return $_POST;
+}
+
+function normalizeDriverFullName(string $value): string
+{
+    $value = trim(preg_replace('/\s+/u', ' ', $value));
+    if ($value === '') {
+        return '';
+    }
+    $parts = preg_split('/\s+/u', $value);
+    $normalized = [];
+    foreach ((array)$parts as $part) {
+        $part = preg_replace('/[^А-Яа-яЁё-]/u', '', (string)$part);
+        if ($part === '') {
+            continue;
+        }
+        $hyphenParts = preg_split('/-+/u', $part);
+        $chunks = [];
+        foreach ((array)$hyphenParts as $hp) {
+            $hp = trim((string)$hp);
+            if ($hp === '') continue;
+            $hp = mb_strtolower($hp, 'UTF-8');
+            $first = mb_substr($hp, 0, 1, 'UTF-8');
+            $rest = mb_substr($hp, 1, null, 'UTF-8');
+            $chunks[] = mb_strtoupper($first, 'UTF-8') . $rest;
+        }
+        if (!empty($chunks)) {
+            $normalized[] = implode('-', $chunks);
         }
     }
-    return $result;
+    return trim(implode(' ', $normalized));
+}
+
+function normalizeDriverPlate(string $value): string
+{
+    $value = mb_strtoupper(trim($value), 'UTF-8');
+    $map = [
+        'A' => 'А', 'B' => 'В', 'C' => 'С', 'E' => 'Е', 'H' => 'Н',
+        'K' => 'К', 'M' => 'М', 'O' => 'О', 'P' => 'Р', 'T' => 'Т',
+        'X' => 'Х', 'Y' => 'У',
+    ];
+    $value = strtr($value, $map);
+    $value = preg_replace('/[^А-Я0-9]/u', '', $value);
+    return mb_substr((string)$value, 0, 9, 'UTF-8');
+}
+
+function extractPlateOnly(string $value): string
+{
+    $value = mb_strtoupper(trim($value), 'UTF-8');
+    $map = [
+        'A' => 'А', 'B' => 'В', 'C' => 'С', 'E' => 'Е', 'H' => 'Н',
+        'K' => 'К', 'M' => 'М', 'O' => 'О', 'P' => 'Р', 'T' => 'Т',
+        'X' => 'Х', 'Y' => 'У',
+    ];
+    $value = strtr($value, $map);
+    if (preg_match('/([АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3})/u', $value, $m)) {
+        return $m[1];
+    }
+    return trim($value);
+}
+
+function isValidDriverName(string $name): bool
+{
+    $name = trim((string)$name);
+    if ($name === '') return false;
+    $words = preg_split('/\s+/u', $name);
+    if (!is_array($words) || count($words) !== 3) return false;
+    foreach ($words as $word) {
+        if (!preg_match('/^[А-ЯЁ][а-яё-]+$/u', (string)$word)) {
+            return false;
+        }
+        $plain = str_replace('-', '', (string)$word);
+        if (mb_strlen($plain, 'UTF-8') < 2) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function isValidDriverPlate(string $plate): bool
+{
+    return (bool)preg_match('/^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$/u', $plate);
+}
+
+function driverLabel(array $driver): string
+{
+    $fullName = trim((string)($driver['full_name'] ?? ''));
+    $plate = extractPlateOnly((string)($driver['vehicle_make_plate'] ?? ''));
+    if ($fullName !== '' && $plate !== '') {
+        return $fullName . ' — ' . $plate;
+    }
+    if ($fullName !== '') {
+        return $fullName;
+    }
+    if ($plate !== '') {
+        return $plate;
+    }
+    $id = (int)($driver['id'] ?? 0);
+    return 'Водитель #' . $id;
+}
+
+function loadDriversColumns(PDO $pdo): array
+{
+    $stmt = $pdo->query('SHOW COLUMNS FROM drivers');
+    $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    $columns = [];
+    foreach ((array)$rows as $row) {
+        $field = (string)($row['Field'] ?? '');
+        if ($field !== '') {
+            $columns[$field] = $row;
+        }
+    }
+    return $columns;
+}
+
+function findExistingDriver(PDO $pdo, string $fullName, string $plate): ?array
+{
+    $stmt = $pdo->prepare('SELECT id, full_name, vehicle_make_plate FROM drivers WHERE full_name = :full_name AND vehicle_make_plate = :plate LIMIT 1');
+    if (!$stmt || !$stmt->execute([':full_name' => $fullName, ':plate' => $plate])) {
+        return null;
+    }
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return is_array($row) ? $row : null;
+}
+
+function insertDriver(PDO $pdo, array $columns, string $fullName, string $plate, string $gpsType, ?string $trackerUniqueId): array
+{
+    $fields = [];
+    $placeholders = [];
+    $params = [];
+
+    if (isset($columns['full_name'])) {
+        $fields[] = '`full_name`';
+        $placeholders[] = ':full_name';
+        $params[':full_name'] = $fullName;
+    }
+    if (isset($columns['vehicle_make_plate'])) {
+        $fields[] = '`vehicle_make_plate`';
+        $placeholders[] = ':vehicle_make_plate';
+        $params[':vehicle_make_plate'] = $plate;
+    }
+    if (isset($columns['is_active'])) {
+        $fields[] = '`is_active`';
+        $placeholders[] = ':is_active';
+        $params[':is_active'] = 1;
+    }
+    if ($trackerUniqueId !== null && $trackerUniqueId !== '') {
+        if (isset($columns['tracker_uniqueid'])) {
+            $fields[] = '`tracker_uniqueid`';
+            $placeholders[] = ':tracker_uniqueid';
+            $params[':tracker_uniqueid'] = $trackerUniqueId;
+        } elseif (isset($columns['tracker_id'])) {
+            $fields[] = '`tracker_id`';
+            $placeholders[] = ':tracker_id';
+            $params[':tracker_id'] = $trackerUniqueId;
+        }
+    }
+    if (isset($columns['gps_connection_type'])) {
+        $fields[] = '`gps_connection_type`';
+        $placeholders[] = ':gps_connection_type';
+        $params[':gps_connection_type'] = $gpsType;
+    }
+
+    if (empty($fields)) {
+        throw new RuntimeException('Drivers table does not support required fields');
+    }
+
+    $sql = 'INSERT INTO drivers (' . implode(', ', $fields) . ') VALUES (' . implode(', ', $placeholders) . ')';
+    $stmt = $pdo->prepare($sql);
+    if (!$stmt || !$stmt->execute($params)) {
+        throw new RuntimeException('Failed to insert driver');
+    }
+
+    $driverId = (int)$pdo->lastInsertId();
+    if ($driverId <= 0) {
+        throw new RuntimeException('Failed to resolve created driver id');
+    }
+
+    $stmtDriver = $pdo->prepare('SELECT id, full_name, vehicle_make_plate FROM drivers WHERE id = :id LIMIT 1');
+    if (!$stmtDriver || !$stmtDriver->execute([':id' => $driverId])) {
+        throw new RuntimeException('Failed to fetch created driver');
+    }
+    $driver = $stmtDriver->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($driver)) {
+        throw new RuntimeException('Created driver record is empty');
+    }
+
+    return $driver;
+}
+
+function getSlitexConfig(): array
+{
+    $baseUrl = trim((string)($GLOBALS['slitexBaseUrl'] ?? getenv('SLITEX_BASE_URL') ?: 'https://slitex.online'));
+    $token = trim((string)($GLOBALS['slitexApiToken'] ?? getenv('SLITEX_API_TOKEN') ?: ''));
+    return ['base_url' => rtrim($baseUrl, '/'), 'token' => $token];
+}
+
+function slitexRequest(string $method, string $url, string $token, ?array $payload = null): array
+{
+    $ch = curl_init($url);
+    if ($ch === false) {
+        return ['success' => false, 'status' => 0, 'error' => 'curl_init failed', 'body' => ''];
+    }
+
+    $headers = [
+        'Accept: application/json',
+        'X-API-Token: ' . $token,
+    ];
+
+    $options = [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_CUSTOMREQUEST => strtoupper($method),
+    ];
+
+    if ($payload !== null) {
+        $headers[] = 'Content-Type: application/json';
+        $options[CURLOPT_POSTFIELDS] = json_encode($payload, JSON_UNESCAPED_UNICODE);
+    }
+
+    $options[CURLOPT_HTTPHEADER] = $headers;
+    curl_setopt_array($ch, $options);
+
+    $resp = curl_exec($ch);
+    $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = (string)curl_error($ch);
+    curl_close($ch);
+
+    if ($resp === false) {
+        return ['success' => false, 'status' => $status, 'error' => $err !== '' ? $err : 'Request failed', 'body' => ''];
+    }
+
+    if ($status < 200 || $status >= 300) {
+        return ['success' => false, 'status' => $status, 'error' => 'HTTP ' . $status, 'body' => (string)$resp];
+    }
+
+    return ['success' => true, 'status' => $status, 'error' => '', 'body' => (string)$resp];
+}
+
+function buildRetranText(string $trackerId): string
+{
+    $id = trim($trackerId) !== '' ? trim($trackerId) : '[ID ТРЕККЕРА УТОЧНИТЬ]';
+    return 'Прошу установить ретрансляцию с треккера ' . $id
+        . ' на Wialon 31.207.74.35:5039, так же предоставьте ID для ретрансляции если он не совпадает с ID треккера.'
+        . "\nВам должны скинуть ID, его необходимо переслать в общую группу.";
+}
+
+function firstNonEmptyValue(array $sources, array $keys): string
+{
+    foreach ($sources as $source) {
+        if (!is_array($source)) {
+            continue;
+        }
+        foreach ($keys as $key) {
+            if (!array_key_exists($key, $source)) {
+                continue;
+            }
+            $value = trim((string)$source[$key]);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+    }
+    return '';
+}
+
+function compactSourceKeysForDebug(array $sources, int $limit = 12): array
+{
+    $keys = [];
+    foreach ($sources as $source) {
+        if (!is_array($source)) {
+            continue;
+        }
+        foreach ($source as $k => $_) {
+            $ks = trim((string)$k);
+            if ($ks !== '') {
+                $keys[$ks] = true;
+            }
+            if (count($keys) >= $limit) {
+                break 2;
+            }
+        }
+    }
+    return array_keys($keys);
+}
+
+function appendKeyValueRowsForFeo(array $rows, array &$target): void
+{
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        if (isset($row['key']) && array_key_exists('value', $row)) {
+            $target[] = [(string)$row['key'] => (string)$row['value']];
+        }
+        if (isset($row['name']) && array_key_exists('value', $row)) {
+            $target[] = [(string)$row['name'] => (string)$row['value']];
+        }
+        if (isset($row['field']) && array_key_exists('value', $row)) {
+            $target[] = [(string)$row['field'] => (string)$row['value']];
+        }
+    }
 }
 
 function resolveFeoParams(array $selectedTracker, ?array $renameResponse): array
@@ -59,150 +333,392 @@ function resolveFeoParams(array $selectedTracker, ?array $renameResponse): array
     $sources = [];
     $appendTrackerSources = static function (array $trackerOrResponse, array &$target): void {
         $target[] = $trackerOrResponse;
-        if (isset($trackerOrResponse['device']) && is_array($trackerOrResponse['device'])) $target[] = $trackerOrResponse['device'];
-        if (isset($trackerOrResponse['data']) && is_array($trackerOrResponse['data'])) { $target[] = $trackerOrResponse['data']; if (isset($trackerOrResponse['data']['device']) && is_array($trackerOrResponse['data']['device'])) $target[] = $trackerOrResponse['data']['device']; }
+        if (isset($trackerOrResponse['device']) && is_array($trackerOrResponse['device'])) {
+            $target[] = $trackerOrResponse['device'];
+        }
+        if (isset($trackerOrResponse['data']) && is_array($trackerOrResponse['data'])) {
+            $target[] = $trackerOrResponse['data'];
+            if (isset($trackerOrResponse['data']['device']) && is_array($trackerOrResponse['data']['device'])) {
+                $target[] = $trackerOrResponse['data']['device'];
+            }
+        }
         foreach (['payload', 'result', 'response', 'tracker'] as $nestedKey) {
             if (isset($trackerOrResponse[$nestedKey]) && is_array($trackerOrResponse[$nestedKey])) {
                 $target[] = $trackerOrResponse[$nestedKey];
-                if (isset($trackerOrResponse[$nestedKey]['device']) && is_array($trackerOrResponse[$nestedKey]['device'])) $target[] = $trackerOrResponse[$nestedKey]['device'];
-                if (isset($trackerOrResponse[$nestedKey]['data']) && is_array($trackerOrResponse[$nestedKey]['data'])) $target[] = $trackerOrResponse[$nestedKey]['data'];
+                if (isset($trackerOrResponse[$nestedKey]['device']) && is_array($trackerOrResponse[$nestedKey]['device'])) {
+                    $target[] = $trackerOrResponse[$nestedKey]['device'];
+                }
+                if (isset($trackerOrResponse[$nestedKey]['data']) && is_array($trackerOrResponse[$nestedKey]['data'])) {
+                    $target[] = $trackerOrResponse[$nestedKey]['data'];
+                }
             }
         }
-        if (isset($trackerOrResponse['admin_fields']) && is_array($trackerOrResponse['admin_fields'])) { $target[] = $trackerOrResponse['admin_fields']; appendKeyValueRowsForFeo($trackerOrResponse['admin_fields'], $target); }
-        elseif (isset($trackerOrResponse['admin_fields']) && is_string($trackerOrResponse['admin_fields'])) { $decoded = json_decode($trackerOrResponse['admin_fields'], true); if (is_array($decoded)) { $target[] = $decoded; appendKeyValueRowsForFeo($decoded, $target); } }
-        if (isset($trackerOrResponse['adminFields']) && is_array($trackerOrResponse['adminFields'])) { $target[] = $trackerOrResponse['adminFields']; appendKeyValueRowsForFeo($trackerOrResponse['adminFields'], $target); }
-        if (isset($trackerOrResponse['admin_configs'][0]) && is_array($trackerOrResponse['admin_configs'][0])) $target[] = $trackerOrResponse['admin_configs'][0];
-        if (isset($trackerOrResponse['admin_configs']) && is_array($trackerOrResponse['admin_configs'])) { appendKeyValueRowsForFeo($trackerOrResponse['admin_configs'], $target); foreach ($trackerOrResponse['admin_configs'] as $cfgRow) { if (!is_array($cfgRow)) continue; $target[] = $cfgRow; } }
-        if (isset($trackerOrResponse['adminConfigs'][0]) && is_array($trackerOrResponse['adminConfigs'][0])) $target[] = $trackerOrResponse['adminConfigs'][0];
-        if (isset($trackerOrResponse['adminConfigs']) && is_array($trackerOrResponse['adminConfigs'])) appendKeyValueRowsForFeo($trackerOrResponse['adminConfigs'], $target);
-        foreach (['out','output','external','integration','wialon','feo','retranslation','retransmission','settings','config','params','parameters'] as $cKey) {
-            if (isset($trackerOrResponse[$cKey]) && is_array($trackerOrResponse[$cKey])) { $flat = flatCollect($trackerOrResponse[$cKey], 3); foreach ($flat as $f) $target[] = $f; }
+        if (isset($trackerOrResponse['admin_fields']) && is_array($trackerOrResponse['admin_fields'])) {
+            $target[] = $trackerOrResponse['admin_fields'];
+            appendKeyValueRowsForFeo($trackerOrResponse['admin_fields'], $target);
+        } elseif (isset($trackerOrResponse['admin_fields']) && is_string($trackerOrResponse['admin_fields'])) {
+            $decoded = json_decode($trackerOrResponse['admin_fields'], true);
+            if (is_array($decoded)) {
+                $target[] = $decoded;
+                appendKeyValueRowsForFeo($decoded, $target);
+            }
+        }
+        if (isset($trackerOrResponse['adminFields']) && is_array($trackerOrResponse['adminFields'])) {
+            $target[] = $trackerOrResponse['adminFields'];
+            appendKeyValueRowsForFeo($trackerOrResponse['adminFields'], $target);
+        }
+        if (isset($trackerOrResponse['admin_configs'][0]) && is_array($trackerOrResponse['admin_configs'][0])) {
+            $target[] = $trackerOrResponse['admin_configs'][0];
+        }
+        if (isset($trackerOrResponse['admin_configs']) && is_array($trackerOrResponse['admin_configs'])) {
+            appendKeyValueRowsForFeo($trackerOrResponse['admin_configs'], $target);
+            foreach ($trackerOrResponse['admin_configs'] as $cfgRow) {
+                if (!is_array($cfgRow)) {
+                    continue;
+                }
+                $target[] = $cfgRow;
+            }
+        }
+        if (isset($trackerOrResponse['adminConfigs'][0]) && is_array($trackerOrResponse['adminConfigs'][0])) {
+            $target[] = $trackerOrResponse['adminConfigs'][0];
+        }
+        if (isset($trackerOrResponse['adminConfigs']) && is_array($trackerOrResponse['adminConfigs'])) {
+            appendKeyValueRowsForFeo($trackerOrResponse['adminConfigs'], $target);
         }
     };
 
-    if (isset($selectedTracker['device']) && is_array($selectedTracker['device'])) $appendTrackerSources($selectedTracker['device'], $sources);
+    if (isset($selectedTracker['device']) && is_array($selectedTracker['device'])) {
+        $appendTrackerSources($selectedTracker['device'], $sources);
+    }
     $appendTrackerSources($selectedTracker, $sources);
     if (is_array($renameResponse)) {
-        if (isset($renameResponse['data']) && is_array($renameResponse['data'])) $appendTrackerSources($renameResponse['data'], $sources);
-        if (isset($renameResponse['device']) && is_array($renameResponse['device'])) $appendTrackerSources($renameResponse['device'], $sources);
+        if (isset($renameResponse['data']) && is_array($renameResponse['data'])) {
+            $appendTrackerSources($renameResponse['data'], $sources);
+        }
+        if (isset($renameResponse['device']) && is_array($renameResponse['device'])) {
+            $appendTrackerSources($renameResponse['device'], $sources);
+        }
         $appendTrackerSources($renameResponse, $sources);
     }
 
-    $allOutIdKeys = ['outID','outId','out_id','outid','externalId','externalID','external_id','retranslationId','retranslation_id','retransmissionId','retransmission_id','feoId','feo_id','outputId','outputID','output_id','id_out'];
-    $allOutIpKeys = ['outIP','outIp','out_ip','outip','ip','host','server','serverIp','server_ip','retranslationIp','retranslation_ip','retransmissionIp','retransmission_ip','feoIp','feo_ip','outputIp','output_ip'];
-    $allOutPortKeys = ['outPort','out_port','outport','port','retranslationPort','retranslation_port','retransmissionPort','retransmission_port','feoPort','feo_port','outputPort','output_port'];
-    $allOutProtoKeys = ['outProtocol','out_protocol','outprotocol','protocol','proto','type','retranslationProtocol','retranslation_protocol','retransmissionProtocol','retransmission_protocol','feoProtocol','feo_protocol','outputProtocol','output_protocol'];
-    $outId = firstNonEmptyValue($sources, $allOutIdKeys);
-    $outIp = firstNonEmptyValue($sources, $allOutIpKeys);
-    $outPort = firstNonEmptyValue($sources, $allOutPortKeys);
-    $outProtocol = firstNonEmptyValue($sources, $allOutProtoKeys);
+    $outId = firstNonEmptyValue($sources, ['outID', 'outId', 'out_id', 'outid']);
+    $outIp = firstNonEmptyValue($sources, ['outIP', 'outIp', 'out_ip', 'outip']);
+    $outPort = firstNonEmptyValue($sources, ['outPort', 'out_port', 'outport']);
+    $outProtocol = firstNonEmptyValue($sources, ['outProtocol', 'out_protocol', 'outprotocol']);
 
     $parts = [];
-    if ($outId !== '') $parts[] = $outId;
-    if ($outIp !== '' && $outPort !== '') $parts[] = $outIp . ':' . $outPort;
-    elseif ($outIp !== '') $parts[] = $outIp;
-    elseif ($outPort !== '') $parts[] = $outPort;
-    if ($outProtocol !== '') $parts[] = $outProtocol;
+    if ($outId !== '') {
+        $parts[] = $outId;
+    }
+    if ($outIp !== '' && $outPort !== '') {
+        $parts[] = $outIp . ':' . $outPort;
+    } elseif ($outIp !== '') {
+        $parts[] = $outIp;
+    } elseif ($outPort !== '') {
+        $parts[] = $outPort;
+    }
+    if ($outProtocol !== '') {
+        $parts[] = $outProtocol;
+    }
 
     if (empty($parts) && function_exists('mapError')) {
         mapError('save_driver feo params missing', [
             'uniqueid' => (string)($selectedTracker['uniqueid'] ?? ($selectedTracker['device']['uniqueid'] ?? '')),
             'known_keys' => compactSourceKeysForDebug($sources),
             'has_rename_response' => is_array($renameResponse) ? 1 : 0,
+            'selected_top_keys' => array_slice(array_keys($selectedTracker), 0, 20),
+            'rename_top_keys' => is_array($renameResponse) ? array_slice(array_keys($renameResponse), 0, 20) : [],
+            'candidate_out_values' => [
+                'outID' => $outId,
+                'outIP' => $outIp,
+                'outPort' => $outPort,
+                'outProtocol' => $outProtocol,
+            ],
         ]);
     }
-    if (empty($parts)) $parts[] = 'н/д';
+    if (empty($parts)) {
+        $parts[] = 'н/д';
+    }
 
     return [
-        'outID' => $outId, 'outIP' => $outIp, 'outPort' => $outPort, 'outProtocol' => $outProtocol,
-        'line' => implode(' ', $parts),
+        'outID' => $outId,
+        'outIP' => $outIp,
+        'outPort' => $outPort,
+        'outProtocol' => $outProtocol,
+        'line' => !empty($parts) ? implode(' ', $parts) : 'н/д',
     ];
 }
 
-// ... rest of the file (session throttle, main handler, etc.) follows unchanged ...
-function sessionThrottleKey(string $suffix): string { return 'save_driver_throttle_' . $suffix; }
+function sessionThrottleKey(string $suffix): string
+{
+    return 'save_driver_throttle_' . $suffix;
+}
 
 try {
-    if (!isset($pdo) || !($pdo instanceof PDO)) throw new RuntimeException('Database connection is not initialized');
-    if (session_status() !== PHP_SESSION_ACTIVE) @session_start();
+    if (!isset($pdo) || !($pdo instanceof PDO)) {
+        throw new RuntimeException('Database connection is not initialized');
+    }
+
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        @session_start();
+    }
+
     $input = readDriverInput();
     $action = trim((string)($input['action'] ?? 'create_driver'));
 
     if ($action === 'check_free_trackers') {
         $cfg = getSlitexConfig();
-        if ($cfg['token'] === '') driverOut(['success' => false, 'message' => 'SLITEX API token не настроен на сервере.']);
+        if ($cfg['token'] === '') {
+            driverOut(['success' => false, 'message' => 'SLITEX API token не настроен на сервере.']);
+        }
+
         $devicesResp = slitexRequest('GET', $cfg['base_url'] . '/api/external/devices', $cfg['token']);
-        if (!$devicesResp['success']) driverOut(['success' => false, 'message' => 'Не удалось получить список устройств SLITEX: ' . $devicesResp['error']]);
+        if (!$devicesResp['success']) {
+            driverOut(['success' => false, 'message' => 'Не удалось получить список устройств SLITEX: ' . $devicesResp['error']]);
+        }
+
         $devicesData = json_decode((string)$devicesResp['body'], true);
-        if (!is_array($devicesData)) driverOut(['success' => false, 'message' => 'SLITEX вернул некорректный JSON по списку устройств.']);
-        $devices = []; if (isset($devicesData['data']) && is_array($devicesData['data'])) $devices = $devicesData['data']; elseif (isset($devicesData[0]) && is_array($devicesData[0])) $devices = $devicesData;
-        $freeTrackers = []; foreach ((array)$devices as $device) { if (!is_array($device)) continue; $name = trim((string)($device['name'] ?? '')); $uniqueid = trim((string)($device['uniqueid'] ?? '')); if ($uniqueid !== '' && preg_match('/^\d+$/', $name)) $freeTrackers[] = ['uniqueid' => $uniqueid, 'name' => $name, 'device' => $device]; }
+        if (!is_array($devicesData)) {
+            driverOut(['success' => false, 'message' => 'SLITEX вернул некорректный JSON по списку устройств.']);
+        }
+
+        $devices = [];
+        if (isset($devicesData['data']) && is_array($devicesData['data'])) {
+            $devices = $devicesData['data'];
+        } elseif (isset($devicesData[0]) && is_array($devicesData[0])) {
+            $devices = $devicesData;
+        }
+
+        // Get busy uniqueids from drivers table
+        $busyIds = [];
+        $drCols = loadDriversColumns($pdo);
+        if (isset($drCols['tracker_uniqueid'])) {
+            $busyRows = $pdo->query("SELECT tracker_uniqueid FROM drivers WHERE tracker_uniqueid IS NOT NULL AND tracker_uniqueid != ''")->fetchAll(PDO::FETCH_COLUMN);
+            foreach ((array)$busyRows as $bid) { $busyIds[trim((string)$bid)] = true; }
+        } elseif (isset($drCols['tracker_id'])) {
+            $busyRows = $pdo->query("SELECT tracker_id FROM drivers WHERE tracker_id IS NOT NULL AND tracker_id != ''")->fetchAll(PDO::FETCH_COLUMN);
+            foreach ((array)$busyRows as $bid) { $busyIds[trim((string)$bid)] = true; }
+        }
+
+        $freeTrackers = [];
+        foreach ((array)$devices as $device) {
+            if (!is_array($device)) continue;
+            $uniqueid = trim((string)($device['uniqueid'] ?? ''));
+            if ($uniqueid !== '' && !isset($busyIds[$uniqueid])) {
+                $freeTrackers[] = ['uniqueid' => $uniqueid, 'name' => trim((string)($device['name'] ?? '')), 'device' => $device];
+            }
+        }
+
         $first = $freeTrackers[0]['uniqueid'] ?? null;
-        driverOut(['success' => true, 'free_count' => count($freeTrackers), 'first_uniqueid' => $first, 'free_trackers' => array_slice($freeTrackers, 0, 10), 'message' => count($freeTrackers) > 0 ? 'Свободные трекеры найдены.' : 'Свободных трекеров нет.']);
+        driverOut([
+            'success' => true,
+            'free_count' => count($freeTrackers),
+            'first_uniqueid' => $first,
+            'free_trackers' => array_slice($freeTrackers, 0, 10),
+            'message' => count($freeTrackers) > 0 ? 'Свободные трекеры найдены.' : 'Свободных трекеров нет.',
+        ]);
     }
 
-    // retranslation block kept disabled
-    if (false && $action === 'send_retranslation_max') { /* ... unchanged ... */ }
+    if (false && $action === 'send_retranslation_max') {
+        $fullName = normalizeDriverFullName((string)($input['full_name'] ?? ''));
+        $plate = normalizeDriverPlate((string)($input['vehicle_make_plate'] ?? ''));
+        $trackerId = trim((string)($input['tracker_id'] ?? ''));
+        if ($trackerId === '') $trackerId = '[ID ТРЕККЕРА УТОЧНИТЬ]';
+        $driverShort = ($plate !== '' ? $plate : 'ТС') . '(' . explode(' ', $fullName)[0] . ')';
+        $message = implode("\n", [
+            'Ретрансляция для нового водителя:',
+            $driverShort,
+            'ID трекера: ' . $trackerId,
+            'Wialon: 31.207.74.35:5039',
+            'Ожидается ID для ретрансляции, если он отличается от ID трекера.',
+        ]);
+        $notify = sendMaxNotify($message, 'markdown', [
+            'event_key' => 'driver_retranslation_requested',
+            'context' => [
+                'driver' => $driverShort,
+                'tracker_id' => $trackerId,
+                'wialon' => '31.207.74.35:5039',
+            ],
+        ]);
+        driverOut([
+            'success' => true,
+            'notify_success' => (bool)($notify['success'] ?? false),
+            'notify_error' => $notify['error'] ?? null,
+        ]);
+    }
 
     $fullNameRaw = (string)($input['full_name'] ?? '');
     $vehicleNumberRaw = (string)($input['vehicle_make_plate'] ?? $input['vehicle_number'] ?? '');
     $gpsType = trim((string)($input['gps_connection_type'] ?? ''));
-    $fullName = normalizeDriverFullName($fullNameRaw); $plate = normalizeDriverPlate($vehicleNumberRaw);
-    if (!isValidDriverName($fullName)) driverOut(['success' => false, 'message' => 'ФИО должно быть в формате: Фамилия Имя Отчество.']);
-    if (!isValidDriverPlate($plate)) driverOut(['success' => false, 'message' => 'Госномер должен быть в формате А123АА45 или А123АА456.']);
-    if ($gpsType === 'new_tracker') $gpsType = 'new_mobile_tracker'; elseif ($gpsType === '') $gpsType = 'new_mobile_tracker';
-    if (!in_array($gpsType, ['new_mobile_tracker', 'retranslation'], true)) $gpsType = 'new_mobile_tracker';
+
+    $fullName = normalizeDriverFullName($fullNameRaw);
+    $plate = normalizeDriverPlate($vehicleNumberRaw);
+
+    if (!isValidDriverName($fullName)) {
+        driverOut(['success' => false, 'message' => 'ФИО должно быть в формате: Фамилия Имя Отчество.']);
+    }
+    if (!isValidDriverPlate($plate)) {
+        driverOut(['success' => false, 'message' => 'Госномер должен быть в формате А123АА45 или А123АА456.']);
+    }
+    if ($gpsType === 'new_tracker') {
+        $gpsType = 'new_mobile_tracker';
+    } elseif ($gpsType === '') {
+        $gpsType = 'new_mobile_tracker';
+    }
+    if (!in_array($gpsType, ['new_mobile_tracker', 'retranslation'], true)) {
+        $gpsType = 'new_mobile_tracker';
+    }
 
     $throttleKey = sha1($fullName . '|' . $plate . '|' . $gpsType);
     $sessionKey = sessionThrottleKey($throttleKey);
     $lastTs = (int)($_SESSION[$sessionKey] ?? 0);
-    if ($lastTs > 0 && (time() - $lastTs) < 4) driverOut(['success' => false, 'message' => 'Подождите пару секунд и повторите попытку.']);
+    if ($lastTs > 0 && (time() - $lastTs) < 4) {
+        driverOut(['success' => false, 'message' => 'Подождите пару секунд и повторите попытку.']);
+    }
     $_SESSION[$sessionKey] = time();
 
     $existing = findExistingDriver($pdo, $fullName, $plate);
-    if ($existing) { $existing['id'] = (int)($existing['id'] ?? 0); $existing['label'] = driverLabel($existing); driverOut(['success' => true, 'existing' => true, 'message' => 'Такой водитель уже существует.', 'driver' => $existing]); }
+    if ($existing) {
+        $existing['id'] = (int)($existing['id'] ?? 0);
+        $existing['label'] = driverLabel($existing);
+        driverOut([
+            'success' => true,
+            'existing' => true,
+            'message' => 'Такой водитель уже существует.',
+            'driver' => $existing,
+        ]);
+    }
 
     $columns = loadDriversColumns($pdo);
-    if (!isset($columns['full_name']) || !isset($columns['vehicle_make_plate'])) throw new RuntimeException('drivers table does not contain full_name and vehicle_make_plate');
+    if (!isset($columns['full_name']) || !isset($columns['vehicle_make_plate'])) {
+        throw new RuntimeException('drivers table does not contain full_name and vehicle_make_plate');
+    }
+
     $surname = explode(' ', $fullName)[0] ?? '';
     $driverCompact = $plate . '(' . $surname . ')';
 
-    if (false && $gpsType === 'retranslation') { /* ... unchanged ... */ }
+    if (false && $gpsType === 'retranslation') {
+        $driver = insertDriver($pdo, $columns, $fullName, $plate, $gpsType, null);
+        $driver['id'] = (int)($driver['id'] ?? 0);
+        $driver['label'] = driverLabel($driver);
+        $copyText = buildRetranText($trackerIdInput);
+
+        driverOut([
+            'success' => true,
+            'existing' => false,
+            'message' => 'Водитель создан.',
+            'driver' => $driver,
+            'gps_connection_type' => 'retranslation',
+            'tracker_id' => $trackerIdInput,
+            'copy_text' => $copyText,
+            'max_message' => implode("\n", [
+                'Ретрансляция для нового водителя:',
+                $driverCompact,
+                'ID трекера: ' . (trim($trackerIdInput) !== '' ? $trackerIdInput : '[ID ТРЕККЕРА УТОЧНИТЬ]'),
+                'Wialon: 31.207.74.35:5039',
+                'Ожидается ID для ретрансляции, если он отличается от ID трекера.',
+            ]),
+        ]);
+    }
 
     $cfg = getSlitexConfig();
-    if ($cfg['token'] === '') driverOut(['success' => false, 'message' => 'SLITEX API token не настроен на сервере.']);
+    if ($cfg['token'] === '') {
+        driverOut(['success' => false, 'message' => 'SLITEX API token не настроен на сервере.']);
+    }
+
     $devicesResp = slitexRequest('GET', $cfg['base_url'] . '/api/external/devices', $cfg['token']);
-    if (!$devicesResp['success']) driverOut(['success' => false, 'message' => 'Не удалось получить список устройств SLITEX: ' . $devicesResp['error']]);
+    if (!$devicesResp['success']) {
+        driverOut(['success' => false, 'message' => 'Не удалось получить список устройств SLITEX: ' . $devicesResp['error']]);
+    }
+
     $devicesData = json_decode((string)$devicesResp['body'], true);
-    if (!is_array($devicesData)) driverOut(['success' => false, 'message' => 'SLITEX вернул некорректный JSON по списку устройств.']);
-    $devices = []; if (isset($devicesData['data']) && is_array($devicesData['data'])) $devices = $devicesData['data']; elseif (isset($devicesData[0]) && is_array($devicesData[0])) $devices = $devicesData;
-    $freeTrackers = []; foreach ((array)$devices as $device) { if (!is_array($device)) continue; $name = trim((string)($device['name'] ?? '')); $uniqueid = trim((string)($device['uniqueid'] ?? '')); if ($uniqueid !== '' && preg_match('/^\d+$/', $name)) $freeTrackers[] = ['uniqueid' => $uniqueid, 'name' => $name, 'device' => $device]; }
-    if (empty($freeTrackers)) driverOut(['success' => false, 'message' => 'Свободных трекеров нет. Создание водителя невозможно.']);
+    if (!is_array($devicesData)) {
+        driverOut(['success' => false, 'message' => 'SLITEX вернул некорректный JSON по списку устройств.']);
+    }
+
+    $devices = [];
+    if (isset($devicesData['data']) && is_array($devicesData['data'])) {
+        $devices = $devicesData['data'];
+    } elseif (isset($devicesData[0]) && is_array($devicesData[0])) {
+        $devices = $devicesData;
+    }
+
+    $freeTrackers = [];
+    foreach ((array)$devices as $device) {
+        if (!is_array($device)) {
+            continue;
+        }
+        $name = trim((string)($device['name'] ?? ''));
+        $uniqueid = trim((string)($device['uniqueid'] ?? ''));
+        if ($uniqueid !== '' && preg_match('/^\d+$/', $name)) {
+            $freeTrackers[] = [
+                'uniqueid' => $uniqueid,
+                'name' => $name,
+                'device' => $device,
+            ];
+        }
+    }
+
+    if (empty($freeTrackers)) {
+        driverOut(['success' => false, 'message' => 'Свободных трекеров нет. Создание водителя невозможно.']);
+    }
 
     $selected = $freeTrackers[0];
     $renamePayload = ['name' => $driverCompact];
-    $renameResp = slitexRequest('PATCH', $cfg['base_url'] . '/api/external/devices/' . rawurlencode($selected['uniqueid']) . '/name', $cfg['token'], $renamePayload);
-    if (!$renameResp['success']) driverOut(['success' => false, 'message' => 'Не удалось переименовать трекер: ' . $renameResp['error']]);
+
+    $renameResp = slitexRequest(
+        'PATCH',
+        $cfg['base_url'] . '/api/external/devices/' . rawurlencode($selected['uniqueid']) . '/name',
+        $cfg['token'],
+        $renamePayload
+    );
+    if (!$renameResp['success']) {
+        driverOut(['success' => false, 'message' => 'Не удалось переименовать трекер: ' . $renameResp['error']]);
+    }
     $renameResponse = json_decode((string)$renameResp['body'], true);
     $feoParams = resolveFeoParams($selected, is_array($renameResponse) ? $renameResponse : null);
 
     $driver = insertDriver($pdo, $columns, $fullName, $plate, $gpsType, $selected['uniqueid']);
-    $driver['id'] = (int)($driver['id'] ?? 0); $driver['label'] = driverLabel($driver);
+    $driver['id'] = (int)($driver['id'] ?? 0);
+    $driver['label'] = driverLabel($driver);
 
-    $maxMessage = implode("\n", ['Настройки для нового водителя:', $driverCompact, 'Для водителя: ' . $selected['uniqueid'], 'Для ФЭО: ' . $feoParams['line']]);
+    $maxMessage = implode("\n", [
+        'Настройки для нового водителя:',
+        $driverCompact,
+        'Для водителя: ' . $selected['uniqueid'],
+        'Для ФЭО: ' . $feoParams['line'],
+    ]);
 
     $notify = sendMaxNotify($maxMessage, 'markdown', [
         'event_key' => ($gpsType === 'retranslation' ? 'driver_retranslation_requested' : 'driver_new_tracker_configured'),
         'context' => [
-            'driver' => $driverCompact, 'driver_label' => $driverCompact,
-            'tracker_uniqueid' => $selected['uniqueid'], 'tracker_id' => $selected['uniqueid'], 'tracker_name' => $driverCompact,
-            'feo_params' => $feoParams['line'], 'feo_line' => $feoParams['line'],
-            'outID' => $feoParams['outID'], 'outIP' => $feoParams['outIP'], 'outPort' => $feoParams['outPort'], 'outProtocol' => $feoParams['outProtocol'],
-            'feo_out_id' => $feoParams['outID'], 'feo_out_ip' => $feoParams['outIP'], 'feo_out_port' => $feoParams['outPort'], 'feo_out_protocol' => $feoParams['outProtocol'],
+            'driver' => $driverCompact,
+            'tracker_uniqueid' => $selected['uniqueid'],
+            'feo_params' => $feoParams['line'],
+            'outID' => $feoParams['outID'],
+            'outIP' => $feoParams['outIP'],
+            'outPort' => $feoParams['outPort'],
+            'outProtocol' => $feoParams['outProtocol'],
         ],
     ]);
-    driverOut(['success' => true, 'existing' => false, 'message' => 'Трекер настроен.', 'driver' => $driver, 'gps_connection_type' => $gpsType, 'tracker_uniqueid' => $selected['uniqueid'], 'tracker_name' => $driverCompact, 'free_trackers_remaining' => max(0, count($freeTrackers) - 1), 'notify_success' => (bool)($notify['success'] ?? false), 'notify_error' => $notify['error'] ?? null]);
+    driverOut([
+        'success' => true,
+        'existing' => false,
+        'message' => 'Трекер настроен.',
+        'driver' => $driver,
+        'gps_connection_type' => $gpsType,
+        'tracker_uniqueid' => $selected['uniqueid'],
+        'tracker_name' => $driverCompact,
+        'free_trackers_remaining' => max(0, count($freeTrackers) - 1),
+        'notify_success' => (bool)($notify['success'] ?? false),
+        'notify_error' => $notify['error'] ?? null,
+    ]);
 } catch (Throwable $e) {
-    if (function_exists('mapError')) mapError('save_driver failed', ['error' => $e->getMessage()]);
-    driverOut(['success' => false, 'message' => 'Ошибка создания водителя.']);
+    if (function_exists('mapError')) {
+        mapError('save_driver failed', ['error' => $e->getMessage()]);
+    }
+    driverOut([
+        'success' => false,
+        'message' => 'Ошибка создания водителя.',
+    ]);
 }
