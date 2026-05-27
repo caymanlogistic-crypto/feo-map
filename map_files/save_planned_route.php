@@ -1002,6 +1002,14 @@ try {
             $requireTitle = false;
             $requireRequests = $isFoundEdit;
             $requireWarehouses = $isFoundEdit;
+            // Fallback: if driver_id not provided, use existing flight's driver
+            if (is_array($current) && empty($data['driver_id']) && !empty($current['driver_id'])) {
+                $data['driver_id'] = (int)$current['driver_id'];
+            }
+            // Fallback: if assigned_manager_id not provided, use existing
+            if (is_array($current) && empty($data['assigned_manager_id']) && !empty($current['assigned_manager_id'])) {
+                $data['assigned_manager_id'] = (int)$current['assigned_manager_id'];
+            }
         }
         [$ok, $msg, $normalized, $errors] = validateRouteData(
             $pdo,
