@@ -489,6 +489,30 @@ try {
             $devices = $devicesData;
         }
 
+        // Fetch admin-fields for enriched device data (FEO params)
+        $adminFieldsResp = slitexRequest('GET', $cfg['base_url'] . '/api/external/devices/admin-fields', $cfg['token']);
+        $adminFieldsData = [];
+        if ($adminFieldsResp['success']) {
+            $afDecoded = json_decode((string)$adminFieldsResp['body'], true);
+            if (is_array($afDecoded)) {
+                $adminFieldsData = isset($afDecoded['data']) ? $afDecoded['data'] : $afDecoded;
+            }
+        }
+        $adminFieldsByUid = [];
+        foreach ((array)$adminFieldsData as $afItem) {
+            if (is_array($afItem) && !empty($afItem['uniqueid'])) {
+                $adminFieldsByUid[trim((string)$afItem['uniqueid'])] = $afItem;
+            }
+        }
+        foreach ($devices as &$dev) {
+            if (!is_array($dev) || empty($dev['uniqueid'])) continue;
+            $uid = trim((string)$dev['uniqueid']);
+            if (isset($adminFieldsByUid[$uid]) && is_array($adminFieldsByUid[$uid])) {
+                $dev['admin_fields'] = $adminFieldsByUid[$uid]['fields'] ?? $adminFieldsByUid[$uid];
+            }
+        }
+        unset($dev);
+
         // Get busy uniqueids from drivers table
         $busyIds = [];
         $drCols = loadDriversColumns($pdo);
@@ -643,19 +667,49 @@ try {
         $devices = $devicesData;
     }
 
-    $freeTrackers = [];
-    foreach ((array)$devices as $device) {
-        if (!is_array($device)) {
-            continue;
+    // Fetch admin fields for enriched device data (FEO params)
+    $adminFieldsData = [];
+    $adminFieldsResp = slitexRequest('GET', $cfg['base_url'] . '/api/external/devices/admin-fields', $cfg['token']);
+    if ($adminFieldsResp['success']) {
+        $afDecoded = json_decode((string)$adminFieldsResp['body'], true);
+        if (is_array($afDecoded)) {
+            $adminFieldsData = isset($afDecoded['data']) ? $afDecoded['data'] : $afDecoded;
         }
-        $name = trim((string)($device['name'] ?? ''));
+    }
+    $adminFieldsByUid = [];
+    foreach ((array)$adminFieldsData as $afItem) {
+        if (is_array($afItem) && !empty($afItem['uniqueid'])) {
+            $adminFieldsByUid[trim((string)$afItem['uniqueid'])] = $afItem;
+        }
+    }
+
+    // Merge admin_fields into devices (same pattern as TrackerService)
+    foreach ($devices as &$dev) {
+        if (!is_array($dev) || empty($dev['uniqueid'])) continue;
+        $uid = trim((string)$dev['uniqueid']);
+        if (isset($adminFieldsByUid[$uid]) && is_array($adminFieldsByUid[$uid])) {
+            $dev['admin_fields'] = $adminFieldsByUid[$uid]['fields'] ?? $adminFieldsByUid[$uid];
+        }
+    }
+    unset($dev);
+
+    // Get busy uniqueids from drivers table
+    $busyIds = [];
+    $drCols = loadDriversColumns($pdo);
+    if (isset($drCols['tracker_uniqueid'])) {
+        $busyRows = $pdo->query("SELECT tracker_uniqueid FROM drivers WHERE tracker_uniqueid IS NOT NULL AND tracker_uniqueid != ''")->fetchAll(PDO::FETCH_COLUMN);
+        foreach ((array)$busyRows as $bid) { $busyIds[trim((string)$bid)] = true; }
+    } elseif (isset($drCols['tracker_id'])) {
+        $busyRows = $pdo->query("SELECT tracker_id FROM drivers WHERE tracker_id IS NOT NULL AND tracker_id != ''")->fetchAll(PDO::FETCH_COLUMN);
+        foreach ((array)$busyRows as $bid) { $busyIds[trim((string)$bid)] = true; }
+    }
+
+    $freeTrackers = [];
+    foreach ($devices as $device) {
+        if (!is_array($device)) continue;
         $uniqueid = trim((string)($device['uniqueid'] ?? ''));
-        if ($uniqueid !== '' && preg_match('/^\d+$/', $name)) {
-            $freeTrackers[] = [
-                'uniqueid' => $uniqueid,
-                'name' => $name,
-                'device' => $device,
-            ];
+        if ($uniqueid !== '' && !isset($busyIds[$uniqueid])) {
+            $freeTrackers[] = ['uniqueid' => $uniqueid, 'name' => trim((string)($device['name'] ?? '')), 'device' => $device];
         }
     }
 
