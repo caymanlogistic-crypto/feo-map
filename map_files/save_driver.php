@@ -550,7 +550,7 @@ try {
         ]);
     }
 
-    if (false && $action === 'send_retranslation_max') {
+    if ($action === 'send_retranslation_max') {
         $fullName = normalizeDriverFullName((string)($input['full_name'] ?? ''));
         $plate = normalizeDriverPlate((string)($input['vehicle_make_plate'] ?? ''));
         $trackerId = trim((string)($input['tracker_id'] ?? ''));
@@ -628,29 +628,8 @@ try {
     $surname = explode(' ', $fullName)[0] ?? '';
     $driverCompact = $plate . '(' . $surname . ')';
 
-    if (false && $gpsType === 'retranslation') {
-        $driver = insertDriver($pdo, $columns, $fullName, $plate, $gpsType, null);
-        $driver['id'] = (int)($driver['id'] ?? 0);
-        $driver['label'] = driverLabel($driver);
-        $copyText = buildRetranText($trackerIdInput);
-
-        driverOut([
-            'success' => true,
-            'existing' => false,
-            'message' => 'Водитель создан.',
-            'driver' => $driver,
-            'gps_connection_type' => 'retranslation',
-            'tracker_id' => $trackerIdInput,
-            'copy_text' => $copyText,
-            'max_message' => implode("\n", [
-                'Ретрансляция для нового водителя:',
-                $driverCompact,
-                'ID трекера: ' . (trim($trackerIdInput) !== '' ? $trackerIdInput : '[ID ТРЕККЕРА УТОЧНИТЬ]'),
-                'Wialon: 31.207.74.35:5039',
-                'Ожидается ID для ретрансляции, если он отличается от ID трекера.',
-            ]),
-        ]);
-    }
+    // Ретрансляция идёт по тому же SLITEX-потоку, что и new_mobile_tracker (ниже).
+    // Различие — только в event_key для MAX-уведомления (строка 761).
 
     $cfg = getSlitexConfig();
     if ($cfg['token'] === '') {
