@@ -1158,7 +1158,10 @@ try {
             ($unloadLine !== '' ? ($unloadLine . "\n") : '') .
             ($routeTypeLine !== '' ? ($routeTypeLine . "\n") : '') .
             "Рейс закреплен: {$manager}"
-        , 'route_deleted');
+        , 'route_deleted', buildRouteEventContext($pdo, $flight, $routeId, [
+            'status_from' => STATUS_PLANNED,
+            'status_to' => 'deleted',
+        ]));
         jsonOut([
             'success' => true,
             'message' => 'Маршрут удален',
@@ -1352,7 +1355,11 @@ try {
                     "#{$routeId} — {$title}",
                     '> 💡 *Напоминаю: для оплаты подрядчику нужен полный пакет документов (диагностическая карта, путевой лист и т.д.). Прошу не затягивать с предоставлением.*'
                 ], static fn($line) => $line !== ''))
-            , 'route_completed');
+            , 'route_completed', buildRouteEventContext($pdo, $afterCompleted, $routeId, [
+                'status_from' => STATUS_STARTED,
+                'status_to' => STATUS_COMPLETED,
+                'actual_end_short' => formatDateShortRu($afterCompleted['actual_end_date'] ?? ''),
+            ]));
             jsonOut([
                 'success' => true,
                 'message' => 'Рейс переведен в ГРУЗСДАН',

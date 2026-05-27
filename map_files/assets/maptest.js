@@ -2750,32 +2750,28 @@ function closeCreateRouteModal() {
     toggleCreateRouteModal(false);
 }
 
-function submitRoutePayload(payload, btn, restoreText) {
+async function submitRoutePayload(payload, btn, restoreText) {
     if (btn) {
         btn.disabled = true;
         btn.textContent = UI.msgSaving;
     }
-    return fetch('map_files/save_planned_route.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-    })
-    .then(r => r.json())
-    .then(res => {
+    try {
+        const res = await postRouteAction(payload.action || 'save', payload);
         if (res && res.success) {
             alert(res.message);
             window.location.reload();
             return;
         }
         alert(UI.msgErrorPrefix + ((res && res.message) ? res.message : UI.msgSaveFailed));
-    })
-    .catch(() => alert(UI.msgNetworkError))
-    .finally(() => {
+    } catch (e) {
+        console.error('submitRoutePayload error:', e);
+        alert(UI.msgNetworkError);
+    } finally {
         if (btn) {
             btn.disabled = false;
             btn.textContent = restoreText;
         }
-    });
+    }
 }
 
 function confirmCreateRoute() {
@@ -2869,22 +2865,19 @@ function promptSaveRoute() {
     openCreateRouteModal();
 }
 
-function deleteRoute(id) {
+async function deleteRoute(id) {
     if(!confirm(UI.msgDeleteRouteConfirm)) return;
-    fetch('map_files/save_planned_route.php', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({action:'delete_route', id:id})
-    }).then(r=>r.json()).then(res => {
+    try {
+        const res = await postRouteAction('delete_route', {id:id});
         if(res.success) {
             window.location.reload();
         } else {
             alert((res && res.message) ? res.message : 'Ошибка удаления');
         }
-    }).catch(e => {
+    } catch(e) {
         console.error('deleteRoute error:', e);
         alert('Ошибка сети при удалении');
-    });
+    }
 }
 
 function calculateRoute() {
