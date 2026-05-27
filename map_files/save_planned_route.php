@@ -5,6 +5,9 @@ require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/Support/max_notify.php';
 require_once __DIR__ . '/Support/warehouse_movements.php';
 header('Content-Type: application/json; charset=utf-8');
+if (function_exists('opcache_invalidate')) {
+    @opcache_invalidate(__FILE__, true);
+}
 
 const STATUS_PLANNED = 'planned_route';
 const STATUS_FOUND = 'found';
