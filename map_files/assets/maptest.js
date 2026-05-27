@@ -604,7 +604,8 @@ function buildFoundChangePreview(meta) {
         changes.push(`<div><strong>${UI.labelRouteType}:</strong> ${escapeHtml(getRouteTypeLabel(previousRouteType, meta.unload_type || 'OO'))} ${UI.emDash}&gt; ${escapeHtml(getRouteTypeLabel(currentRouteType, resolveUnloadTypeByRouteType(currentRouteType)))}</div>`);
     }
     if (changes.length === 0) return '';
-    return `<div><strong>\u0411\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0432 MAX:</strong></div>${changes.join('')}`;
+    const htmlBlocks = changes.map(c => `<div style="white-space:pre-wrap;margin:4px 0">${escapeHtml(c)}</div>`);
+    return `<div><strong>\u0411\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0432 MAX:</strong></div>${htmlBlocks.join('')}`;
 }
 function addTrackerMarkers(trackers) {
     // Remove old transport markers from collection

@@ -848,110 +848,128 @@ function buildPlannedToFoundMessage(PDO $pdo, array $after, int $flightId): stri
 function buildFoundDiffMessage(PDO $pdo, array $before, array $after, int $flightId): string
 {
     [$title, $manager] = buildCompactFlightContext($pdo, $after, $flightId);
-    $changes = [];
+    $blocks = [];
+
     if ((int)$before['driver_id'] !== (int)$after['driver_id']) {
-        $changes[] = 'Водитель: ' . compactDriverLabel((string)$before['_driver_label']) . ' → ' . compactDriverLabel((string)$after['_driver_label']);
+        $old = compactDriverLabel((string)$before['_driver_label']);
+        $new = compactDriverLabel((string)$after['_driver_label']);
+        $blocks[] = "Водитель:\nБыло: {$old}\nСтало: {$new}";
     }
     if ((string)$before['planned_start_date_from'] !== (string)$after['planned_start_date_from']) {
-        $changes[] = 'Даты: ' . formatDateShortRu($before['planned_start_date_from']) . '-' . formatDateShortRu($before['planned_start_date_to'])
-            . ' → ' . formatDateShortRu($after['planned_start_date_from']) . '-' . formatDateShortRu($after['planned_start_date_to']);
+        $oldRange = formatDateShortRu($before['planned_start_date_from']) . ' — ' . formatDateShortRu($before['planned_start_date_to']);
+        $newRange = formatDateShortRu($after['planned_start_date_from']) . ' — ' . formatDateShortRu($after['planned_start_date_to']);
+        $blocks[] = "Период:\nБыло: {$oldRange}\nСтало: {$newRange}";
+    }
+    if (abs((float)$before['cost'] - (float)$after['cost']) > 0.0001) {
+        $blocks[] = "Стоимость:\nБыло: " . formatMoneyRu($before['cost']) . "\nСтало: " . formatMoneyRu($after['cost']);
     }
     if ((string)$before['zayavki_ids'] !== (string)$after['zayavki_ids']) {
-        $changes[] = 'Заявки: ' . (int)$before['_count'] . ' → ' . (int)$after['_count'];
         [$removed, $added] = buildAddedRemovedIds(splitIds((string)($before['zayavki_ids'] ?? '')), splitIds((string)($after['zayavki_ids'] ?? '')));
         if (!empty($removed)) {
-            $changes[] = 'Исключенные заявки: ' . formatIdsList($removed);
+            $blocks[] = 'Исключенные заявки: ' . formatIdsList($removed);
         }
         if (!empty($added)) {
-            $changes[] = 'Добавленные заявки: ' . formatIdsList($added);
+            $blocks[] = 'Добавленные заявки: ' . formatIdsList($added);
+        }
+        if ((int)$before['_count'] !== (int)$after['_count']) {
+            $blocks[] = "Количество заявок:\nБыло: " . (int)$before['_count'] . "\nСтало: " . (int)$after['_count'];
         }
     }
     if (abs((float)$before['_sum_tons'] - (float)$after['_sum_tons']) > 0.0001) {
-        $changes[] = 'Вес: ' . formatKgFromTons((float)$before['_sum_tons']) . ' → ' . formatKgFromTons((float)$after['_sum_tons']);
+        $blocks[] = "Вес:\nБыло: " . formatKgFromTons((float)$before['_sum_tons']) . "\nСтало: " . formatKgFromTons((float)$after['_sum_tons']);
     }
-
     if (trim((string)($before['comment'] ?? '')) !== trim((string)($after['comment'] ?? ''))) {
-        $changes[] = 'Название: ' . buildRouteTitle($before, $flightId) . ' → ' . buildRouteTitle($after, $flightId);
+        $blocks[] = "Название:\nБыло: " . buildRouteTitle($before, $flightId) . "\nСтало: " . buildRouteTitle($after, $flightId);
     }
-
     if ((string)($before['route_type'] ?? '') !== (string)($after['route_type'] ?? '')) {
-        $changes[] = 'Тип рейса: ' . buildRouteTypeLabel($before) . ' → ' . buildRouteTypeLabel($after);
+        $blocks[] = "Маршрут груза:\nБыло: " . buildRouteTypeLabel($before) . "\nСтало: " . buildRouteTypeLabel($after);
     }
     if ((int)($before['source_warehouse_id'] ?? 0) !== (int)($after['source_warehouse_id'] ?? 0)) {
-        $fromOld = getWarehouseNameById($pdo, $before['source_warehouse_id'] ?? 0);
-        $fromNew = getWarehouseNameById($pdo, $after['source_warehouse_id'] ?? 0);
-        $changes[] = 'Склад отправления: ' . ($fromOld !== '' ? $fromOld : 'не выбран') . ' → ' . ($fromNew !== '' ? $fromNew : 'не выбран');
+        $oldName = getWarehouseNameById($pdo, $before['source_warehouse_id'] ?? 0);
+        $newName = getWarehouseNameById($pdo, $after['source_warehouse_id'] ?? 0);
+        $blocks[] = "Склад отправления:\nБыло: " . ($oldName !== '' ? $oldName : 'не указано') . "\nСтало: " . ($newName !== '' ? $newName : 'не указано');
     }
     if ((int)($before['destination_warehouse_id'] ?? 0) !== (int)($after['destination_warehouse_id'] ?? 0)) {
-        $toOld = getWarehouseNameById($pdo, $before['destination_warehouse_id'] ?? 0);
-        $toNew = getWarehouseNameById($pdo, $after['destination_warehouse_id'] ?? 0);
-        $changes[] = 'Склад назначения: ' . ($toOld !== '' ? $toOld : 'не выбран') . ' → ' . ($toNew !== '' ? $toNew : 'не выбран');
+        $oldName = getWarehouseNameById($pdo, $before['destination_warehouse_id'] ?? 0);
+        $newName = getWarehouseNameById($pdo, $after['destination_warehouse_id'] ?? 0);
+        $blocks[] = "Склад назначения:\nБыло: " . ($oldName !== '' ? $oldName : 'не указано') . "\nСтало: " . ($newName !== '' ? $newName : 'не указано');
     }
 
-    if (empty($changes)) {
+    if (empty($blocks)) {
         return '';
     }
 
     // Header is provided by Event Center template (route_found_updated).
-    // Only diff lines are returned — no duplicate header.
-    $lines = $changes;
+    // Only diff blocks are returned — no duplicate header.
+    $lines = $blocks;
     $lines[] = "Рейс закреплен: {$manager}";
-    return implode("\n", $lines);
+    return implode("\n\n", $lines);
 }
 
 
 function buildStartedDiffMessage(PDO $pdo, array $before, array $after, int $flightId): string
 {
     [$title, $manager] = buildCompactFlightContext($pdo, $after, $flightId);
-    $changes = [];
+    $blocks = [];
+
     if ((int)$before['driver_id'] !== (int)$after['driver_id']) {
-        $changes[] = 'Водитель: ' . compactDriverLabel((string)$before['_driver_label']) . ' → ' . compactDriverLabel((string)$after['_driver_label']);
+        $old = compactDriverLabel((string)$before['_driver_label']);
+        $new = compactDriverLabel((string)$after['_driver_label']);
+        $blocks[] = "Водитель:\nБыло: {$old}\nСтало: {$new}";
     }
     if ((string)$before['actual_start_date'] !== (string)$after['actual_start_date']) {
-        $changes[] = 'Старт: ' . formatDateShortRu($before['actual_start_date']) . ' → ' . formatDateShortRu($after['actual_start_date']);
+        $oldDate = $before['actual_start_date'] ? formatDateShortRu($before['actual_start_date']) : 'не указано';
+        $newDate = $after['actual_start_date'] ? formatDateShortRu($after['actual_start_date']) : 'не указано';
+        $blocks[] = "Фактический старт:\nБыло: {$oldDate}\nСтало: {$newDate}";
     }
     if ((string)$before['actual_end_date'] !== (string)$after['actual_end_date']) {
-        $changes[] = 'Финиш: ' . formatDateShortRu($before['actual_end_date']) . ' → ' . formatDateShortRu($after['actual_end_date']);
+        $oldDate = $before['actual_end_date'] ? formatDateShortRu($before['actual_end_date']) : 'не указано';
+        $newDate = $after['actual_end_date'] ? formatDateShortRu($after['actual_end_date']) : 'не указано';
+        $blocks[] = "Фактический финиш:\nБыло: {$oldDate}\nСтало: {$newDate}";
+    }
+    if (abs((float)$before['cost'] - (float)$after['cost']) > 0.0001) {
+        $blocks[] = "Стоимость:\nБыло: " . formatMoneyRu($before['cost']) . "\nСтало: " . formatMoneyRu($after['cost']);
     }
     if ((string)$before['zayavki_ids'] !== (string)$after['zayavki_ids']) {
-        $changes[] = 'Заявки: ' . (int)$before['_count'] . ' → ' . (int)$after['_count'];
         [$removed, $added] = buildAddedRemovedIds(splitIds((string)($before['zayavki_ids'] ?? '')), splitIds((string)($after['zayavki_ids'] ?? '')));
         if (!empty($removed)) {
-            $changes[] = 'Исключенные заявки: ' . formatIdsList($removed);
+            $blocks[] = 'Исключенные заявки: ' . formatIdsList($removed);
         }
         if (!empty($added)) {
-            $changes[] = 'Добавленные заявки: ' . formatIdsList($added);
+            $blocks[] = 'Добавленные заявки: ' . formatIdsList($added);
+        }
+        if ((int)$before['_count'] !== (int)$after['_count']) {
+            $blocks[] = "Количество заявок:\nБыло: " . (int)$before['_count'] . "\nСтало: " . (int)$after['_count'];
         }
     }
     if (abs((float)$before['_sum_tons'] - (float)$after['_sum_tons']) > 0.0001) {
-        $changes[] = 'Вес: ' . formatKgFromTons((float)$before['_sum_tons']) . ' → ' . formatKgFromTons((float)$after['_sum_tons']);
+        $blocks[] = "Вес:\nБыло: " . formatKgFromTons((float)$before['_sum_tons']) . "\nСтало: " . formatKgFromTons((float)$after['_sum_tons']);
     }
     if (trim((string)($before['comment'] ?? '')) !== trim((string)($after['comment'] ?? ''))) {
-        $changes[] = 'Название: ' . buildRouteTitle($before, $flightId) . ' → ' . buildRouteTitle($after, $flightId);
+        $blocks[] = "Название:\nБыло: " . buildRouteTitle($before, $flightId) . "\nСтало: " . buildRouteTitle($after, $flightId);
     }
-
     if ((string)($before['route_type'] ?? '') !== (string)($after['route_type'] ?? '')) {
-        $changes[] = 'Тип рейса: ' . buildRouteTypeLabel($before) . ' → ' . buildRouteTypeLabel($after);
+        $blocks[] = "Маршрут груза:\nБыло: " . buildRouteTypeLabel($before) . "\nСтало: " . buildRouteTypeLabel($after);
     }
     if ((int)($before['source_warehouse_id'] ?? 0) !== (int)($after['source_warehouse_id'] ?? 0)) {
-        $fromOld = getWarehouseNameById($pdo, $before['source_warehouse_id'] ?? 0);
-        $fromNew = getWarehouseNameById($pdo, $after['source_warehouse_id'] ?? 0);
-        $changes[] = 'Склад отправления: ' . ($fromOld !== '' ? $fromOld : 'не выбран') . ' → ' . ($fromNew !== '' ? $fromNew : 'не выбран');
+        $oldName = getWarehouseNameById($pdo, $before['source_warehouse_id'] ?? 0);
+        $newName = getWarehouseNameById($pdo, $after['source_warehouse_id'] ?? 0);
+        $blocks[] = "Склад отправления:\nБыло: " . ($oldName !== '' ? $oldName : 'не указано') . "\nСтало: " . ($newName !== '' ? $newName : 'не указано');
     }
     if ((int)($before['destination_warehouse_id'] ?? 0) !== (int)($after['destination_warehouse_id'] ?? 0)) {
-        $toOld = getWarehouseNameById($pdo, $before['destination_warehouse_id'] ?? 0);
-        $toNew = getWarehouseNameById($pdo, $after['destination_warehouse_id'] ?? 0);
-        $changes[] = 'Склад назначения: ' . ($toOld !== '' ? $toOld : 'не выбран') . ' → ' . ($toNew !== '' ? $toNew : 'не выбран');
+        $oldName = getWarehouseNameById($pdo, $before['destination_warehouse_id'] ?? 0);
+        $newName = getWarehouseNameById($pdo, $after['destination_warehouse_id'] ?? 0);
+        $blocks[] = "Склад назначения:\nБыло: " . ($oldName !== '' ? $oldName : 'не указано') . "\nСтало: " . ($newName !== '' ? $newName : 'не указано');
     }
 
-    if (empty($changes)) {
+    if (empty($blocks)) {
         return '';
     }
     // Header is provided by Event Center template (route_started_updated).
     // Only diff lines are returned — no duplicate header.
-    $lines = $changes;
+    $lines = $blocks;
     $lines[] = 'Рейс находится в выполнении. Проверьте корректность изменений.';
-    return implode("\n", $lines);
+    return implode("\n\n", $lines);
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
