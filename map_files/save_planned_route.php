@@ -402,11 +402,21 @@ function compactDriverLabel(string $label): string
 {
     $v = trim($label);
     if ($v === '') return 'Водитель не указан';
-    if (preg_match('/([А-ЯЁA-Z]\d{3}[А-ЯЁA-Z]{2}\d{2,3})/u', $v, $mPlate)) {
-        $plate = trim($mPlate[1]);
+    // Allow optional spaces in plate: Е007РС 29 → Е007РС29
+    if (preg_match('/([А-ЯЁA-Z]\d{3}\s*[А-ЯЁA-Z]{2}\s*\d{2,3})/u', $v, $mPlate)) {
+        $plate = preg_replace('/\s+/', '', $mPlate[1]);
         $surname = '';
+        // Format: Е007РС29(Быков)
         if (preg_match('/\(([^)]+)\)/u', $v, $mName)) {
             $surname = trim((string)explode(' ', trim($mName[1]))[0]);
+        }
+        // Format: Быков Андрей Борисович / SCANIA Е007РС 29
+        if ($surname === '') {
+            $slashParts = explode('/', $v, 2);
+            if (count($slashParts) >= 2) {
+                $namePart = trim($slashParts[0]);
+                $surname = trim((string)explode(' ', $namePart)[0]);
+            }
         }
         if ($surname === '' && preg_match('/([А-ЯЁA-Z][а-яёa-z]+)/u', $v, $mWord)) {
             $candidate = trim((string)$mWord[1]);
@@ -882,19 +892,9 @@ function buildFoundDiffMessage(PDO $pdo, array $before, array $after, int $fligh
         return '';
     }
 
-    $lines = [
-        "**⚠️ ИЗМЕНЕНИЕ В СФОРМИРОВАННОМ РЕЙСЕ ⚠️**",
-        "#{$flightId} {$title}",
-    ];
-    $unloadLine = buildUnloadLine($after);
-    if ($unloadLine !== '') {
-        $lines[] = $unloadLine;
-    }
-    $routeTypeLine = buildRouteTypeLine($pdo, $after);
-    if ($routeTypeLine !== '') {
-        $lines[] = $routeTypeLine;
-    }
-    $lines = array_merge($lines, $changes);
+    // Header is provided by Event Center template (route_found_updated).
+    // Only diff lines are returned — no duplicate header.
+    $lines = $changes;
     $lines[] = "Рейс закреплен: {$manager}";
     return implode("\n", $lines);
 }
@@ -947,19 +947,9 @@ function buildStartedDiffMessage(PDO $pdo, array $before, array $after, int $fli
     if (empty($changes)) {
         return '';
     }
-    $lines = [
-        "Изменён рейс #{$flightId} во время выполнения",
-        "{$title} | {$manager}",
-    ];
-    $unloadLine = buildUnloadLine($after);
-    if ($unloadLine !== '') {
-        $lines[] = $unloadLine;
-    }
-    $routeTypeLine = buildRouteTypeLine($pdo, $after);
-    if ($routeTypeLine !== '') {
-        $lines[] = $routeTypeLine;
-    }
-    $lines = array_merge($lines, $changes);
+    // Header is provided by Event Center template (route_started_updated).
+    // Only diff lines are returned — no duplicate header.
+    $lines = $changes;
     $lines[] = 'Рейс находится в выполнении. Проверьте корректность изменений.';
     return implode("\n", $lines);
 }
