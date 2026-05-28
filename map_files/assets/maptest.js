@@ -18,6 +18,7 @@ let transportDisplayMode = 'active';
 let requestsCollection, trackersCollection;
 let warehousesCollection;
 let warehousesData = [];
+let warehouseStockData = {};
 let warehousesVisible = true;
 let warehouseCreateTargetFieldId = '';
 let warehouseAddressGeocoded = false;
@@ -2543,6 +2544,76 @@ function buildRouteManageMenu(routeId, source) {
     return '';
 }
 
+function buildWarehouseBalloon(warehouse) {
+    const id = warehouse.id || 0;
+    const name = String(warehouse.name || ('Склад #' + id)).trim();
+    const address = String(warehouse.address || '').trim();
+    const stock = (warehouseStockData && warehouseStockData[id]) ? warehouseStockData[id] : null;
+    const nettoSum = stock ? Number(stock.mass_netto_sum || 0) : 0;
+    const bruttoSum = stock ? Number(stock.mass_brutto_sum || 0) : 0;
+    const volSum = stock ? Number(stock.volume_sum || 0) : 0;
+    const reqCount = stock ? (stock.request_count || 0) : 0;
+
+    let html = '<div style="padding:10px;min-width:360px;max-width:600px;font-size:13px;line-height:1.5;">';
+    html += `<div style="font-size:18px;font-weight:700;margin-bottom:4px;">${escapeHtml(name)}</div>`;
+    html += `<div style="color:#666;margin-bottom:10px;">${escapeHtml(address || TXT.notSpecified)}</div>`;
+
+    if (stock) {
+        html += '<div style="background:#f0f7ff;border-radius:6px;padding:8px;margin-bottom:10px;">';
+        html += `<div><strong>Заявок на складе:</strong> ${reqCount}</div>`;
+        html += `<div><strong>Вес нетто:</strong> ${Number(nettoSum).toFixed(3)} т</div>`;
+        html += `<div><strong>Вес брутто:</strong> ${Number(bruttoSum).toFixed(3)} т</div>`;
+        html += `<div><strong>Объём:</strong> ${Number(volSum).toFixed(3)} м³</div>`;
+        html += '</div>';
+
+        if (Array.isArray(stock.inbound_routes) && stock.inbound_routes.length > 0) {
+            html += '<div style="margin-bottom:8px;"><strong style="color:#27ae60;">Поступления на склад:</strong>';
+            stock.inbound_routes.forEach(function(r) {
+                html += `<div style="font-size:12px;margin:2px 0;">• Рейс #${r.flight_id} — ${escapeHtml(r.movement_label || r.movement_type)} — ${r.request_count} заяв. — ${Number(r.mass_netto_sum).toFixed(3)} т</div>`;
+            });
+            html += '</div>';
+        }
+
+        if (Array.isArray(stock.outbound_routes) && stock.outbound_routes.length > 0) {
+            html += '<div style="margin-bottom:8px;"><strong style="color:#e74c3c;">Списания со склада:</strong>';
+            stock.outbound_routes.forEach(function(r) {
+                html += `<div style="font-size:12px;margin:2px 0;">• Рейс #${r.flight_id} — ${escapeHtml(r.movement_label || r.movement_type)} — ${r.request_count} заяв. — ${Number(r.mass_netto_sum).toFixed(3)} т</div>`;
+            });
+            html += '</div>';
+        }
+    } else {
+        html += '<div style="color:#888;">Нет данных о складских остатках</div>';
+    }
+    html += '</div>';
+    return html;
+}
+
+let selectedWarehouseId = null;
+
+function toggleWarehouseSelection(warehouseId) {
+    const stock = (warehouseStockData && warehouseStockData[warehouseId]) ? warehouseStockData[warehouseId] : null;
+    if (!stock || !Array.isArray(stock.requests) || stock.requests.length === 0) {
+        return;
+    }
+    const stockIds = stock.requests.map(function(r) { return String(r.zayavka_id); });
+    const allSelected = stockIds.every(function(id) { return selectedOrder.indexOf(id) !== -1; });
+
+    if (allSelected) {
+        stockIds.forEach(function(id) {
+            var idx = selectedOrder.indexOf(id);
+            if (idx !== -1) selectedOrder.splice(idx, 1);
+        });
+        selectedWarehouseId = null;
+    } else {
+        stockIds.forEach(function(id) {
+            if (selectedOrder.indexOf(id) === -1) selectedOrder.push(id);
+        });
+        selectedWarehouseId = warehouseId;
+    }
+    refreshMarkerStyles();
+    updateSelectionUI();
+}
+
 function renderWarehousesLayer() {
     if (!warehousesCollection || !map) return;
     warehousesCollection.removeAll();
@@ -2552,21 +2623,22 @@ function renderWarehousesLayer() {
         const lat = Number(warehouse.latitude);
         const lon = Number(warehouse.longitude);
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-        const name = String(warehouse.name || `Склад #${warehouse.id || ''}`).trim();
+        const id = warehouse.id || 0;
+        const name = String(warehouse.name || ('Склад #' + id)).trim();
         const address = String(warehouse.address || '').trim();
         const coordsText = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+        const stock = (warehouseStockData && warehouseStockData[id]) ? warehouseStockData[id] : null;
+        const hasStock = stock && stock.request_count > 0;
+        const isSelectedWH = selectedWarehouseId === id;
+
         const placemark = new ymaps.Placemark([lat, lon], {
-            hintContent: name,
-            balloonContent: `<div style="padding:8px;max-width:320px;">
-                <div><strong>${UI.labelWarehouseName}:</strong> ${escapeHtml(name)}</div>
-                <div><strong>${UI.labelWarehouseAddress}:</strong> ${escapeHtml(address || TXT.notSpecified)}</div>
-                <div><strong>${UI.labelWarehouseCoordinates}:</strong> ${escapeHtml(coordsText)}</div>
-            </div>`
+            hintContent: hasStock ? (name + ' — ' + stock.request_count + ' заяв.') : name,
+            balloonContent: buildWarehouseBalloon(warehouse)
         }, {
             iconLayout: ymaps.templateLayoutFactory.createClass(
                 `<div style="position:relative;width:58px;height:32px;font-family:Arial,sans-serif;">
-                    <div style="position:absolute;left:0;top:0;width:58px;height:24px;border:2px solid #2f343a;border-radius:7px;background:#2f343a;color:#fff;font-weight:700;font-size:11px;line-height:20px;text-align:center;box-sizing:border-box;">${escapeHtml(UI.labelWarehouseMarker)}</div>
-                    <div style="position:absolute;left:23px;top:24px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid #2f343a;"></div>
+                    <div style="position:absolute;left:0;top:0;width:58px;height:24px;border:2px solid ${isSelectedWH ? '#e74c3c' : '#2f343a'};border-radius:7px;background:${isSelectedWH ? '#e74c3c' : (hasStock ? '#27ae60' : '#2f343a')};color:#fff;font-weight:700;font-size:11px;line-height:20px;text-align:center;box-sizing:border-box;">${escapeHtml(UI.labelWarehouseMarker)}</div>
+                    <div style="position:absolute;left:23px;top:24px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid ${isSelectedWH ? '#e74c3c' : (hasStock ? '#27ae60' : '#2f343a')};"></div>
                 </div>`
             ),
             iconOffset: [-29, -32],
@@ -2576,6 +2648,13 @@ function renderWarehousesLayer() {
             },
             zIndex: 420
         });
+
+        placemark.events.add('click', function() {
+            if (hasStock) {
+                toggleWarehouseSelection(id);
+            }
+        });
+
         warehousesCollection.add(placemark);
     });
 }
@@ -2593,18 +2672,33 @@ async function loadWarehouses(keepExistingOnError = true) {
             if (!keepExistingOnError) {
                 warehousesData = [];
             }
+            await loadWarehouseStock();
             renderWarehousesLayer();
             return false;
         }
         warehousesData = data.warehouses;
+        await loadWarehouseStock();
         renderWarehousesLayer();
         return true;
     } catch (error) {
         if (!keepExistingOnError) {
             warehousesData = [];
         }
+        await loadWarehouseStock();
         renderWarehousesLayer();
         return false;
+    }
+}
+
+async function loadWarehouseStock() {
+    try {
+        const response = await fetch('map_files/get_warehouse_stock_map.php');
+        const data = await response.json();
+        if (data && data.success && data.warehouses) {
+            warehouseStockData = data.warehouses;
+        }
+    } catch (e) {
+        console.error('loadWarehouseStock failed:', e);
     }
 }
 

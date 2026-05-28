@@ -39,6 +39,71 @@ function resolveUnloadTypeByRouteType(string $routeType): string
 }
 }
 
+/**
+ * Человекочитаемая метка типа складского движения.
+ */
+function moveLabel(string $t): string
+{
+    return [
+        WM_MOVEMENT_RECEIPT      => 'Поступление на склад',
+        WM_MOVEMENT_TRANSFER_OUT => 'Перемещение со склада',
+        WM_MOVEMENT_TRANSFER_IN  => 'Перемещение на склад',
+        WM_MOVEMENT_ISSUE        => 'Вывоз со склада',
+    ][$t] ?? $t;
+}
+
+/**
+ * Возвращает массив zayavka_id, которые имеют положительный остаток на складе.
+ *
+ * @param PDO   $pdo
+ * @param int   $warehouseId
+ * @param int[] $zayavkaIds  — список заявок для проверки
+ * @return array [zayavka_id => ['mass_netto' => float, ...], ...]
+ */
+function getWarehouseAvailableZayavki(PDO $pdo, int $warehouseId, array $zayavkaIds): array
+{
+    $result = [];
+    if (empty($zayavkaIds) || $warehouseId <= 0) {
+        return $result;
+    }
+
+    try {
+        $placeholders = implode(',', array_fill(0, count($zayavkaIds), '?'));
+        $stmt = $pdo->prepare(
+            "SELECT wm.zayavka_id,
+                SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN COALESCE(wm.mass_netto,0)
+                         WHEN wm.movement_type IN ('issue','transfer_out') THEN -COALESCE(wm.mass_netto,0)
+                         ELSE 0 END) AS available_netto,
+                SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN COALESCE(wm.mass_brutto,0)
+                         WHEN wm.movement_type IN ('issue','transfer_out') THEN -COALESCE(wm.mass_brutto,0)
+                         ELSE 0 END) AS available_brutto,
+                SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN COALESCE(wm.volume,0)
+                         WHEN wm.movement_type IN ('issue','transfer_out') THEN -COALESCE(wm.volume,0)
+                         ELSE 0 END) AS available_vol
+            FROM warehouse_movements wm
+            WHERE wm.status = 'active' AND wm.warehouse_id = ?
+              AND wm.zayavka_id IN ({$placeholders})
+            GROUP BY wm.zayavka_id
+            HAVING available_netto > 0.0001"
+        );
+        $stmt->execute(array_merge([$warehouseId], $zayavkaIds));
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ((array)$rows as $row) {
+            $result[(int)$row['zayavka_id']] = [
+                'zayavka_id'      => (int)$row['zayavka_id'],
+                'mass_netto'      => round((float)$row['available_netto'], 4),
+                'mass_brutto'     => round((float)$row['available_brutto'], 4),
+                'volume'          => round((float)$row['available_vol'], 4),
+            ];
+        }
+    } catch (Throwable $e) {
+        if (function_exists('mapError')) {
+            mapError('getWarehouseAvailableZayavki failed', ['error' => $e->getMessage()]);
+        }
+    }
+    return $result;
+}
+
 function warehouseMoveTypeLabel(string $routeType): string
 {
     $map = [
@@ -222,6 +287,15 @@ function createWarehouseMovementsForCompletedFlight(PDO $pdo, int $flightId): ar
     $sourceWarehouseId = (int)($flight['source_warehouse_id'] ?? 0);
     $destinationWarehouseId = (int)($flight['destination_warehouse_id'] ?? 0);
 
+    // ── Для складских маршрутов с source_warehouse: проверяем, есть ли заявка на складе ──
+    $availableOnSource = [];
+    if (($routeType === ROUTE_TYPE_WAREHOUSE_TO_UTILIZER || $routeType === ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE)
+        && $sourceWarehouseId > 0 && !empty($zayavkiIds)
+    ) {
+        $availableOnSource = getWarehouseAvailableZayavki($pdo, $sourceWarehouseId, $zayavkiIds);
+    }
+    $skippedNotOnSource = [];
+
     foreach ($zayavkiIds as $zayavkaId) {
         $feoRow = $feoRows[$zayavkaId] ?? null;
         if (!is_array($feoRow)) {
@@ -264,6 +338,12 @@ function createWarehouseMovementsForCompletedFlight(PDO $pdo, int $flightId): ar
                 $result['created']++;
             }
         } elseif ($routeType === ROUTE_TYPE_WAREHOUSE_TO_WAREHOUSE) {
+            // Списываем только заявки, реально находящиеся на source_warehouse
+            if (!isset($availableOnSource[$zayavkaId])) {
+                $skippedNotOnSource[] = $zayavkaId;
+                $result['skipped']++;
+                continue;
+            }
             $transferOut = array_merge($baseRow, [
                 'movement_type' => WM_MOVEMENT_TRANSFER_OUT,
                 'warehouse_id' => $sourceWarehouseId,
@@ -301,6 +381,12 @@ function createWarehouseMovementsForCompletedFlight(PDO $pdo, int $flightId): ar
                 $result['skipped']++;
             }
         } elseif ($routeType === ROUTE_TYPE_WAREHOUSE_TO_UTILIZER) {
+            // Списываем только заявки, реально находящиеся на source_warehouse
+            if (!isset($availableOnSource[$zayavkaId])) {
+                $skippedNotOnSource[] = $zayavkaId;
+                $result['skipped']++;
+                continue;
+            }
             $row = array_merge($baseRow, [
                 'movement_type' => WM_MOVEMENT_ISSUE,
                 'warehouse_id' => $sourceWarehouseId,
@@ -319,6 +405,11 @@ function createWarehouseMovementsForCompletedFlight(PDO $pdo, int $flightId): ar
                 $result['created']++;
             }
         }
+    }
+
+    if (!empty($skippedNotOnSource)) {
+        $result['skipped_not_on_source_warehouse'] = $skippedNotOnSource;
+        $result['messages'][] = "Пропущено заявок (не находятся на складе отправления #{$sourceWarehouseId}): " . count($skippedNotOnSource);
     }
 
     if (empty($result['errors']) && $result['created'] > 0) {
