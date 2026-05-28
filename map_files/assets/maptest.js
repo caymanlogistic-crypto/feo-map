@@ -2753,16 +2753,17 @@ function renderWarehouseStockSelector() {
     if (!container) {
         container = document.createElement('div');
         container.id = 'warehouse-stock-selector';
-        container.style.cssText = 'position:absolute;top:14px;left:300px;background:#fff;border-radius:8px;border:1px solid #d9dee5;box-shadow:0 2px 8px rgba(0,0,0,0.12);padding:10px;z-index:999;width:280px;max-height:60vh;overflow-y:auto;';
-        var mapEl = document.getElementById('map');
-        if (mapEl) {
-            mapEl.appendChild(container);
-        } else {
-            document.body.appendChild(container);
-        }
+        container.style.cssText = 'position:fixed;top:80px;right:330px;width:280px;max-height:60vh;overflow-y:auto;background:#fff;border-radius:8px;border:1px solid #d9dee5;box-shadow:0 2px 8px rgba(0,0,0,0.12);padding:10px;z-index:20050;pointer-events:auto;';
+        document.body.appendChild(container);
     }
 
-    var html = '<h4 style="margin:0 0 8px;color:#2f3640;border-bottom:1px solid #d9dee5;padding-bottom:5px;font-size:13px;">Склады с остатками</h4>';
+    container.innerHTML = '';
+
+    var title = document.createElement('h4');
+    title.style.cssText = 'margin:0 0 8px;color:#2f3640;border-bottom:1px solid #d9dee5;padding-bottom:5px;font-size:13px;';
+    title.textContent = 'Склады с остатками';
+    container.appendChild(title);
+
     var foundAny = false;
 
     Object.keys(warehouseStockData).forEach(function(whKey) {
@@ -2776,31 +2777,41 @@ function renderWarehouseStockSelector() {
         var stockIds = stock.requests.map(function(r) { return String(r.zayavka_id); });
         var allSelected = stockIds.length > 0 && stockIds.every(function(id) { return selectedOrder.indexOf(id) !== -1; });
 
-        html += '<div style="background:#f0f7ff;border-radius:6px;padding:8px;margin-bottom:8px;">';
-        html += '<div style="font-weight:700;font-size:13px;margin-bottom:4px;">' + name + '</div>';
-        html += '<div style="font-size:12px;color:#555;margin-bottom:4px;">Заявок: ' + count + ' | Вес: ' + netto + ' т</div>';
-        html += '<button type="button" id="wh-select-btn-' + wid + '" style="width:100%;padding:6px 0;font-size:13px;font-weight:700;background:' + (allSelected ? '#e74c3c' : '#27ae60') + ';color:#fff;border:none;border-radius:4px;cursor:pointer;">' + (allSelected ? 'Убрать заявки склада из маршрута' : 'Добавить заявки склада в маршрут') + '</button>';
-        html += '</div>';
+        var card = document.createElement('div');
+        card.style.cssText = 'background:#f0f7ff;border-radius:6px;padding:8px;margin-bottom:8px;';
+
+        var nameDiv = document.createElement('div');
+        nameDiv.style.cssText = 'font-weight:700;font-size:13px;margin-bottom:4px;';
+        nameDiv.textContent = name;
+        card.appendChild(nameDiv);
+
+        var infoDiv = document.createElement('div');
+        infoDiv.style.cssText = 'font-size:12px;color:#555;margin-bottom:4px;';
+        infoDiv.textContent = 'Заявок: ' + count + ' | Вес: ' + netto + ' т';
+        card.appendChild(infoDiv);
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.style.cssText = 'width:100%;padding:6px 0;font-size:13px;font-weight:700;color:#fff;border:none;border-radius:4px;cursor:pointer;pointer-events:auto;';
+        btn.style.background = allSelected ? '#e74c3c' : '#27ae60';
+        btn.textContent = allSelected ? 'Убрать заявки склада из маршрута' : 'Добавить заявки склада в маршрут';
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleWarehouseSelection(wid);
+            renderWarehouseStockSelector();
+        });
+        card.appendChild(btn);
+
+        container.appendChild(card);
     });
 
     if (!foundAny) {
-        html += '<div style="color:#888;font-size:12px;">Нет складов с остатками</div>';
+        var emptyDiv = document.createElement('div');
+        emptyDiv.style.cssText = 'color:#888;font-size:12px;';
+        emptyDiv.textContent = 'Нет складов с остатками';
+        container.appendChild(emptyDiv);
     }
-
-    container.innerHTML = html;
-
-    Object.keys(warehouseStockData).forEach(function(whKey) {
-        var stock = warehouseStockData[whKey];
-        if (!stock || Number(stock.request_count || 0) <= 0) return;
-        var wid = stock.warehouse_id || whKey;
-        var btn = document.getElementById('wh-select-btn-' + wid);
-        if (btn) {
-            btn.addEventListener('click', function() {
-                toggleWarehouseSelection(wid);
-                renderWarehouseStockSelector();
-            });
-        }
-    });
 }
 
 async function loadManagers() {
