@@ -2638,6 +2638,7 @@ function toggleWarehouseSelection(warehouseId) {
         selectedWarehouseId = Number(warehouseId) || warehouseId;
     }
     renderWarehousesLayer();
+    renderWarehouseStockSelector();
     refreshMarkerStyles();
     updateSelectionUI();
     return true;
@@ -2741,9 +2742,65 @@ async function loadWarehouseStock() {
                 }
             });
         }
+        renderWarehouseStockSelector();
     } catch (e) {
         console.error('loadWarehouseStock failed:', e);
     }
+}
+
+function renderWarehouseStockSelector() {
+    var container = document.getElementById('warehouse-stock-selector');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'warehouse-stock-selector';
+        container.style.cssText = 'position:absolute;top:14px;left:300px;background:#fff;border-radius:8px;border:1px solid #d9dee5;box-shadow:0 2px 8px rgba(0,0,0,0.12);padding:10px;z-index:999;width:280px;max-height:60vh;overflow-y:auto;';
+        var mapEl = document.getElementById('map');
+        if (mapEl) {
+            mapEl.appendChild(container);
+        } else {
+            document.body.appendChild(container);
+        }
+    }
+
+    var html = '<h4 style="margin:0 0 8px;color:#2f3640;border-bottom:1px solid #d9dee5;padding-bottom:5px;font-size:13px;">Склады с остатками</h4>';
+    var foundAny = false;
+
+    Object.keys(warehouseStockData).forEach(function(whKey) {
+        var stock = warehouseStockData[whKey];
+        if (!stock || Number(stock.request_count || 0) <= 0 || !Array.isArray(stock.requests) || stock.requests.length === 0) return;
+        foundAny = true;
+        var wid = stock.warehouse_id || whKey;
+        var name = escapeHtml(stock.name || ('Склад #' + wid));
+        var count = stock.request_count;
+        var netto = Number(stock.mass_netto_sum || 0).toFixed(3);
+        var stockIds = stock.requests.map(function(r) { return String(r.zayavka_id); });
+        var allSelected = stockIds.length > 0 && stockIds.every(function(id) { return selectedOrder.indexOf(id) !== -1; });
+
+        html += '<div style="background:#f0f7ff;border-radius:6px;padding:8px;margin-bottom:8px;">';
+        html += '<div style="font-weight:700;font-size:13px;margin-bottom:4px;">' + name + '</div>';
+        html += '<div style="font-size:12px;color:#555;margin-bottom:4px;">Заявок: ' + count + ' | Вес: ' + netto + ' т</div>';
+        html += '<button type="button" id="wh-select-btn-' + wid + '" style="width:100%;padding:6px 0;font-size:13px;font-weight:700;background:' + (allSelected ? '#e74c3c' : '#27ae60') + ';color:#fff;border:none;border-radius:4px;cursor:pointer;">' + (allSelected ? 'Убрать заявки склада из маршрута' : 'Добавить заявки склада в маршрут') + '</button>';
+        html += '</div>';
+    });
+
+    if (!foundAny) {
+        html += '<div style="color:#888;font-size:12px;">Нет складов с остатками</div>';
+    }
+
+    container.innerHTML = html;
+
+    Object.keys(warehouseStockData).forEach(function(whKey) {
+        var stock = warehouseStockData[whKey];
+        if (!stock || Number(stock.request_count || 0) <= 0) return;
+        var wid = stock.warehouse_id || whKey;
+        var btn = document.getElementById('wh-select-btn-' + wid);
+        if (btn) {
+            btn.addEventListener('click', function() {
+                toggleWarehouseSelection(wid);
+                renderWarehouseStockSelector();
+            });
+        }
+    });
 }
 
 async function loadManagers() {
