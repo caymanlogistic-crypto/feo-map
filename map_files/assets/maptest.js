@@ -2591,12 +2591,13 @@ function buildWarehouseBalloon(warehouse) {
 let selectedWarehouseId = null;
 
 function toggleWarehouseSelection(warehouseId) {
-    const stock = (warehouseStockData && warehouseStockData[warehouseId]) ? warehouseStockData[warehouseId] : null;
+    var key = String(warehouseId);
+    var stock = (warehouseStockData && warehouseStockData[key]) ? warehouseStockData[key] : null;
     if (!stock || !Array.isArray(stock.requests) || stock.requests.length === 0) {
-        return;
+        return false;
     }
-    const stockIds = stock.requests.map(function(r) { return String(r.zayavka_id); });
-    const allSelected = stockIds.every(function(id) { return selectedOrder.indexOf(id) !== -1; });
+    var stockIds = stock.requests.map(function(r) { return String(r.zayavka_id); });
+    var allSelected = stockIds.every(function(id) { return selectedOrder.indexOf(id) !== -1; });
 
     if (allSelected) {
         stockIds.forEach(function(id) {
@@ -2609,10 +2610,17 @@ function toggleWarehouseSelection(warehouseId) {
             if (selectedOrder.indexOf(id) === -1) selectedOrder.push(id);
         });
         selectedWarehouseId = warehouseId;
+        stock.requests.forEach(function(req) {
+            var zid = String(req.zayavka_id || '').trim();
+            if (zid && !(zid in weightById)) {
+                weightById[zid] = Math.round(Number(req.mass_netto || 0) * 1000);
+            }
+        });
     }
     renderWarehousesLayer();
     refreshMarkerStyles();
     updateSelectionUI();
+    return true;
 }
 
 function renderWarehousesLayer() {
@@ -2625,21 +2633,24 @@ function renderWarehousesLayer() {
         const lon = Number(warehouse.longitude);
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
         const id = warehouse.id || 0;
-        const name = String(warehouse.name || ('Склад #' + id)).trim();
-        const address = String(warehouse.address || '').trim();
-        const coordsText = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
         const stock = (warehouseStockData && warehouseStockData[id]) ? warehouseStockData[id] : null;
-        const hasStock = stock && stock.request_count > 0;
+        const hasStock = stock
+            && Number(stock.request_count || 0) > 0
+            && Number(stock.mass_netto_sum || 0) > 0
+            && Array.isArray(stock.requests)
+            && stock.requests.length > 0;
+        if (!hasStock) return;
+        const name = String(warehouse.name || ('Склад #' + id)).trim();
         const isSelectedWH = selectedWarehouseId === id;
 
         const placemark = new ymaps.Placemark([lat, lon], {
-            hintContent: hasStock ? (name + ' — ' + stock.request_count + ' заяв.') : name,
+            hintContent: name + ' — ' + stock.request_count + ' заяв.',
             balloonContent: buildWarehouseBalloon(warehouse)
         }, {
             iconLayout: ymaps.templateLayoutFactory.createClass(
                 `<div style="position:relative;width:58px;height:32px;font-family:Arial,sans-serif;">
-                    <div style="position:absolute;left:0;top:0;width:58px;height:24px;border:2px solid ${isSelectedWH ? '#e74c3c' : '#2f343a'};border-radius:7px;background:${isSelectedWH ? '#e74c3c' : (hasStock ? '#27ae60' : '#2f343a')};color:#fff;font-weight:700;font-size:11px;line-height:20px;text-align:center;box-sizing:border-box;">${escapeHtml(UI.labelWarehouseMarker)}</div>
-                    <div style="position:absolute;left:23px;top:24px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid ${isSelectedWH ? '#e74c3c' : (hasStock ? '#27ae60' : '#2f343a')};"></div>
+                    <div style="position:absolute;left:0;top:0;width:58px;height:24px;border:2px solid ${isSelectedWH ? '#e74c3c' : '#2f343a'};border-radius:7px;background:${isSelectedWH ? '#e74c3c' : '#27ae60'};color:#fff;font-weight:700;font-size:11px;line-height:20px;text-align:center;box-sizing:border-box;">${escapeHtml(UI.labelWarehouseMarker)}</div>
+                    <div style="position:absolute;left:23px;top:24px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid ${isSelectedWH ? '#e74c3c' : '#27ae60'};"></div>
                 </div>`
             ),
             iconOffset: [-29, -32],
@@ -2650,9 +2661,10 @@ function renderWarehousesLayer() {
             zIndex: 420
         });
 
-        placemark.events.add('click', function() {
-            if (hasStock) {
-                toggleWarehouseSelection(id);
+        placemark.events.add('click', function(e) {
+            var targetId = Number(id);
+            if (Number.isFinite(targetId) && targetId > 0) {
+                toggleWarehouseSelection(targetId);
             }
         });
 
