@@ -75,19 +75,19 @@ try {
         exit;
     }
 
-    // ── Остатки по заявкам (netto > 0), без JOIN на feo ──
+    // ── Остатки по заявкам (netto > 0) ──
     $stockSql = "SELECT wm.warehouse_id, wm.zayavka_id,
-        COALESCE(SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN wm.mass_netto END), 0) AS in_netto,
-        COALESCE(SUM(CASE WHEN wm.movement_type IN ('issue','transfer_out') THEN wm.mass_netto END), 0) AS out_netto,
-        COALESCE(SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN wm.mass_brutto END), 0) AS in_brutto,
-        COALESCE(SUM(CASE WHEN wm.movement_type IN ('issue','transfer_out') THEN wm.mass_brutto END), 0) AS out_brutto,
-        COALESCE(SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN wm.volume END), 0) AS in_vol,
-        COALESCE(SUM(CASE WHEN wm.movement_type IN ('issue','transfer_out') THEN wm.volume END), 0) AS out_vol
+        SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN COALESCE(wm.mass_netto, 0) ELSE 0 END) AS in_netto,
+        SUM(CASE WHEN wm.movement_type IN ('issue','transfer_out') THEN COALESCE(wm.mass_netto, 0) ELSE 0 END) AS out_netto,
+        SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN COALESCE(wm.mass_brutto, 0) ELSE 0 END) AS in_brutto,
+        SUM(CASE WHEN wm.movement_type IN ('issue','transfer_out') THEN COALESCE(wm.mass_brutto, 0) ELSE 0 END) AS out_brutto,
+        SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN COALESCE(wm.volume, 0) ELSE 0 END) AS in_vol,
+        SUM(CASE WHEN wm.movement_type IN ('issue','transfer_out') THEN COALESCE(wm.volume, 0) ELSE 0 END) AS out_vol
     FROM warehouse_movements wm
     WHERE wm.status = 'active'
     GROUP BY wm.warehouse_id, wm.zayavka_id
-    HAVING (COALESCE(SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN wm.mass_netto END), 0) - COALESCE(SUM(CASE WHEN wm.movement_type IN ('issue','transfer_out') THEN wm.mass_netto END), 0)) > 0.0001
-        OR (COALESCE(SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN wm.mass_brutto END), 0) - COALESCE(SUM(CASE WHEN wm.movement_type IN ('issue','transfer_out') THEN wm.mass_brutto END), 0)) > 0.0001";
+    HAVING (SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN COALESCE(wm.mass_netto, 0) ELSE 0 END) - SUM(CASE WHEN wm.movement_type IN ('issue','transfer_out') THEN COALESCE(wm.mass_netto, 0) ELSE 0 END)) > 0.0001
+        OR (SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN COALESCE(wm.mass_brutto, 0) ELSE 0 END) - SUM(CASE WHEN wm.movement_type IN ('issue','transfer_out') THEN COALESCE(wm.mass_brutto, 0) ELSE 0 END)) > 0.0001";
 
     $stockRows = $pdo->query($stockSql)->fetchAll(PDO::FETCH_ASSOC);
     foreach ($stockRows as $r) {
