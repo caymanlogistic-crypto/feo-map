@@ -75,8 +75,8 @@ try {
         exit;
     }
 
-    // ── Остатки по заявкам (netto > 0) ──
-    $stockSql = "SELECT wm.warehouse_id, wm.zayavka_id, COALESCE(feo.naim_otkhoda_fkko,'') AS fkko_name,
+    // ── Остатки по заявкам (netto > 0), без JOIN на feo ──
+    $stockSql = "SELECT wm.warehouse_id, wm.zayavka_id,
         SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN COALESCE(wm.mass_netto,0) END) AS in_netto,
         SUM(CASE WHEN wm.movement_type IN ('issue','transfer_out') THEN COALESCE(wm.mass_netto,0) END) AS out_netto,
         SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN COALESCE(wm.mass_brutto,0) END) AS in_brutto,
@@ -84,9 +84,8 @@ try {
         SUM(CASE WHEN wm.movement_type IN ('receipt','transfer_in') THEN COALESCE(wm.volume,0) END) AS in_vol,
         SUM(CASE WHEN wm.movement_type IN ('issue','transfer_out') THEN COALESCE(wm.volume,0) END) AS out_vol
     FROM warehouse_movements wm
-    LEFT JOIN feo ON feo.zayavka_id = wm.zayavka_id
     WHERE wm.status = 'active'
-    GROUP BY wm.warehouse_id, wm.zayavka_id, feo.naim_otkhoda_fkko
+    GROUP BY wm.warehouse_id, wm.zayavka_id
     HAVING (in_netto - out_netto) > 0.0001 OR (in_brutto - out_brutto) > 0.0001";
 
     $stockRows = $pdo->query($stockSql)->fetchAll(PDO::FETCH_ASSOC);
@@ -104,7 +103,7 @@ try {
         $whMap[$wid]['volume_sum'] += $vol;
         $whMap[$wid]['requests'][] = [
             'zayavka_id'  => (int)$r['zayavka_id'],
-            'fkko_name'   => trim((string)$r['fkko_name']),
+            'fkko_name'   => '',
             'mass_netto'  => $netto,
             'mass_brutto' => $brutto,
             'volume'      => $vol,
