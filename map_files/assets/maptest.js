@@ -2222,7 +2222,7 @@ async function saveFlightEdit(options = {}) {
             ? '\u0420\u0435\u0439\u0441 \u0443\u0436\u0435 \u043d\u0430\u0445\u043e\u0434\u0438\u0442\u0441\u044f \u0432 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u0438. \u041f\u043e\u0441\u043b\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0431\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0432 MAX. \u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c?'
             : '\u041f\u043e\u0441\u043b\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0431\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0432 MAX. \u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c?';
         if (!options.silent && previewHtml && !confirm(warnText)) {
-            return;
+            return false;
         }
     }
 
@@ -2236,15 +2236,17 @@ async function saveFlightEdit(options = {}) {
             if (!options.silent) {
                 window.location.reload();
             }
-            return;
+            return true;
         }
         if (result && result.errors && typeof result.errors === 'object') {
             showFlightValidationErrors(result.errors);
         }
         alert((result && result.message) ? result.message : UI.msgSaveFailed);
+        return false;
     } catch (e) {
         console.error('saveFlightEdit error:', e);
         alert(UI.msgNetworkUpdateFlight);
+        return false;
     }
 }
 
@@ -2280,10 +2282,15 @@ function hasUnsavedFlightEditChanges() {
 async function saveBeforeStatusTransition(transitionFn, routeId) {
     if (hasUnsavedFlightEditChanges()) {
         const ok = confirm('\u0412 \u0440\u0435\u0439\u0441\u0435 \u0435\u0441\u0442\u044c \u043d\u0435\u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d\u043d\u044b\u0435 \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f.\n\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0438 \u0432\u044b\u043f\u043e\u043b\u043d\u0438\u0442\u044c \u043f\u0435\u0440\u0435\u0445\u043e\u0434 \u0441\u0442\u0430\u0442\u0443\u0441\u0430?');
-        if (!ok) return;
-        await saveFlightEdit({ closeModal: false, silent: true });
+        if (!ok) return false;
+        const saved = await saveFlightEdit({ closeModal: false, silent: true });
+        if (!saved) {
+            alert('\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0440\u0435\u0439\u0441\u0430. \u041f\u0435\u0440\u0435\u0445\u043e\u0434 \u0441\u0442\u0430\u0442\u0443\u0441\u0430 \u043e\u0442\u043c\u0435\u043d\u0451\u043d.');
+            return false;
+        }
     }
     await transitionFn(routeId);
+    return true;
 }
 
 async function transferPlannedToFound(routeId) {
