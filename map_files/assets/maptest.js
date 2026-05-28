@@ -2317,13 +2317,12 @@ async function transferPlannedToFound(routeId) {
             target_status: 'found',
             zayavki_ids: document.getElementById('edit_zayavki_ids')?.value || meta.zayavki_ids || '',
             driver_id: Number(document.getElementById('edit_driver_id')?.value || meta.driver_id || 0),
+            assigned_manager_id: meta.assigned_manager_id || '',
             planned_start_date_from: document.getElementById('edit_planned_start_date_from')?.value || meta.planned_start_date_from || '',
             planned_start_date_to: document.getElementById('edit_planned_start_date_to')?.value || meta.planned_start_date_to || '',
             cost: document.getElementById('edit_cost')?.value || meta.cost || '',
             name: document.getElementById('edit_comment')?.value || resolveRouteTitle(meta) || '',
             unload_type: resolveUnloadTypeByRouteType(normalizedRouteType),
-            driver_id: existingDriverId,
-            assigned_manager_id: existingAssignedManagerId,
             route_type: normalizedRouteType,
             source_warehouse_id: sourceWarehouseInput ? sourceWarehouseInput.value : (meta.source_warehouse_id || ''),
             destination_warehouse_id: destinationWarehouseInput ? destinationWarehouseInput.value : (meta.destination_warehouse_id || '')
@@ -3229,7 +3228,7 @@ function init() {
             const routeId = Number(idInput ? idInput.value : 0);
             const source = sourceInput ? sourceInput.value : '';
             if (source !== 'planned') return;
-            if (routeId > 0) saveBeforeStatusTransition(transferPlannedToFound, routeId);
+            if (routeId > 0) transferPlannedToFound(routeId);
         });
     }
     if (transferStartedBtn) {
