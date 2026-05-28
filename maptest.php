@@ -585,6 +585,34 @@ try {
     $uiTexts = [];
 }
 
+$uiPopupTemplates = [];
+try {
+    if (isset($pdo) && $pdo instanceof PDO) {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `ui_popup_templates` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `popup_key` VARCHAR(100) NOT NULL UNIQUE,
+            `title` VARCHAR(255) NOT NULL,
+            `template_text` TEXT NOT NULL,
+            `is_enabled` TINYINT(1) NOT NULL DEFAULT 1,
+            `description` TEXT NULL,
+            `placeholders` TEXT NULL,
+            `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` DATETIME NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        $stmt = $pdo->query("SELECT `popup_key`, `title`, `template_text`, `is_enabled` FROM `ui_popup_templates` WHERE `is_enabled` = 1");
+        $tplRows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        foreach ((array)$tplRows as $row) {
+            $uiPopupTemplates[(string)$row['popup_key']] = [
+                'title' => (string)$row['title'],
+                'template_text' => (string)$row['template_text'],
+                'is_enabled' => (bool)$row['is_enabled'],
+            ];
+        }
+    }
+} catch (Throwable $e) {
+    $uiPopupTemplates = [];
+}
+
 try {
     $builtData = $mapDataService->build();
     if (is_array($builtData)) {

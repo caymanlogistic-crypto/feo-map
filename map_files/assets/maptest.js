@@ -2082,7 +2082,10 @@ function openStartConfirmModal(routeId, targetStatus = 'started') {
         }
     }
     const preview = document.getElementById('transitionConfirmPreview');
-    const meta = getRouteMetaById(routeId, targetStatus === 'started' ? 'found' : 'started') || getRouteMetaById(routeId, 'planned');
+    const meta = getRouteMetaById(routeId, targetStatus === 'started' ? 'found' : 'started') || getRouteMetaById(routeId, 'planned') || {};
+    // Build context from current form for fresh data (avoid stale meta)
+    const previewPayload = collectFlightEditPayload();
+    const previewContext = buildFlightPopupContext(previewPayload, meta);
     if (dateLabel) {
         dateLabel.textContent = targetStatus === 'started'
             ? UI.modalStartDate
@@ -2096,16 +2099,17 @@ function openStartConfirmModal(routeId, targetStatus = 'started') {
     if (confirmBtn) {
         confirmBtn.textContent = targetStatus === 'started' ? UI.modalToStarted : UI.labelToCompleted;
     }
-    if (preview && meta) {
-        const ids = String(meta.zayavki_ids || '').split(',').map(v => v.trim()).filter(Boolean);
+    if (preview) {
+        const zayavkiRaw = previewPayload.zayavki_ids || meta.zayavki_ids || '';
+        const ids = String(zayavkiRaw).split(',').map(v => v.trim()).filter(Boolean);
         const totalKg = Number(meta.total_kg || 0);
         preview.innerHTML = `
             <div><strong>\u0420\u0435\u0439\u0441 #${routeId}</strong></div>
             <div>\u0421\u0442\u0430\u0442\u0443\u0441: ${escapeHtml(statusNames[String(meta.status || '')] || String(meta.status || TXT.notSpecified))} \u2192 ${escapeHtml(statusNames[targetStatus] || targetStatus)}</div>
             <div>${TXT.requestsCount}: ${ids.length}</div>
             <div>${TXT.totalWeight}: ${Math.round(totalKg).toLocaleString('ru-RU')} ${UI.kg}</div>
-            <div>${UI.labelDriver}: ${escapeHtml(formatDriverCompactLabel(meta.driver_label || UI.driverMissing))}</div>
-            <div>\u041f\u0435\u0440\u0438\u043e\u0434: ${escapeHtml(meta.planned_start_date_from || meta.actual_start_date || TXT.notSpecified)} ${UI.emDash} ${escapeHtml(meta.planned_start_date_to || meta.actual_end_date || TXT.notSpecified)}</div>
+            <div>${UI.labelDriver}: ${escapeHtml(previewContext.driver_compact)}</div>
+            <div>\u041f\u0435\u0440\u0438\u043e\u0434: ${escapeHtml(previewContext.period)}</div>
         `;
     }
     modal.style.display = 'flex';
@@ -2130,6 +2134,107 @@ async function postRouteAction(action, payload) {
         throw new Error('Сервер вернул не JSON. Подробности в консоли.');
     }
     return data;
+}
+
+/**
+ * Build a structured context object for UI popup templates.
+ * Priority: current DOM form > payload > meta (fallback).
+ *
+ * @param {Object|null} payload - From collectFlightEditPayload() or null
+ * @param {Object|null} meta   - From getRouteMetaById() or currentEditingMeta (fallback only)
+ * @returns {Object} context with route_id, driver_compact, period, cost, zayavki_count, etc.
+ */
+function buildFlightPopupContext(payload, meta) {
+    payload = payload || {};
+    meta = meta || {};
+    const routeId = payload.id || meta.id || 0;
+    const driverId = Number(payload.driver_id || meta.driver_id || 0);
+    const driverSelect = document.getElementById('edit_driver_id');
+    let driverCompact = '';
+    if (driverId > 0) {
+        if (driverSelect && driverSelect.selectedOptions && driverSelect.selectedOptions[0]) {
+            const rawText = driverSelect.selectedOptions[0].textContent || '';
+            driverCompact = formatDriverCompactLabel(rawText);
+        }
+    }
+    if (!driverCompact) {
+        driverCompact = formatDriverCompactLabel(meta.driver_label || '');
+    }
+    if (!driverCompact) {
+        driverCompact = UI.driverMissing;
+    }
+
+    const fromVal = payload.planned_start_date_from || document.getElementById('edit_planned_start_date_from')?.value || meta.planned_start_date_from || '';
+    const toVal = payload.planned_start_date_to || document.getElementById('edit_planned_start_date_to')?.value || meta.planned_start_date_to || '';
+    const period = (fromVal || toVal) ? (fromVal || TXT.notSpecified) + ' ' + UI.emDash + ' ' + (toVal || TXT.notSpecified) : TXT.notSpecified;
+
+    const costRaw = payload.cost || document.getElementById('edit_cost')?.value || meta.cost || '';
+    const cost = costRaw !== '' ? formatRouteCost(costRaw) + ' \u20BD' : TXT.notSpecified;
+
+    const zayavkiRaw = payload.zayavki_ids || document.getElementById('edit_zayavki_ids')?.value || meta.zayavki_ids || '';
+    const zayavkiIds = String(zayavkiRaw).split(',').map(v => v.trim()).filter(v => /^\d+$/.test(v));
+    const zayavkiCount = zayavkiIds.length;
+
+    const actualStart = payload.actual_start_date || document.getElementById('edit_actual_start_date')?.value || meta.actual_start_date || '';
+    const actualEnd = payload.actual_end_date || document.getElementById('edit_actual_end_date')?.value || meta.actual_end_date || '';
+
+    const routeTypeVal = payload.route_type || document.getElementById('edit_route_type')?.value || meta.route_type || '';
+    const routeTypeLabel = getRouteTypeLabel(routeTypeVal, meta.unload_type || 'OO');
+
+    const statusVal = document.getElementById('edit_current_status')?.value || meta.status || '';
+
+    return {
+        route_id: String(routeId),
+        title: resolveRouteTitle(meta) || '',
+        driver_compact: driverCompact,
+        driver_full: driverSelect?.selectedOptions?.[0]?.textContent || '',
+        date_from: fromVal,
+        date_to: toVal,
+        period: period,
+        cost: cost,
+        zayavki_ids: zayavkiIds.join(','),
+        zayavki_count: zayavkiCount,
+        route_type_label: routeTypeLabel,
+        status_label: statusNames[statusVal] || statusVal || TXT.notSpecified,
+        actual_start_date: actualStart,
+        actual_end_date: actualEnd,
+        source_warehouse_id: payload.source_warehouse_id || meta.source_warehouse_id || '',
+        destination_warehouse_id: payload.destination_warehouse_id || meta.destination_warehouse_id || '',
+    };
+}
+
+/**
+ * Render a UI popup template by key with context substitution.
+ * Falls back to traditional text if template is missing or disabled.
+ *
+ * @param {string} popupKey    - Template key (e.g., 'route_planned_to_found_confirm')
+ * @param {Object} context     - Key-value pairs for placeholder substitution
+ * @param {string} fallbackText - Fallback text if template unavailable
+ * @returns {string} Rendered text
+ */
+function renderUiPopupTemplate(popupKey, context, fallbackText) {
+    var tpl = (window.MAP_BOOTSTRAP && window.MAP_BOOTSTRAP.uiPopupTemplates)
+        ? window.MAP_BOOTSTRAP.uiPopupTemplates[popupKey]
+        : null;
+    if (!tpl || !tpl.template_text) {
+        return fallbackText;
+    }
+    var rendered = tpl.template_text.replace(/\{(\w+)\}/g, function(match, key) {
+        return (context && context.hasOwnProperty(key) && context[key] !== null && context[key] !== undefined)
+            ? String(context[key])
+            : (TXT.notSpecified || '\u043d\u0435 \u0443\u043a\u0430\u0437\u0430\u043d\u043e');
+    });
+    // Prepend title if present and not empty
+    if (tpl.title && tpl.title.trim() !== '') {
+        // Replace placeholders in title too
+        var titleRendered = tpl.title.replace(/\{(\w+)\}/g, function(match, key) {
+            return (context && context.hasOwnProperty(key) && context[key] !== null && context[key] !== undefined)
+                ? String(context[key])
+                : (TXT.notSpecified || '');
+        });
+        rendered = titleRendered + '\n\n' + rendered;
+    }
+    return rendered;
 }
 
 function collectFlightEditPayload() {
@@ -2281,11 +2386,13 @@ function hasUnsavedFlightEditChanges() {
 
 async function saveBeforeStatusTransition(transitionFn, routeId) {
     if (hasUnsavedFlightEditChanges()) {
-        const ok = confirm('\u0412 \u0440\u0435\u0439\u0441\u0435 \u0435\u0441\u0442\u044c \u043d\u0435\u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d\u043d\u044b\u0435 \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f.\n\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0438 \u0432\u044b\u043f\u043e\u043b\u043d\u0438\u0442\u044c \u043f\u0435\u0440\u0435\u0445\u043e\u0434 \u0441\u0442\u0430\u0442\u0443\u0441\u0430?');
+        const confirmFallback = '\u0412 \u0440\u0435\u0439\u0441\u0435 \u0435\u0441\u0442\u044c \u043d\u0435\u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d\u043d\u044b\u0435 \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f.\n\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0438 \u0432\u044b\u043f\u043e\u043b\u043d\u0438\u0442\u044c \u043f\u0435\u0440\u0435\u0445\u043e\u0434 \u0441\u0442\u0430\u0442\u0443\u0441\u0430?';
+        const ok = confirm(renderUiPopupTemplate('route_unsaved_before_transition_confirm', {}, confirmFallback));
         if (!ok) return false;
         const saved = await saveFlightEdit({ closeModal: false, silent: true });
         if (!saved) {
-            alert('\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0440\u0435\u0439\u0441\u0430. \u041f\u0435\u0440\u0435\u0445\u043e\u0434 \u0441\u0442\u0430\u0442\u0443\u0441\u0430 \u043e\u0442\u043c\u0435\u043d\u0451\u043d.');
+            const failFallback = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0440\u0435\u0439\u0441\u0430. \u041f\u0435\u0440\u0435\u0445\u043e\u0434 \u0441\u0442\u0430\u0442\u0443\u0441\u0430 \u043e\u0442\u043c\u0435\u043d\u0451\u043d.';
+            alert(renderUiPopupTemplate('route_transition_failed', {}, failFallback));
             return false;
         }
     }
@@ -2303,40 +2410,38 @@ async function transferPlannedToFound(routeId) {
         return;
     }
 
-    const meta = getRouteMetaById(routeId, 'planned') || getRouteMetaById(routeId, 'found');
-    const text = [
-        `\u0421\u0444\u043e\u0440\u043c\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0440\u0435\u0439\u0441 #${routeId}?`,
+    const payload = collectFlightEditPayload();
+    const meta = getRouteMetaById(routeId, 'planned') || getRouteMetaById(routeId, 'found') || {};
+    const context = buildFlightPopupContext(payload, meta);
+
+    const fallbackText = [
+        `\u0421\u0444\u043e\u0440\u043c\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0440\u0435\u0439\u0441 \u2116${routeId}?`,
         '',
         '\u0411\u0443\u0434\u0443\u0442 \u0437\u0430\u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u044b \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c, \u0434\u0430\u0442\u044b, \u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c \u0438 \u0437\u0430\u044f\u0432\u043a\u0438.',
         '\u0412 MAX \u0431\u0443\u0434\u0435\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435.',
         '',
-        `${TXT.requestsCount}: ${String(meta?.zayavki_ids || '').split(',').map(v => v.trim()).filter(Boolean).length}`,
-        `${UI.labelDriver}: ${formatDriverCompactLabel(meta?.driver_label || UI.driverMissing)}`
+        `${TXT.requestsCount}: ${context.zayavki_count}`,
+        `${UI.labelDriver}: ${context.driver_compact}`
     ].join('\n');
+
+    const text = renderUiPopupTemplate('route_planned_to_found_confirm', context, fallbackText);
     if (!confirm(text)) return;
+
     try {
-        const meta = getRouteMetaById(routeId, 'planned') || {};
-        const routeTypeInput = document.getElementById('edit_route_type');
-        const sourceWarehouseInput = document.getElementById('edit_source_warehouse_id');
-        const destinationWarehouseInput = document.getElementById('edit_destination_warehouse_id');
-        const normalizedRouteType = normalizeRouteType(
-            routeTypeInput ? routeTypeInput.value : (meta.route_type || ''),
-            meta.unload_type || 'OO'
-        );
         const result = await postRouteAction('transition', {
             id: Number(routeId),
             target_status: 'found',
-            zayavki_ids: document.getElementById('edit_zayavki_ids')?.value || meta.zayavki_ids || '',
-            driver_id: Number(document.getElementById('edit_driver_id')?.value || meta.driver_id || 0),
+            zayavki_ids: payload.zayavki_ids || meta.zayavki_ids || '',
+            driver_id: Number(payload.driver_id || meta.driver_id || 0),
             assigned_manager_id: meta.assigned_manager_id || '',
-            planned_start_date_from: document.getElementById('edit_planned_start_date_from')?.value || meta.planned_start_date_from || '',
-            planned_start_date_to: document.getElementById('edit_planned_start_date_to')?.value || meta.planned_start_date_to || '',
-            cost: document.getElementById('edit_cost')?.value || meta.cost || '',
-            name: document.getElementById('edit_comment')?.value || resolveRouteTitle(meta) || '',
-            unload_type: resolveUnloadTypeByRouteType(normalizedRouteType),
-            route_type: normalizedRouteType,
-            source_warehouse_id: sourceWarehouseInput ? sourceWarehouseInput.value : (meta.source_warehouse_id || ''),
-            destination_warehouse_id: destinationWarehouseInput ? destinationWarehouseInput.value : (meta.destination_warehouse_id || '')
+            planned_start_date_from: payload.planned_start_date_from || meta.planned_start_date_from || '',
+            planned_start_date_to: payload.planned_start_date_to || meta.planned_start_date_to || '',
+            cost: payload.cost || meta.cost || '',
+            name: payload.comment || resolveRouteTitle(meta) || '',
+            unload_type: payload.unload_type || resolveUnloadTypeByRouteType(payload.route_type || meta.route_type || ''),
+            route_type: payload.route_type || meta.route_type || '',
+            source_warehouse_id: payload.source_warehouse_id || meta.source_warehouse_id || '',
+            destination_warehouse_id: payload.destination_warehouse_id || meta.destination_warehouse_id || ''
         });
         if (result && result.success) {
             window.location.reload();
@@ -2397,7 +2502,8 @@ async function confirmTransferToStarted() {
 }
 
 async function transferToPlanned(routeId) {
-    if (!confirm(UI.msgBackToPlanned.replace('{id}', String(routeId)))) return;
+    const ctx = { route_id: String(routeId) };
+    if (!confirm(renderUiPopupTemplate('route_rollback_to_planned_confirm', ctx, UI.msgBackToPlanned.replace('{id}', String(routeId))))) return;
     try {
         const result = await postRouteAction('transition', { id: Number(routeId), target_status: 'planned_route' });
         if (result && result.success) {
@@ -2412,7 +2518,8 @@ async function transferToPlanned(routeId) {
 }
 
 async function transferToFound(routeId) {
-    if (!confirm(UI.msgBackToFound.replace('{id}', String(routeId)))) return;
+    const ctx = { route_id: String(routeId) };
+    if (!confirm(renderUiPopupTemplate('route_rollback_to_found_confirm', ctx, UI.msgBackToFound.replace('{id}', String(routeId))))) return;
     try {
         const result = await postRouteAction('transition', { id: Number(routeId), target_status: 'found' });
         if (result && result.success) {
@@ -2427,7 +2534,8 @@ async function transferToFound(routeId) {
 }
 
 function transferToCompleted(routeId) {
-    if (!confirm(UI.msgToCompleted.replace('{id}', String(routeId)))) return;
+    const ctx = { route_id: String(routeId) };
+    if (!confirm(renderUiPopupTemplate('route_complete_confirm', ctx, UI.msgToCompleted.replace('{id}', String(routeId))))) return;
     openStartConfirmModal(routeId, 'completed');
 }
 

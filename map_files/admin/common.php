@@ -53,6 +53,7 @@ if (!function_exists('renderAdminNav')) {
         $pages = [
             'max_admin'               => ['label' => 'MAX Admin',            'url' => 'max_admin.php'],
             'max_event_center'        => ['label' => 'Event Center',         'url' => 'max_event_center.php'],
+            'popup_templates'         => ['label' => 'UI Popup Templates',   'url' => 'ui_popup_templates.php'],
             'static_text'             => ['label' => 'Статические тексты',    'url' => 'static_text_center.php'],
             'warehouse'               => ['label' => 'Складская разметка',    'url' => 'warehouse_route_reclassifier.php'],
             'stock'                   => ['label' => 'Складские остатки',     'url' => 'warehouse_stock_report.php'],
