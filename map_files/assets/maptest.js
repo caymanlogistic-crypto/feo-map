@@ -2666,8 +2666,8 @@ function renderWarehousesLayer() {
         if (!hasStock) return;
         const name = String(warehouse.name || ('Склад #' + id)).trim();
         const isSelectedWH = String(selectedWarehouseId || '') === id;
-        const bgColor = isSelectedWH ? '#e74c3c' : '#27ae60';
-        const borderColor = isSelectedWH ? '#c0392b' : '#2f343a';
+        const bgColor = isSelectedWH ? '#27ae60' : '#6c757d';
+        const borderColor = isSelectedWH ? '#1f8f4d' : '#4f565c';
         const iconHref = createWarehouseMarkerSvgDataUri(UI.labelWarehouseMarker || 'СКЛАД', bgColor, borderColor);
 
         const placemark = new ymaps.Placemark([lat, lon], {
@@ -2680,7 +2680,7 @@ function renderWarehousesLayer() {
             iconImageOffset: [-29, -32],
             openBalloonOnClick: false,
             openHintOnHover: true,
-            zIndex: 520
+            zIndex: 480
         });
 
         placemark.events.add('click', function(e) {
