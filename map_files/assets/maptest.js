@@ -2610,6 +2610,7 @@ function toggleWarehouseSelection(warehouseId) {
         });
         selectedWarehouseId = warehouseId;
     }
+    renderWarehousesLayer();
     refreshMarkerStyles();
     updateSelectionUI();
 }
@@ -2696,6 +2697,17 @@ async function loadWarehouseStock() {
         const data = await response.json();
         if (data && data.success && data.warehouses) {
             warehouseStockData = data.warehouses;
+            Object.keys(warehouseStockData).forEach(function(whKey) {
+                var wh = warehouseStockData[whKey];
+                if (wh && Array.isArray(wh.requests)) {
+                    wh.requests.forEach(function(req) {
+                        var zid = String(req.zayavka_id || '').trim();
+                        if (zid && !(zid in weightById)) {
+                            weightById[zid] = Math.round((req.mass_netto || 0) * 1000);
+                        }
+                    });
+                }
+            });
         }
     } catch (e) {
         console.error('loadWarehouseStock failed:', e);
