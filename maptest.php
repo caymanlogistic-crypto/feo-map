@@ -447,13 +447,18 @@ try {
         $driverId = (int)($flight['driver_id'] ?? 0);
         if ($driverId > 0 && isset($driversById[$driverId])) {
             $driver = $driversById[$driverId];
-            $plate = trim((string)mapNormalizeText((string)($driver['vehicle_make_plate'] ?? '')));
+            $plateRaw = trim((string)mapNormalizeText((string)($driver['vehicle_make_plate'] ?? '')));
             $fullName = trim((string)mapNormalizeText((string)($driver['full_name'] ?? '')));
             $surname = trim((string)explode(' ', $fullName)[0]);
-            if ($plate !== '' && $surname !== '') {
-                $driverLabel = $plate . ' (' . $surname . ')';
-            } elseif ($plate !== '') {
-                $driverLabel = $plate;
+            // Extract gosnumber from vehicle_make_plate
+            $plateOnly = '';
+            if (preg_match('/([А-ЯЁA-Z]\d{3}\s*[А-ЯЁA-Z]{2}\s*\d{2,3})/u', $plateRaw, $m)) {
+                $plateOnly = preg_replace('/\s+/', '', $m[1]);
+            }
+            if ($plateOnly !== '' && $surname !== '') {
+                $driverLabel = $plateOnly . '(' . $surname . ')';
+            } elseif ($plateOnly !== '') {
+                $driverLabel = $plateOnly;
             } elseif ($surname !== '') {
                 $driverLabel = $surname;
             }

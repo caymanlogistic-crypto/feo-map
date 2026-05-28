@@ -90,11 +90,26 @@ function getDriverLabelById(PDO $pdo, $driverId): string
             return 'Водитель не указан';
         }
         $fullName = trim((string)($row['full_name'] ?? ''));
-        $plate = trim((string)($row['vehicle_make_plate'] ?? ''));
-        if ($fullName === '' && $plate === '') {
+        $plateRaw = trim((string)($row['vehicle_make_plate'] ?? ''));
+        if ($fullName === '' && $plateRaw === '') {
             return 'Водитель не указан';
         }
-        return trim(($fullName !== '' ? $fullName : 'Водитель') . ' / ' . ($plate !== '' ? $plate : 'без номера'));
+        // Extract gosnumber from vehicle_make_plate for compact label
+        $plateOnly = '';
+        if (preg_match('/([А-ЯЁA-Z]\d{3}\s*[А-ЯЁA-Z]{2}\s*\d{2,3})/u', $plateRaw, $m)) {
+            $plateOnly = preg_replace('/\s+/', '', $m[1]);
+        }
+        $surname = trim((string)explode(' ', $fullName)[0]);
+        if ($plateOnly !== '' && $surname !== '') {
+            return $plateOnly . '(' . $surname . ')';
+        }
+        if ($plateOnly !== '') {
+            return $plateOnly;
+        }
+        if ($surname !== '') {
+            return $surname;
+        }
+        return trim(($fullName !== '' ? $fullName : 'Водитель') . ' / ' . ($plateRaw !== '' ? $plateRaw : 'без номера'));
     } catch (Throwable $e) {
         mapError('Driver label load failed', ['error' => $e->getMessage()]);
         return 'Водитель не указан';
@@ -407,9 +422,13 @@ function compactDriverLabel(string $label): string
     if (preg_match('/([А-ЯЁA-Z]\d{3}\s*[А-ЯЁA-Z]{2}\s*\d{2,3})/u', $v, $mPlate)) {
         $plate = preg_replace('/\s+/', '', $mPlate[1]);
         $surname = '';
-        // Format: Е007РС29(Быков)
-        if (preg_match('/\(([^)]+)\)/u', $v, $mName)) {
-            $surname = trim((string)explode(' ', trim($mName[1]))[0]);
+        // Extract surname from the LAST bracket pair — the first one may contain vehicle model (Hyundai HD120),
+        // while the last one (from drivers.full_name) contains the actual driver name.
+        if (preg_match_all('/\(([^)]+)\)/u', $v, $mAllNames)) {
+            $lastPos = count($mAllNames[1]) - 1;
+            if ($lastPos >= 0) {
+                $surname = trim((string)explode(' ', trim($mAllNames[1][$lastPos]))[0]);
+            }
         }
         // Format: Быков Андрей Борисович / SCANIA Е007РС 29
         if ($surname === '') {

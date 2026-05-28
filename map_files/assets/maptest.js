@@ -440,9 +440,13 @@ function formatDriverCompactLabel(label) {
     const plateMatch = value.match(/[\u0410-\u042f\u0401A-Z]\d{3}[\u0410-\u042f\u0401A-Z]{2}\d{2,3}/u);
     let surname = '';
 
-    const nameInBrackets = value.match(/\(([^)]+)\)/u);
-    if (nameInBrackets && nameInBrackets[1]) {
-        surname = String(nameInBrackets[1]).trim().split(/\s+/u)[0] || '';
+    // Extract surname from the LAST bracket pair — the first one may contain vehicle model,
+    // while the last one (from drivers.full_name) contains the actual driver name.
+    const allBrackets = value.match(/\(([^)]+)\)/gu);
+    if (allBrackets && allBrackets.length > 0) {
+        const lastNameInBrackets = allBrackets[allBrackets.length - 1];
+        const inner = lastNameInBrackets.replace(/^\(|\)$/g, '');
+        surname = String(inner).trim().split(/\s+/u)[0] || '';
     }
     if (!surname) {
         const beforeSlash = String(value.split('/')[0] || '').trim();
@@ -452,7 +456,7 @@ function formatDriverCompactLabel(label) {
         }
     }
 
-    if (plateMatch && surname) return `${plateMatch[0]} (${surname})`;
+    if (plateMatch && surname) return `${plateMatch[0]}(${surname})`;
     if (plateMatch) return plateMatch[0];
     if (surname) return surname;
     return UI.driverMissing;
