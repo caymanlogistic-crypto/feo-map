@@ -2559,6 +2559,8 @@ function buildWarehouseBalloon(warehouse) {
     const bruttoSum = stock ? Number(stock.mass_brutto_sum || 0) : 0;
     const volSum = stock ? Number(stock.volume_sum || 0) : 0;
     const reqCount = stock ? (stock.request_count || 0) : 0;
+    const hasStockInBalloon = stock && Array.isArray(stock.requests) && stock.requests.length > 0;
+
     let html = '<div style="padding:10px;min-width:360px;max-width:600px;font-size:13px;line-height:1.5;">';
     html += `<div style="font-size:18px;font-weight:700;margin-bottom:4px;">${escapeHtml(name)}</div>`;
     html += `<div style="color:#666;margin-bottom:10px;">${escapeHtml(address || TXT.notSpecified)}</div>`;
@@ -2570,6 +2572,12 @@ function buildWarehouseBalloon(warehouse) {
         html += `<div><strong>Вес брутто:</strong> ${Number(bruttoSum).toFixed(3)} т</div>`;
         html += `<div><strong>Объём:</strong> ${Number(volSum).toFixed(3)} м³</div>`;
         html += '</div>';
+
+        if (hasStockInBalloon) {
+            html += '<div style="margin-bottom:10px;text-align:center;">';
+            html += `<button type="button" onclick="window.selectWarehouseStockFromPopup('${id}')" style="padding:8px 20px;font-size:14px;font-weight:700;background:#27ae60;color:#fff;border:none;border-radius:6px;cursor:pointer;">Добавить заявки склада в маршрут</button>`;
+            html += '</div>';
+        }
 
         if (Array.isArray(stock.inbound_routes) && stock.inbound_routes.length > 0) {
             html += '<div style="margin-bottom:8px;"><strong style="color:#27ae60;">Поступления на склад:</strong>';
@@ -2593,7 +2601,7 @@ function buildWarehouseBalloon(warehouse) {
     return html;
 }
 
-window.selectWarehouseFromMarker = function(warehouseId) {
+window.selectWarehouseStockFromPopup = function(warehouseId) {
     return toggleWarehouseSelection(warehouseId);
 };
 
@@ -2635,40 +2643,6 @@ function toggleWarehouseSelection(warehouseId) {
     return true;
 }
 
-var WarehouseIconLayout = ymaps.templateLayoutFactory.createClass(
-    '<div class="warehouse-marker-click-target" style="position:relative;width:58px;height:32px;font-family:Arial,sans-serif;">' +
-        '<div style="position:absolute;left:0;top:0;width:58px;height:24px;border:2px solid $[properties.borderColor];border-radius:7px;background:$[properties.bgColor];color:#fff;font-weight:700;font-size:11px;line-height:20px;text-align:center;box-sizing:border-box;">$[properties.label]</div>' +
-        '<div style="position:absolute;left:23px;top:24px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid $[properties.bgColor];"></div>' +
-    '</div>',
-    {
-        build: function () {
-            WarehouseIconLayout.superclass.build.call(this);
-            var parentEl = this.getParentElement();
-            var clickTarget = parentEl ? parentEl.querySelector('.warehouse-marker-click-target') : null;
-            if (clickTarget) {
-                var self = this;
-                this._whClick = function (e) {
-                    if (e) { e.preventDefault(); e.stopPropagation(); }
-                    var whId = self.getData().properties.get('warehouseId');
-                    if (whId) { window.selectWarehouseFromMarker(whId); }
-                };
-                clickTarget.addEventListener('click', this._whClick, true);
-            }
-        },
-        clear: function () {
-            if (this._whClick) {
-                var parentEl = this.getParentElement();
-                var clickTarget = parentEl ? parentEl.querySelector('.warehouse-marker-click-target') : null;
-                if (clickTarget) {
-                    clickTarget.removeEventListener('click', this._whClick, true);
-                }
-                this._whClick = null;
-            }
-            WarehouseIconLayout.superclass.clear.call(this);
-        }
-    }
-);
-
 function renderWarehousesLayer() {
     if (!warehousesCollection || !map) return;
     warehousesCollection.removeAll();
@@ -2691,13 +2665,14 @@ function renderWarehousesLayer() {
 
         const placemark = new ymaps.Placemark([lat, lon], {
             hintContent: name + ' — ' + stock.request_count + ' заяв.',
-            balloonContent: buildWarehouseBalloon(warehouse),
-            warehouseId: id,
-            label: UI.labelWarehouseMarker,
-            bgColor: isSelectedWH ? '#e74c3c' : '#27ae60',
-            borderColor: isSelectedWH ? '#e74c3c' : '#2f343a'
+            balloonContent: buildWarehouseBalloon(warehouse)
         }, {
-            iconLayout: WarehouseIconLayout,
+            iconLayout: ymaps.templateLayoutFactory.createClass(
+                `<div style="position:relative;width:58px;height:32px;font-family:Arial,sans-serif;">
+                    <div style="position:absolute;left:0;top:0;width:58px;height:24px;border:2px solid ${isSelectedWH ? '#e74c3c' : '#2f343a'};border-radius:7px;background:${isSelectedWH ? '#e74c3c' : '#27ae60'};color:#fff;font-weight:700;font-size:11px;line-height:20px;text-align:center;box-sizing:border-box;">${escapeHtml(UI.labelWarehouseMarker)}</div>
+                    <div style="position:absolute;left:23px;top:24px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid ${isSelectedWH ? '#e74c3c' : '#27ae60'};"></div>
+                </div>`
+            ),
             iconOffset: [-29, -32],
             iconShape: {
                 type: 'Polygon',
