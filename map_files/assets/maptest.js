@@ -2128,7 +2128,7 @@ async function postRouteAction(action, payload) {
     return data;
 }
 
-async function saveFlightEdit(options = {}) {
+function collectFlightEditPayload() {
     const idInput = document.getElementById('edit_flight_id');
     const driverInput = document.getElementById('edit_driver_id');
     const fromInput = document.getElementById('edit_planned_start_date_from');
@@ -2138,18 +2138,40 @@ async function saveFlightEdit(options = {}) {
     const zayavkiInput = document.getElementById('edit_zayavki_ids');
     const actualFromInput = document.getElementById('edit_actual_start_date');
     const actualToInput = document.getElementById('edit_actual_end_date');
-    const statusInput = document.getElementById('edit_current_status');
     const routeTypeInput = document.getElementById('edit_route_type');
     const sourceWarehouseInput = document.getElementById('edit_source_warehouse_id');
     const destinationWarehouseInput = document.getElementById('edit_destination_warehouse_id');
+    const flightId = Number(idInput ? idInput.value : 0);
+    const routeType = normalizeRouteType(routeTypeInput ? routeTypeInput.value : (currentEditingMeta?.route_type || ''), currentEditingMeta?.unload_type || 'OO');
+    return {
+        id: flightId,
+        driver_id: Number(driverInput ? driverInput.value : 0),
+        planned_start_date_from: fromInput ? fromInput.value : '',
+        planned_start_date_to: toInput ? toInput.value : '',
+        actual_start_date: actualFromInput ? actualFromInput.value : '',
+        actual_end_date: actualToInput ? actualToInput.value : '',
+        cost: costInput ? costInput.value : '',
+        comment: commentInput ? commentInput.value : '',
+        zayavki_ids: zayavkiInput ? zayavkiInput.value : '',
+        unload_type: resolveUnloadTypeByRouteType(routeType),
+        route_type: routeType,
+        source_warehouse_id: sourceWarehouseInput ? sourceWarehouseInput.value : '',
+        destination_warehouse_id: destinationWarehouseInput ? destinationWarehouseInput.value : ''
+    };
+}
+
+async function saveFlightEdit(options = {}) {
+    const idInput = document.getElementById('edit_flight_id');
+    const driverInput = document.getElementById('edit_driver_id');
+    const zayavkiInput = document.getElementById('edit_zayavki_ids');
+    const statusInput = document.getElementById('edit_current_status');
 
     const flightId = Number(idInput ? idInput.value : 0);
-    const driverId = Number(driverInput ? driverInput.value : 0);
     if (!flightId) {
         alert(UI.msgFlightDataNotFound);
-        return;
+        return false;
     }
-    const commentVal = String(commentInput ? commentInput.value : '').trim();
+    const commentVal = String(document.getElementById('edit_comment')?.value || '').trim();
     const idsForSave = String(zayavkiInput ? zayavkiInput.value : '')
         .split(',')
         .map(v => v.trim())
@@ -2159,7 +2181,7 @@ async function saveFlightEdit(options = {}) {
     const comboValid = validateDriverComboboxSelection();
     if (isStrictEdit && !comboValid) {
         showFlightValidationErrors({ driver_id: true }, UI.msgSaveValidationTitle);
-        return;
+        return false;
     }
     if (!isStrictEdit && !comboValid) {
         const driverInputText = document.getElementById('edit_driver_input');
@@ -2174,25 +2196,10 @@ async function saveFlightEdit(options = {}) {
     const saveErrors = isStrictEdit ? validateRequiredForStrictTransition() : {};
     if (Object.keys(saveErrors).length > 0) {
         showFlightValidationErrors(saveErrors, UI.msgSaveValidationTitle);
-        return;
+        return false;
     }
 
-    const routeType = normalizeRouteType(routeTypeInput ? routeTypeInput.value : (currentEditingMeta?.route_type || ''), currentEditingMeta?.unload_type || 'OO');
-    const payload = {
-        id: flightId,
-        driver_id: driverId,
-        planned_start_date_from: fromInput ? fromInput.value : '',
-        planned_start_date_to: toInput ? toInput.value : '',
-        actual_start_date: actualFromInput ? actualFromInput.value : '',
-        actual_end_date: actualToInput ? actualToInput.value : '',
-        cost: costInput ? costInput.value : '',
-        comment: commentInput ? commentInput.value : '',
-        zayavki_ids: zayavkiInput ? zayavkiInput.value : '',
-        unload_type: resolveUnloadTypeByRouteType(routeType),
-        route_type: routeType,
-        source_warehouse_id: sourceWarehouseInput ? sourceWarehouseInput.value : '',
-        destination_warehouse_id: destinationWarehouseInput ? destinationWarehouseInput.value : ''
-    };
+    const payload = collectFlightEditPayload();
 
     const status = String(statusInput ? statusInput.value : '');
     const previewEl = document.getElementById('flightChangePreview');
@@ -2266,7 +2273,7 @@ function hasUnsavedFlightEditChanges() {
     return false;
 }
 
-async function withUnsavedSaveGuard(transitionFn, routeId) {
+async function saveBeforeStatusTransition(transitionFn, routeId) {
     if (hasUnsavedFlightEditChanges()) {
         const ok = confirm('\u0412 \u0440\u0435\u0439\u0441\u0435 \u0435\u0441\u0442\u044c \u043d\u0435\u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d\u043d\u044b\u0435 \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f.\n\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0438 \u0432\u044b\u043f\u043e\u043b\u043d\u0438\u0442\u044c \u043f\u0435\u0440\u0435\u0445\u043e\u0434 \u0441\u0442\u0430\u0442\u0443\u0441\u0430?');
         if (!ok) return;
@@ -3222,7 +3229,7 @@ function init() {
             const routeId = Number(idInput ? idInput.value : 0);
             const source = sourceInput ? sourceInput.value : '';
             if (source !== 'planned') return;
-            if (routeId > 0) withUnsavedSaveGuard(transferPlannedToFound, routeId);
+            if (routeId > 0) saveBeforeStatusTransition(transferPlannedToFound, routeId);
         });
     }
     if (transferStartedBtn) {
@@ -3234,28 +3241,28 @@ function init() {
                 showFlightValidationErrors(preErrors);
                 return;
             }
-            if (routeId > 0) withUnsavedSaveGuard((id) => openStartConfirmModal(id, 'started'), routeId);
+            if (routeId > 0) saveBeforeStatusTransition((id) => openStartConfirmModal(id, 'started'), routeId);
         });
     }
     if (backToPlannedBtn) {
         backToPlannedBtn.addEventListener('click', () => {
             const idInput = document.getElementById('edit_flight_id');
             const routeId = Number(idInput ? idInput.value : 0);
-            if (routeId > 0) withUnsavedSaveGuard(transferToPlanned, routeId);
+            if (routeId > 0) saveBeforeStatusTransition(transferToPlanned, routeId);
         });
     }
     if (backToFoundBtn) {
         backToFoundBtn.addEventListener('click', () => {
             const idInput = document.getElementById('edit_flight_id');
             const routeId = Number(idInput ? idInput.value : 0);
-            if (routeId > 0) withUnsavedSaveGuard(transferToFound, routeId);
+            if (routeId > 0) saveBeforeStatusTransition(transferToFound, routeId);
         });
     }
     if (toCompletedBtn) {
         toCompletedBtn.addEventListener('click', () => {
             const idInput = document.getElementById('edit_flight_id');
             const routeId = Number(idInput ? idInput.value : 0);
-            if (routeId > 0) withUnsavedSaveGuard(transferToCompleted, routeId);
+            if (routeId > 0) saveBeforeStatusTransition(transferToCompleted, routeId);
         });
     }
     if (deleteBtn) {
