@@ -2550,6 +2550,20 @@ function getWarehouseStockById(warehouseId) {
     return warehouseStockData[key] || warehouseStockData[Number(key)] || null;
 }
 
+function createWarehouseMarkerSvgDataUri(label, bgColor, borderColor) {
+    const safeLabel = String(label || 'СКЛАД')
+        .replace(/&/g, '&')
+        .replace(/</g, '<')
+        .replace(/>/g, '>')
+        .replace(/"/g, '"');
+    const svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="58" height="32" viewBox="0 0 58 32">' +
+        '<path d="M4 1 H54 Q57 1 57 4 V22 Q57 25 54 25 H36 L29 31 L22 25 H4 Q1 25 1 22 V4 Q1 1 4 1 Z" fill="' + bgColor + '" stroke="' + borderColor + '" stroke-width="2"/>' +
+        '<text x="29" y="18" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="#ffffff">' + safeLabel + '</text>' +
+        '</svg>';
+    return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
+}
+
 function buildWarehouseBalloon(warehouse) {
     const id = warehouse.id || 0;
     const name = String(warehouse.name || ('Склад #' + id)).trim();
@@ -2559,7 +2573,6 @@ function buildWarehouseBalloon(warehouse) {
     const bruttoSum = stock ? Number(stock.mass_brutto_sum || 0) : 0;
     const volSum = stock ? Number(stock.volume_sum || 0) : 0;
     const reqCount = stock ? (stock.request_count || 0) : 0;
-    const hasStockInBalloon = stock && Array.isArray(stock.requests) && stock.requests.length > 0;
 
     let html = '<div style="padding:10px;min-width:360px;max-width:600px;font-size:13px;line-height:1.5;">';
     html += `<div style="font-size:18px;font-weight:700;margin-bottom:4px;">${escapeHtml(name)}</div>`;
@@ -2572,12 +2585,6 @@ function buildWarehouseBalloon(warehouse) {
         html += `<div><strong>Вес брутто:</strong> ${Number(bruttoSum).toFixed(3)} т</div>`;
         html += `<div><strong>Объём:</strong> ${Number(volSum).toFixed(3)} м³</div>`;
         html += '</div>';
-
-        if (hasStockInBalloon) {
-            html += '<div style="margin-bottom:10px;text-align:center;">';
-            html += `<button type="button" onclick="window.selectWarehouseStockFromPopup('${id}')" style="padding:8px 20px;font-size:14px;font-weight:700;background:#27ae60;color:#fff;border:none;border-radius:6px;cursor:pointer;">Добавить заявки склада в маршрут</button>`;
-            html += '</div>';
-        }
 
         if (Array.isArray(stock.inbound_routes) && stock.inbound_routes.length > 0) {
             html += '<div style="margin-bottom:8px;"><strong style="color:#27ae60;">Поступления на склад:</strong>';
@@ -2600,10 +2607,6 @@ function buildWarehouseBalloon(warehouse) {
     html += '</div>';
     return html;
 }
-
-window.selectWarehouseStockFromPopup = function(warehouseId) {
-    return toggleWarehouseSelection(warehouseId);
-};
 
 let selectedWarehouseId = null;
 
@@ -2635,7 +2638,7 @@ function toggleWarehouseSelection(warehouseId) {
                 weightById[zid] = kg;
             }
         });
-        selectedWarehouseId = Number(warehouseId) || warehouseId;
+        selectedWarehouseId = String(warehouseId || '').trim();
     }
     renderWarehousesLayer();
     refreshMarkerStyles();
@@ -2652,7 +2655,8 @@ function renderWarehousesLayer() {
         const lat = Number(warehouse.latitude);
         const lon = Number(warehouse.longitude);
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-        const id = warehouse.id || 0;
+        const id = String(warehouse.id || '').trim();
+        if (!id) return;
         const stock = getWarehouseStockById(id);
         const hasStock = stock
             && Number(stock.request_count || 0) > 0
@@ -2661,38 +2665,35 @@ function renderWarehousesLayer() {
             && stock.requests.length > 0;
         if (!hasStock) return;
         const name = String(warehouse.name || ('Склад #' + id)).trim();
-        const isSelectedWH = selectedWarehouseId === id;
+        const isSelectedWH = String(selectedWarehouseId || '') === id;
+        const bgColor = isSelectedWH ? '#e74c3c' : '#27ae60';
+        const borderColor = isSelectedWH ? '#c0392b' : '#2f343a';
+        const iconHref = createWarehouseMarkerSvgDataUri(UI.labelWarehouseMarker || 'СКЛАД', bgColor, borderColor);
 
         const placemark = new ymaps.Placemark([lat, lon], {
             hintContent: name + ' — ' + stock.request_count + ' заяв.',
             balloonContent: buildWarehouseBalloon(warehouse)
         }, {
-            iconLayout: ymaps.templateLayoutFactory.createClass(
-                `<div style="position:relative;width:58px;height:32px;font-family:Arial,sans-serif;">
-                    <div style="position:absolute;left:0;top:0;width:58px;height:24px;border:2px solid ${isSelectedWH ? '#e74c3c' : '#2f343a'};border-radius:7px;background:${isSelectedWH ? '#e74c3c' : '#27ae60'};color:#fff;font-weight:700;font-size:11px;line-height:20px;text-align:center;box-sizing:border-box;">${escapeHtml(UI.labelWarehouseMarker)}</div>
-                    <div style="position:absolute;left:23px;top:24px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid ${isSelectedWH ? '#e74c3c' : '#27ae60'};"></div>
-                </div>`
-            ),
-            iconOffset: [-29, -32],
-            iconShape: {
-                type: 'Polygon',
-                coordinates: [[-29, -32], [29, -32], [29, -8], [7, -8], [0, 0], [-7, -8], [-29, -8]]
-            },
-            zIndex: 420,
-            openBalloonOnClick: false
+            iconLayout: 'default#image',
+            iconImageHref: iconHref,
+            iconImageSize: [58, 32],
+            iconImageOffset: [-29, -32],
+            openBalloonOnClick: false,
+            openHintOnHover: true,
+            zIndex: 520
         });
 
         placemark.events.add('click', function(e) {
             if (e && typeof e.preventDefault === 'function') {
                 e.preventDefault();
             }
-            if (e && typeof e.stopPropagation === 'function') {
-                e.stopPropagation();
-            }
             toggleWarehouseSelection(id);
         });
 
-        placemark.events.add('dblclick', function() {
+        placemark.events.add('dblclick', function(e) {
+            if (e && typeof e.preventDefault === 'function') {
+                e.preventDefault();
+            }
             placemark.balloon.open();
         });
 
