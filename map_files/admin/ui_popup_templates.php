@@ -3,35 +3,42 @@
  * UI Popup Templates Admin
  * Управление шаблонами confirm/alert/popup для карты
  */
-define('UI_POPUP_NO_LAYOUT', true);
-
+session_start();
 require_once dirname(__DIR__) . '/bootstrap.php';
 require_once __DIR__ . '/common.php';
+require_once __DIR__ . '/ui_popup_templates_lib.php';
+
+if (!isset($pdo) || !($pdo instanceof PDO)) {
+    http_response_code(500);
+    echo 'Database connection error';
+    exit;
+}
 
 // ── Auth check ──
-$isAuthed = maxAdminIsAuthed();
-if (!$isAuthed) {
-    $password = trim((string)($_POST['password'] ?? ''));
-    if ($password !== '' && $password === maxAdminPasswordConst()) {
+if (!maxAdminIsAuthed() && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && (string)maxAdminPost('action') === 'login') {
+    if (hash_equals(maxAdminPasswordConst(), (string)maxAdminPost('password'))) {
         $_SESSION['max_admin_auth'] = 1;
-        $isAuthed = true;
-    } elseif (isset($_GET['logout'])) {
-        unset($_SESSION['max_admin_auth']);
-        $isAuthed = false;
+        header('Location: ui_popup_templates.php');
+        exit;
     }
 }
 
-// ── Include auto-seed helpers (skip action handling) ──
-define('UI_POPUP_ACTIONS_INCLUDED', true);
-require_once __DIR__ . '/ui_popup_templates_actions.php';
+if (maxAdminIsAuthed() && (string)($_GET['logout'] ?? '') === '1') {
+    unset($_SESSION['max_admin_auth']);
+    session_destroy();
+    header('Location: ui_popup_templates.php');
+    exit;
+}
+
+$isAuthed = maxAdminIsAuthed();
 
 // ── Fetch all templates with auto-seed ──
 $templates = [];
 if ($isAuthed) {
     try {
-        ensureTable($pdo);
-        ensureUiPopupDefaultTemplates($pdo);
-        $templates = fetchAllTemplates($pdo);
+        uiPopupEnsureTable($pdo);
+        uiPopupEnsureDefaultTemplates($pdo);
+        $templates = uiPopupFetchAll($pdo);
     } catch (Exception $e) {
         $templates = [];
     }
@@ -116,6 +123,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 <div class="auth-box">
     <h2>Вход в админку</h2>
     <form method="post">
+        <input type="hidden" name="action" value="login">
         <input type="password" name="password" placeholder="Пароль" autofocus>
         <button type="submit" class="btn">Войти</button>
     </form>
@@ -131,9 +139,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
                 <span class="badge <?= $tpl['is_enabled'] ? 'badge-on' : 'badge-off' ?>"><?= $tpl['is_enabled'] ? 'ON' : 'OFF' ?></span>
             </a>
             <?php endforeach; ?>
-            <?php if (empty($templates)): ?>
-            <div class="empty-state">Нет шаблонов</div>
-            <?php endif; ?>
         </div>
         <div style="margin-top:12px; padding: 0 1px;">
             <button class="btn btn-secondary btn-small" onclick="seedTemplates()" style="width:100%;">Добавить недостающие стандартные шаблоны</button>
@@ -171,7 +176,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 
             <label for="tpl_text">Текст шаблона</label>
             <textarea id="tpl_text"><?= maxAdminHtml($currentTemplate['template_text']) ?></textarea>
-            <div class="help">Доступные плейсхолдеры: <?= maxAdminHtml($currentTemplate['placeholders'] ?: 'нет') ?></div>
+            <div class="help">Доступные переменные: {route_id}, {zayavki_count}, {driver_compact}, {period}, {cost}, {actual_start_date}, {actual_end_date}, {driver_full}, {route_type_label}, {status_label}</div>
 
             <?php if ($currentTemplate['description']): ?>
             <div class="help" style="margin-top:4px;">Описание: <?= maxAdminHtml($currentTemplate['description']) ?></div>
