@@ -2638,7 +2638,6 @@ function toggleWarehouseSelection(warehouseId) {
         selectedWarehouseId = Number(warehouseId) || warehouseId;
     }
     renderWarehousesLayer();
-    renderWarehouseStockSelector();
     refreshMarkerStyles();
     updateSelectionUI();
     return true;
@@ -2679,14 +2678,22 @@ function renderWarehousesLayer() {
                 type: 'Polygon',
                 coordinates: [[-29, -32], [29, -32], [29, -8], [7, -8], [0, 0], [-7, -8], [-29, -8]]
             },
-            zIndex: 420
+            zIndex: 420,
+            openBalloonOnClick: false
         });
 
         placemark.events.add('click', function(e) {
             if (e && typeof e.preventDefault === 'function') {
                 e.preventDefault();
             }
+            if (e && typeof e.stopPropagation === 'function') {
+                e.stopPropagation();
+            }
             toggleWarehouseSelection(id);
+        });
+
+        placemark.events.add('dblclick', function() {
+            placemark.balloon.open();
         });
 
         warehousesCollection.add(placemark);
@@ -2742,75 +2749,8 @@ async function loadWarehouseStock() {
                 }
             });
         }
-        renderWarehouseStockSelector();
     } catch (e) {
         console.error('loadWarehouseStock failed:', e);
-    }
-}
-
-function renderWarehouseStockSelector() {
-    var container = document.getElementById('warehouse-stock-selector');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'warehouse-stock-selector';
-        container.style.cssText = 'position:fixed;top:80px;right:330px;width:280px;max-height:60vh;overflow-y:auto;background:#fff;border-radius:8px;border:1px solid #d9dee5;box-shadow:0 2px 8px rgba(0,0,0,0.12);padding:10px;z-index:20050;pointer-events:auto;';
-        document.body.appendChild(container);
-    }
-
-    container.innerHTML = '';
-
-    var title = document.createElement('h4');
-    title.style.cssText = 'margin:0 0 8px;color:#2f3640;border-bottom:1px solid #d9dee5;padding-bottom:5px;font-size:13px;';
-    title.textContent = 'Склады с остатками';
-    container.appendChild(title);
-
-    var foundAny = false;
-
-    Object.keys(warehouseStockData).forEach(function(whKey) {
-        var stock = warehouseStockData[whKey];
-        if (!stock || Number(stock.request_count || 0) <= 0 || !Array.isArray(stock.requests) || stock.requests.length === 0) return;
-        foundAny = true;
-        var wid = stock.warehouse_id || whKey;
-        var name = escapeHtml(stock.name || ('Склад #' + wid));
-        var count = stock.request_count;
-        var netto = Number(stock.mass_netto_sum || 0).toFixed(3);
-        var stockIds = stock.requests.map(function(r) { return String(r.zayavka_id); });
-        var allSelected = stockIds.length > 0 && stockIds.every(function(id) { return selectedOrder.indexOf(id) !== -1; });
-
-        var card = document.createElement('div');
-        card.style.cssText = 'background:#f0f7ff;border-radius:6px;padding:8px;margin-bottom:8px;';
-
-        var nameDiv = document.createElement('div');
-        nameDiv.style.cssText = 'font-weight:700;font-size:13px;margin-bottom:4px;';
-        nameDiv.textContent = name;
-        card.appendChild(nameDiv);
-
-        var infoDiv = document.createElement('div');
-        infoDiv.style.cssText = 'font-size:12px;color:#555;margin-bottom:4px;';
-        infoDiv.textContent = 'Заявок: ' + count + ' | Вес: ' + netto + ' т';
-        card.appendChild(infoDiv);
-
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.style.cssText = 'width:100%;padding:6px 0;font-size:13px;font-weight:700;color:#fff;border:none;border-radius:4px;cursor:pointer;pointer-events:auto;';
-        btn.style.background = allSelected ? '#e74c3c' : '#27ae60';
-        btn.textContent = allSelected ? 'Убрать заявки склада из маршрута' : 'Добавить заявки склада в маршрут';
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleWarehouseSelection(wid);
-            renderWarehouseStockSelector();
-        });
-        card.appendChild(btn);
-
-        container.appendChild(card);
-    });
-
-    if (!foundAny) {
-        var emptyDiv = document.createElement('div');
-        emptyDiv.style.cssText = 'color:#888;font-size:12px;';
-        emptyDiv.textContent = 'Нет складов с остатками';
-        container.appendChild(emptyDiv);
     }
 }
 
