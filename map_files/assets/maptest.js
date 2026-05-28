@@ -2544,15 +2544,22 @@ function buildRouteManageMenu(routeId, source) {
     return '';
 }
 
+function getWarehouseStockById(warehouseId) {
+    var key = String(warehouseId || '').trim();
+    if (!key || !warehouseStockData) return null;
+    return warehouseStockData[key] || warehouseStockData[Number(key)] || null;
+}
+
 function buildWarehouseBalloon(warehouse) {
     const id = warehouse.id || 0;
     const name = String(warehouse.name || ('Склад #' + id)).trim();
     const address = String(warehouse.address || '').trim();
-    const stock = (warehouseStockData && warehouseStockData[id]) ? warehouseStockData[id] : null;
+    const stock = getWarehouseStockById(id);
     const nettoSum = stock ? Number(stock.mass_netto_sum || 0) : 0;
     const bruttoSum = stock ? Number(stock.mass_brutto_sum || 0) : 0;
     const volSum = stock ? Number(stock.volume_sum || 0) : 0;
     const reqCount = stock ? (stock.request_count || 0) : 0;
+    const hasStockInBalloon = stock && Array.isArray(stock.requests) && stock.requests.length > 0;
 
     let html = '<div style="padding:10px;min-width:360px;max-width:600px;font-size:13px;line-height:1.5;">';
     html += `<div style="font-size:18px;font-weight:700;margin-bottom:4px;">${escapeHtml(name)}</div>`;
@@ -2565,6 +2572,12 @@ function buildWarehouseBalloon(warehouse) {
         html += `<div><strong>Вес брутто:</strong> ${Number(bruttoSum).toFixed(3)} т</div>`;
         html += `<div><strong>Объём:</strong> ${Number(volSum).toFixed(3)} м³</div>`;
         html += '</div>';
+
+        if (hasStockInBalloon) {
+            html += '<div style="margin-bottom:10px;text-align:center;">';
+            html += `<button type="button" onclick="window.selectWarehouseStockFromPopup('${id}')" style="padding:8px 20px;font-size:14px;font-weight:700;background:#27ae60;color:#fff;border:none;border-radius:6px;cursor:pointer;">Добавить заявки склада в маршрут</button>`;
+            html += '</div>';
+        }
 
         if (Array.isArray(stock.inbound_routes) && stock.inbound_routes.length > 0) {
             html += '<div style="margin-bottom:8px;"><strong style="color:#27ae60;">Поступления на склад:</strong>';
@@ -2588,11 +2601,14 @@ function buildWarehouseBalloon(warehouse) {
     return html;
 }
 
+window.selectWarehouseStockFromPopup = function(warehouseId) {
+    return toggleWarehouseSelection(warehouseId);
+};
+
 let selectedWarehouseId = null;
 
 function toggleWarehouseSelection(warehouseId) {
-    var key = String(warehouseId);
-    var stock = (warehouseStockData && warehouseStockData[key]) ? warehouseStockData[key] : null;
+    var stock = getWarehouseStockById(warehouseId);
     if (!stock || !Array.isArray(stock.requests) || stock.requests.length === 0) {
         return false;
     }
@@ -2606,16 +2622,20 @@ function toggleWarehouseSelection(warehouseId) {
         });
         selectedWarehouseId = null;
     } else {
-        stockIds.forEach(function(id) {
-            if (selectedOrder.indexOf(id) === -1) selectedOrder.push(id);
-        });
-        selectedWarehouseId = warehouseId;
+        var addedCount = 0;
         stock.requests.forEach(function(req) {
             var zid = String(req.zayavka_id || '').trim();
-            if (zid && !(zid in weightById)) {
-                weightById[zid] = Math.round(Number(req.mass_netto || 0) * 1000);
+            if (!zid) return;
+            if (selectedOrder.indexOf(zid) === -1) {
+                selectedOrder.push(zid);
+                addedCount++;
+            }
+            var kg = Math.round(Number(req.mass_netto || 0) * 1000);
+            if (kg > 0) {
+                weightById[zid] = kg;
             }
         });
+        selectedWarehouseId = Number(warehouseId) || warehouseId;
     }
     renderWarehousesLayer();
     refreshMarkerStyles();
@@ -2633,7 +2653,7 @@ function renderWarehousesLayer() {
         const lon = Number(warehouse.longitude);
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
         const id = warehouse.id || 0;
-        const stock = (warehouseStockData && warehouseStockData[id]) ? warehouseStockData[id] : null;
+        const stock = getWarehouseStockById(id);
         const hasStock = stock
             && Number(stock.request_count || 0) > 0
             && Number(stock.mass_netto_sum || 0) > 0
@@ -2662,10 +2682,10 @@ function renderWarehousesLayer() {
         });
 
         placemark.events.add('click', function(e) {
-            var targetId = Number(id);
-            if (Number.isFinite(targetId) && targetId > 0) {
-                toggleWarehouseSelection(targetId);
+            if (e && typeof e.preventDefault === 'function') {
+                e.preventDefault();
             }
+            toggleWarehouseSelection(id);
         });
 
         warehousesCollection.add(placemark);
