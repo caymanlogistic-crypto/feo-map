@@ -21,25 +21,17 @@ if (!$isAuthed) {
     }
 }
 
-// ── Fetch all templates ──
+// ── Include auto-seed helpers (skip action handling) ──
+define('UI_POPUP_ACTIONS_INCLUDED', true);
+require_once __DIR__ . '/ui_popup_templates_actions.php';
+
+// ── Fetch all templates with auto-seed ──
 $templates = [];
 if ($isAuthed) {
     try {
-        // ensure table
-        $pdo->exec("CREATE TABLE IF NOT EXISTS `ui_popup_templates` (
-            `id` INT AUTO_INCREMENT PRIMARY KEY,
-            `popup_key` VARCHAR(100) NOT NULL UNIQUE,
-            `title` VARCHAR(255) NOT NULL,
-            `template_text` TEXT NOT NULL,
-            `is_enabled` TINYINT(1) NOT NULL DEFAULT 1,
-            `description` TEXT NULL,
-            `placeholders` TEXT NULL,
-            `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            `updated_at` DATETIME NULL
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-
-        $stmt = $pdo->query("SELECT * FROM `ui_popup_templates` ORDER BY `popup_key` ASC");
-        $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        ensureTable($pdo);
+        ensureUiPopupDefaultTemplates($pdo);
+        $templates = fetchAllTemplates($pdo);
     } catch (Exception $e) {
         $templates = [];
     }
@@ -143,8 +135,8 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
             <div class="empty-state">Нет шаблонов</div>
             <?php endif; ?>
         </div>
-        <div style="margin-top:12px;">
-            <button class="btn btn-success" onclick="seedTemplates()" style="width:100%;">Создать стандартные шаблоны</button>
+        <div style="margin-top:12px; padding: 0 1px;">
+            <button class="btn btn-secondary btn-small" onclick="seedTemplates()" style="width:100%;">Добавить недостающие стандартные шаблоны</button>
         </div>
     </div>
 
@@ -194,13 +186,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
             <div class="preview-box" id="preview-box" style="display:none;">
                 <div class="preview-title">Превью (тестовые данные):</div>
                 <div id="preview-content"></div>
-            </div>
-        </div>
-        <?php elseif (empty($templates)): ?>
-        <div class="card">
-            <div class="empty-state">
-                <p>Таблица шаблонов пуста.</p>
-                <p>Нажмите «Создать стандартные шаблоны» чтобы заполнить её.</p>
             </div>
         </div>
         <?php else: ?>
@@ -267,7 +252,7 @@ function resetTemplate() {
 }
 
 function seedTemplates() {
-    if (!confirm('Создать стандартные шаблоны?')) return;
+    if (!confirm('Добавить только недостающие стандартные шаблоны? Существующие шаблоны не будут изменены.')) return;
     var form = new FormData();
     form.append('action', 'seed');
 
@@ -275,7 +260,7 @@ function seedTemplates() {
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) {
-                toast(data.message || 'Создано', false);
+                toast(data.message || 'Готово', false);
                 setTimeout(function(){ location.reload(); }, 600);
             } else {
                 toast(data.error || 'Ошибка', true);

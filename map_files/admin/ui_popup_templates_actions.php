@@ -14,6 +14,9 @@ define('UI_POPUP_NO_LAYOUT', true);
 require_once dirname(__DIR__) . '/bootstrap.php';
 require_once __DIR__ . '/common.php';
 
+// ── When included from another file (e.g. admin page), skip action handling ──
+if (!defined('UI_POPUP_ACTIONS_INCLUDED')) {
+
 header('Content-Type: application/json; charset=utf-8');
 
 $action = trim((string)($_GET['action'] ?? ($_POST['action'] ?? '')));
@@ -21,6 +24,7 @@ $action = trim((string)($_GET['action'] ?? ($_POST['action'] ?? '')));
 // ── Публичный эндпоинт (без авторизации) ──
 if ($action === 'list_public') {
     ensureTable($pdo);
+    ensureUiPopupDefaultTemplates($pdo);
     $templates = fetchEnabledTemplates($pdo);
     echo json_encode(['success' => true, 'templates' => $templates], JSON_UNESCAPED_UNICODE);
     exit;
@@ -30,6 +34,7 @@ if ($action === 'list_public') {
 maxAdminRequireAuthJson();
 
 ensureTable($pdo);
+ensureUiPopupDefaultTemplates($pdo);
 
 switch ($action) {
     case 'list':
@@ -81,12 +86,14 @@ switch ($action) {
 
     case 'seed':
         $count = seedDefaultTemplates($pdo);
-        echo json_encode(['success' => true, 'message' => "Создано шаблонов: {$count}"], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => true, 'message' => "Добавлено недостающих шаблонов: {$count}"], JSON_UNESCAPED_UNICODE);
         break;
 
     default:
         echo json_encode(['success' => false, 'error' => 'Неизвестное действие: ' . $action], JSON_UNESCAPED_UNICODE);
 }
+
+} // end if (!defined('UI_POPUP_ACTIONS_INCLUDED'))
 
 // ── Database helpers ──
 
@@ -160,7 +167,7 @@ function updateTemplate(PDO $pdo, string $popupKey, string $title, string $templ
     ]);
 }
 
-function seedDefaultTemplates(PDO $pdo): int
+function ensureUiPopupDefaultTemplates(PDO $pdo): int
 {
     $count = 0;
     $existing = fetchAllTemplates($pdo);
@@ -174,6 +181,11 @@ function seedDefaultTemplates(PDO $pdo): int
         $count++;
     }
     return $count;
+}
+
+function seedDefaultTemplates(PDO $pdo): int
+{
+    return ensureUiPopupDefaultTemplates($pdo);
 }
 
 function getDefaultTemplate(string $popupKey): ?array
