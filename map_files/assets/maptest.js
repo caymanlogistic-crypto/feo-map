@@ -2128,7 +2128,7 @@ async function postRouteAction(action, payload) {
     return data;
 }
 
-async function saveFlightEdit() {
+async function saveFlightEdit(options = {}) {
     const idInput = document.getElementById('edit_flight_id');
     const driverInput = document.getElementById('edit_driver_id');
     const fromInput = document.getElementById('edit_planned_start_date_from');
@@ -2210,7 +2210,7 @@ async function saveFlightEdit() {
         const warnText = status === 'started'
             ? '\u0420\u0435\u0439\u0441 \u0443\u0436\u0435 \u043d\u0430\u0445\u043e\u0434\u0438\u0442\u0441\u044f \u0432 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u0438. \u041f\u043e\u0441\u043b\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0431\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0432 MAX. \u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c?'
             : '\u041f\u043e\u0441\u043b\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0431\u0443\u0434\u0443\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b \u0432 MAX. \u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c?';
-        if (previewHtml && !confirm(warnText)) {
+        if (!options.silent && previewHtml && !confirm(warnText)) {
             return;
         }
     }
@@ -2219,7 +2219,12 @@ async function saveFlightEdit() {
         const result = await postRouteAction('save', payload);
         if (result && result.success) {
             await loadPlannedRoutes();
-            closeFlightEditModal();
+            if (options.closeModal !== false) {
+                closeFlightEditModal();
+            }
+            if (!options.silent) {
+                window.location.reload();
+            }
             return;
         }
         if (result && result.errors && typeof result.errors === 'object') {
@@ -2230,6 +2235,44 @@ async function saveFlightEdit() {
         console.error('saveFlightEdit error:', e);
         alert(UI.msgNetworkUpdateFlight);
     }
+}
+
+function hasUnsavedFlightEditChanges() {
+    if (!currentEditingMeta) return false;
+    const isStarted = currentEditingMeta.status === 'started';
+    const driverInput = document.getElementById('edit_driver_id');
+    if (Number(driverInput?.value || 0) !== Number(currentEditingMeta.driver_id || 0)) return true;
+    const costInput = document.getElementById('edit_cost');
+    if (String(costInput?.value || '').trim() !== String(currentEditingMeta.cost ?? '')) return true;
+    const zayavkiInput = document.getElementById('edit_zayavki_ids');
+    if (String(zayavkiInput?.value || '').replace(/\s/g, '') !== String(currentEditingMeta.zayavki_ids || '').replace(/\s/g, '')) return true;
+    const commentInput = document.getElementById('edit_comment');
+    if ((commentInput?.value || '').trim() !== (currentEditingMeta.comment || '').trim()) return true;
+    const routeTypeInput = document.getElementById('edit_route_type');
+    const curRt = normalizeRouteType(routeTypeInput?.value || '', currentEditingMeta.unload_type || 'OO');
+    const metaRt = normalizeRouteType(currentEditingMeta.route_type || '', currentEditingMeta.unload_type || 'OO');
+    if (curRt !== metaRt) return true;
+    const srcWh = document.getElementById('edit_source_warehouse_id');
+    const dstWh = document.getElementById('edit_destination_warehouse_id');
+    if (Number(srcWh?.value || 0) !== Number(currentEditingMeta.source_warehouse_id || 0)) return true;
+    if (Number(dstWh?.value || 0) !== Number(currentEditingMeta.destination_warehouse_id || 0)) return true;
+    const dateFrom = document.getElementById(isStarted ? 'edit_actual_start_date' : 'edit_planned_start_date_from');
+    const dateTo = document.getElementById(isStarted ? 'edit_actual_end_date' : 'edit_planned_start_date_to');
+    const curFrom = (dateFrom?.value || '').trim();
+    const curTo = (dateTo?.value || '').trim();
+    const metaFrom = isStarted ? String(currentEditingMeta.actual_start_date || '') : String(currentEditingMeta.planned_start_date_from || '');
+    const metaTo = isStarted ? String(currentEditingMeta.actual_end_date || '') : String(currentEditingMeta.planned_start_date_to || '');
+    if (curFrom !== metaFrom.trim() || curTo !== metaTo.trim()) return true;
+    return false;
+}
+
+async function withUnsavedSaveGuard(transitionFn, routeId) {
+    if (hasUnsavedFlightEditChanges()) {
+        const ok = confirm('\u0412 \u0440\u0435\u0439\u0441\u0435 \u0435\u0441\u0442\u044c \u043d\u0435\u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d\u043d\u044b\u0435 \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f.\n\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0438 \u0432\u044b\u043f\u043e\u043b\u043d\u0438\u0442\u044c \u043f\u0435\u0440\u0435\u0445\u043e\u0434 \u0441\u0442\u0430\u0442\u0443\u0441\u0430?');
+        if (!ok) return;
+        await saveFlightEdit({ closeModal: false, silent: true });
+    }
+    await transitionFn(routeId);
 }
 
 async function transferPlannedToFound(routeId) {
@@ -3179,7 +3222,7 @@ function init() {
             const routeId = Number(idInput ? idInput.value : 0);
             const source = sourceInput ? sourceInput.value : '';
             if (source !== 'planned') return;
-            if (routeId > 0) transferPlannedToFound(routeId);
+            if (routeId > 0) withUnsavedSaveGuard(transferPlannedToFound, routeId);
         });
     }
     if (transferStartedBtn) {
@@ -3191,28 +3234,28 @@ function init() {
                 showFlightValidationErrors(preErrors);
                 return;
             }
-            if (routeId > 0) openStartConfirmModal(routeId, 'started');
+            if (routeId > 0) withUnsavedSaveGuard((id) => openStartConfirmModal(id, 'started'), routeId);
         });
     }
     if (backToPlannedBtn) {
         backToPlannedBtn.addEventListener('click', () => {
             const idInput = document.getElementById('edit_flight_id');
             const routeId = Number(idInput ? idInput.value : 0);
-            if (routeId > 0) transferToPlanned(routeId);
+            if (routeId > 0) withUnsavedSaveGuard(transferToPlanned, routeId);
         });
     }
     if (backToFoundBtn) {
         backToFoundBtn.addEventListener('click', () => {
             const idInput = document.getElementById('edit_flight_id');
             const routeId = Number(idInput ? idInput.value : 0);
-            if (routeId > 0) transferToFound(routeId);
+            if (routeId > 0) withUnsavedSaveGuard(transferToFound, routeId);
         });
     }
     if (toCompletedBtn) {
         toCompletedBtn.addEventListener('click', () => {
             const idInput = document.getElementById('edit_flight_id');
             const routeId = Number(idInput ? idInput.value : 0);
-            if (routeId > 0) transferToCompleted(routeId);
+            if (routeId > 0) withUnsavedSaveGuard(transferToCompleted, routeId);
         });
     }
     if (deleteBtn) {
