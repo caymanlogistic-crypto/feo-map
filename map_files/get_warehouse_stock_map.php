@@ -22,9 +22,35 @@ if (!isset($pdo) || !($pdo instanceof PDO)) {
 }
 
 try {
-    // ── Загружаем склады ──
+    // ── Адаптивная загрузка складов (колонки могут отличаться) ──
     $whMap = [];
-    $stmt = $pdo->query('SELECT id, name, address, latitude, longitude FROM warehouses ORDER BY id ASC');
+    $stmtCols = $pdo->query('SHOW COLUMNS FROM warehouses');
+    $columns = $stmtCols ? $stmtCols->fetchAll(PDO::FETCH_COLUMN) : [];
+    $colMap = [];
+    foreach ((array)$columns as $c) { $colMap[(string)$c] = true; }
+
+    $nameCol = 'id';
+    foreach (['name', 'title', 'warehouse_name', 'label'] as $cand) {
+        if (isset($colMap[$cand])) { $nameCol = $cand; break; }
+    }
+    $addrCol = null;
+    foreach (['address', 'full_address', 'location', 'addr'] as $cand) {
+        if (isset($colMap[$cand])) { $addrCol = $cand; break; }
+    }
+    $hasLat = isset($colMap['latitude']);
+    $hasLon = isset($colMap['longitude']);
+
+    $sql = 'SELECT id, ' . (function($n) { return '`'.str_replace('`','``',$n).'`'; })($nameCol) . ' AS name';
+    $sql .= $hasLat ? ', latitude' : ', NULL AS latitude';
+    $sql .= $hasLon ? ', longitude' : ', NULL AS longitude';
+    if ($addrCol !== null) {
+        $sql .= ', ' . (function($n) { return '`'.str_replace('`','``',$n).'`'; })($addrCol) . ' AS address';
+    } else {
+        $sql .= ', NULL AS address';
+    }
+    $sql .= ' FROM warehouses ORDER BY id ASC';
+
+    $stmt = $pdo->query($sql);
     foreach (($stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : []) as $row) {
         $wid = (int)$row['id'];
         $whMap[$wid] = [
